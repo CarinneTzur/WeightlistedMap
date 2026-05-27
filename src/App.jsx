@@ -3,6 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
 	getAllCoaches,
+	getAllGyms,
 	getStateByAbbr,
 	getStatesWithCoaches,
 } from "./utils/coachData";
@@ -196,8 +197,8 @@ const STOP_WORDS = new Set([
 ]);
 
 // --- Clustering ---
-// Grid-based clustering: at each zoom level, snap coach coords to a grid cell
-// and merge coaches that land in the same cell.
+// Grid-based clustering: at each zoom level, snap gym coords to a grid cell
+// and merge gyms that land in the same cell.
 const CLUSTER_GRID_SIZE_DEG = {
 	3: 8,
 	4: 5,
@@ -207,39 +208,119 @@ const CLUSTER_GRID_SIZE_DEG = {
 	8: 0.3,
 };
 
-function clusterCoaches(coaches, zoom) {
+const ZIP_RADIUS_OPTIONS = [10, 25, 50, 100, 250];
+
+function toRadians(degrees) {
+	return (degrees * Math.PI) / 180;
+}
+
+function getDistanceMiles(pointA, pointB) {
+	const earthRadiusMiles = 3958.8;
+	const deltaLat = toRadians(pointB.latitude - pointA.latitude);
+	const deltaLng = toRadians(pointB.longitude - pointA.longitude);
+	const latA = toRadians(pointA.latitude);
+	const latB = toRadians(pointB.latitude);
+	const haversine =
+		Math.sin(deltaLat / 2) ** 2 +
+		Math.cos(latA) * Math.cos(latB) * Math.sin(deltaLng / 2) ** 2;
+
+	return (
+		2 *
+		earthRadiusMiles *
+		Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+	);
+}
+
+function getZipOrigin(zip, gyms) {
+	const normalizedZip = zip.trim();
+	if (normalizedZip.length < 5) return null;
+	return gyms.find((gym) => gym.zip === normalizedZip) || null;
+}
+
+function filterGymsByZipRadius(gyms, zip, radiusMiles) {
+	if (zip.trim().length < 5) return gyms;
+	const origin = getZipOrigin(zip, gyms);
+	if (!origin) return [];
+
+	return gyms.filter(
+		(gym) => getDistanceMiles(origin, gym) <= Number(radiusMiles),
+	);
+}
+
+function uniqueCoaches(coaches) {
+	return Array.from(
+		new Map(coaches.map((coach) => [coach.id, coach])).values(),
+	);
+}
+
+function buildGymCluster(id, gyms) {
+	const coaches = uniqueCoaches(gyms.flatMap((gym) => gym.coachesAtGym));
+	const weightTotal = gyms.reduce(
+		(total, gym) => total + Math.max(gym.coachCount, 1),
+		0,
+	);
+	const weightedLatitude =
+		gyms.reduce(
+			(total, gym) => total + gym.latitude * Math.max(gym.coachCount, 1),
+			0,
+		) / weightTotal;
+	const weightedLongitude =
+		gyms.reduce(
+			(total, gym) => total + gym.longitude * Math.max(gym.coachCount, 1),
+			0,
+		) / weightTotal;
+
+	return {
+		id,
+		gyms,
+		coaches,
+		lat: weightedLatitude,
+		lng: weightedLongitude,
+		count: coaches.length,
+		gymCount: gyms.length,
+	};
+}
+
+function clusterGyms(gyms, zoom) {
+	if (zoom <= 4) {
+		const stateGroups = new Map();
+		gyms.forEach((gym) => {
+			if (!stateGroups.has(gym.state)) stateGroups.set(gym.state, []);
+			stateGroups.get(gym.state).push(gym);
+		});
+
+		return Array.from(stateGroups.entries()).map(([state, stateGyms]) =>
+			buildGymCluster(`state-${state}`, stateGyms),
+		);
+	}
+
 	const gridSize = CLUSTER_GRID_SIZE_DEG[Math.min(zoom, 8)] ?? 0;
 	if (!gridSize) {
-		// At high zoom, each coach is its own cluster
-		return coaches.map((coach) => ({
-			id: `single-${coach.id}`,
-			coaches: [coach],
-			lat: coach.coords[0],
-			lng: coach.coords[1],
-			count: 1,
+		return gyms.map((gym) => ({
+			id: `single-${gym.id}`,
+			gyms: [gym],
+			coaches: gym.coachesAtGym,
+			lat: gym.latitude,
+			lng: gym.longitude,
+			count: gym.coachCount,
+			gymCount: 1,
 		}));
 	}
 
 	const cells = new Map();
-	coaches.forEach((coach) => {
-		const cellLat =
-			Math.floor(coach.coords[0] / gridSize) * gridSize + gridSize / 2;
-		const cellLng =
-			Math.floor(coach.coords[1] / gridSize) * gridSize + gridSize / 2;
-		const key = `${cellLat.toFixed(4)},${cellLng.toFixed(4)}`;
+	gyms.forEach((gym) => {
+		const cellLat = Math.floor(gym.latitude / gridSize);
+		const cellLng = Math.floor(gym.longitude / gridSize);
+		const key = `${cellLat},${cellLng}`;
 		if (!cells.has(key)) {
-			cells.set(key, { coaches: [], lat: cellLat, lng: cellLng });
+			cells.set(key, { gyms: [] });
 		}
-		cells.get(key).coaches.push(coach);
+		cells.get(key).gyms.push(gym);
 	});
 
-	return Array.from(cells.entries()).map(([key, cell]) => ({
-		id: `cluster-${key}`,
-		coaches: cell.coaches,
-		lat: cell.lat,
-		lng: cell.lng,
-		count: cell.coaches.length,
-	}));
+	return Array.from(cells.entries()).map(([key, cell]) =>
+		buildGymCluster(`cluster-${key}`, cell.gyms),
+	);
 }
 
 function useIsDesktop() {
@@ -294,8 +375,35 @@ function getCoachSearchText(coach) {
 		coach.bio,
 		coach.state,
 		coach.stateAbbr,
+		coach.gyms?.map((gym) =>
+			[
+				gym.name,
+				gym.city,
+				gym.state,
+				gym.zip,
+				gym.tags?.join(" "),
+				gym.description,
+			].join(" "),
+		),
 		coach.specialties?.join(" "),
 		coach.onlineTraining ? "online training" : "",
+	].join(" ");
+}
+
+function getGymSearchText(gym) {
+	return [
+		gym.name,
+		gym.address,
+		gym.city,
+		gym.state,
+		gym.zip,
+		gym.tags?.join(" "),
+		gym.description,
+		gym.coachesAtGym
+			?.map((coach) =>
+				[coach.name, coach.title, coach.specialties?.join(" ")].join(" "),
+			)
+			.join(" "),
 	].join(" ");
 }
 
@@ -368,6 +476,19 @@ function rankCoachesBySemanticSearch(coaches, query) {
 			b.score !== a.score ? b.score - a.score : a.index - b.index,
 		)
 		.map(({ coach }) => coach);
+}
+
+function rankGymsBySemanticSearch(gyms, query) {
+	const trimmedQuery = query.trim();
+	if (!trimmedQuery) return gyms;
+
+	const queryTokens = expandTokens(tokenizeText(trimmedQuery)).map(
+		({ token }) => token,
+	);
+	return gyms.filter((gym) => {
+		const gymTokens = new Set(tokenizeText(getGymSearchText(gym)));
+		return queryTokens.some((token) => gymTokens.has(token));
+	});
 }
 
 function getOuterRingsFromGeometry(geometry) {
@@ -718,12 +839,36 @@ const styles = {
 		padding: "12px 16px",
 		borderRadius: 13,
 		fontSize: 15,
-		margin: "0 0 22px 0",
+		lineHeight: 1.35,
+		margin: 0,
 		outline: "none",
 		background: "rgba(30,28,30,0.72)",
 		border: `1px solid ${palette.border}`,
 		color: palette.text,
 		boxShadow: "0 1.5px 8px rgba(0,0,0,0.22) inset",
+		fontFamily: "inherit",
+		minHeight: 46,
+		height: 46,
+		maxHeight: 46,
+		resize: "none",
+		overflowY: "hidden",
+	},
+	searchInputWrap: {
+		position: "relative",
+		margin: "0 0 22px 0",
+	},
+	searchPlaceholderMarquee: {
+		position: "absolute",
+		left: 17,
+		right: 17,
+		top: "50%",
+		transform: "translateY(-50%)",
+		overflow: "hidden",
+		whiteSpace: "nowrap",
+		pointerEvents: "none",
+		color: "rgba(198,197,195,0.58)",
+		fontSize: 15,
+		lineHeight: 1.35,
 	},
 	coachCard: {
 		background:
@@ -737,6 +882,9 @@ const styles = {
 		gap: 16,
 		cursor: "pointer",
 		border: `1px solid ${palette.border}`,
+		width: "100%",
+		textAlign: "left",
+		fontFamily: "inherit",
 		transition:
 			"border-color 0.18s ease, box-shadow 0.26s ease, transform 0.18s ease",
 		position: "relative",
@@ -766,6 +914,13 @@ const styles = {
 	},
 	coachTitle: { fontSize: 14, color: palette.graphite100, marginBottom: 3 },
 	coachLocation: { fontSize: 13, color: palette.muted, marginBottom: 4 },
+	coachGymLine: {
+		fontSize: 13.5,
+		color: palette.graphite100,
+		fontWeight: 620,
+		lineHeight: 1.35,
+		marginBottom: 5,
+	},
 	coachRating: {
 		fontSize: 13.5,
 		color: palette.graphite100,
@@ -1004,7 +1159,9 @@ const styles = {
 		height: "100%",
 		maxHeight: "100%",
 		overscrollBehaviorY: "contain",
-		paddingBottom: 6,
+		marginRight: -24,
+		padding: "0 24px 6px 0",
+		scrollbarGutter: "stable",
 	},
 	mobileSheetHandle: {
 		display: "block",
@@ -1024,7 +1181,15 @@ function StarRating({ value }) {
 	return <span style={styles.coachRating}>★ {value}</span>;
 }
 
+function getCoachGymNames(coach) {
+	return coach.gyms?.map((gym) => gym.name).filter(Boolean) || [];
+}
+
 function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
+	const gymNames = getCoachGymNames(coach);
+	const gymCities = coach.gyms?.map((gym) => gym.city).filter(Boolean) || [];
+	const cityLabel = [...new Set(gymCities)].join(" + ") || coach.city;
+
 	return (
 		<div
 			style={{
@@ -1044,10 +1209,14 @@ function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
 			<div style={styles.coachInfo}>
 				<div style={styles.coachName}>{coach.name}</div>
 				<div style={styles.coachTitle}>{coach.title}</div>
-				<div style={styles.coachLocation}>
-					{coach.city}
-					{coach.onlineTraining ? " • Online coaching" : ""}
+				<div style={styles.coachLocation}>{cityLabel}</div>
+				<div style={styles.coachGymLine}>
+					{gymNames.slice(0, 2).join(" + ") || "Gym details coming soon"}
+					{gymNames.length > 2 ? ` + ${gymNames.length - 2} more` : ""}
 				</div>
+				{coach.remoteAvailable ? (
+					<div style={styles.coachLocation}>Remote coaching available</div>
+				) : null}
 				<StarRating value={coach.rating} />
 				<div style={styles.tagList}>
 					{coach.specialties.map((tag) => (
@@ -1059,6 +1228,29 @@ function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
 	);
 }
 
+function GymCard({ gym, onClick }) {
+	return (
+		<button type="button" style={styles.coachCard} onClick={onClick}>
+			<div style={styles.coachInfo}>
+				<div style={styles.coachName}>{gym.name}</div>
+				<div style={styles.coachLocation}>
+					{gym.city}, {gym.state}
+				</div>
+				<div style={styles.coachGymLine}>
+					{gym.coachCount} {gym.coachCount === 1 ? "coach" : "coaches"} available
+				</div>
+				{gym.tags?.length ? (
+					<div style={styles.tagList}>
+						{gym.tags.slice(0, 4).map((tag) => (
+							<CoachTag key={tag}>{tag}</CoachTag>
+						))}
+					</div>
+				) : null}
+			</div>
+		</button>
+	);
+}
+
 function CoachProfile({
 	coach,
 	onBack,
@@ -1066,6 +1258,8 @@ function CoachProfile({
 	onToggleFavorite,
 	onContact,
 }) {
+	const gymNames = getCoachGymNames(coach);
+
 	return (
 		<div style={styles.profilePanel}>
 			<div style={styles.profileTopRow}>
@@ -1096,8 +1290,8 @@ function CoachProfile({
 			<div style={styles.profileName}>{coach.name}</div>
 			<div style={styles.profileTitle}>{coach.title}</div>
 			<div style={styles.profileLocation}>
-				📍 {coach.city}
-				{coach.onlineTraining ? " • Online coaching" : ""}
+				Available at: {gymNames.join(" + ") || coach.city}
+				{coach.remoteAvailable ? " • Remote coaching available" : ""}
 			</div>
 			<div style={styles.profileBio}>{coach.bio}</div>
 			<div style={{ ...styles.tagList, justifyContent: "center" }}>
@@ -1264,6 +1458,86 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 	);
 }
 
+function GymListPanel({
+	title,
+	eyebrow,
+	gyms,
+	onBack,
+	onSelectGym,
+	search,
+	setSearch,
+}) {
+	const filtered = rankGymsBySemanticSearch(gyms, search);
+
+	return (
+		<div className="coach-scroll-panel" style={styles.coachListPanelInner}>
+			<div style={styles.coachListHeader}>
+				<button
+					style={styles.backArrow}
+					aria-label="Back to map"
+					onClick={onBack}
+				>
+					←
+				</button>
+				<div>
+					<div
+						style={{
+							fontSize: 12,
+							color: palette.muted,
+							textTransform: "uppercase",
+							letterSpacing: "0.18em",
+						}}
+					>
+						{eyebrow}
+					</div>
+					<div
+						style={{
+							fontWeight: 720,
+							fontSize: 21,
+							color: palette.text,
+							letterSpacing: -0.3,
+						}}
+					>
+						{title}
+					</div>
+				</div>
+			</div>
+			<div style={styles.searchInputWrap}>
+				<textarea
+					className="coach-scroll-panel"
+					style={styles.searchInput}
+					placeholder=""
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					rows={1}
+					autoFocus
+				/>
+				{search ? null : (
+					<div style={styles.searchPlaceholderMarquee}>
+						<span className="coach-placeholder-marquee">
+							Search gyms, cities, ZIPs, tags, or coach specialties
+						</span>
+					</div>
+				)}
+			</div>
+			<div>
+				{filtered.length === 0 ? (
+					<div style={styles.emptyState}>
+						No gyms found. Try a city, ZIP, gym name, or specialty.
+					</div>
+				) : null}
+				{filtered.map((gym) => (
+					<GymCard
+						key={gym.id}
+						gym={gym}
+						onClick={() => onSelectGym(gym)}
+					/>
+				))}
+			</div>
+		</div>
+	);
+}
+
 function CoachListPanel({
 	title,
 	eyebrow,
@@ -1339,13 +1613,24 @@ function CoachListPanel({
 					</div>
 				</div>
 			</div>
-			<input
-				style={styles.searchInput}
-				placeholder="Describe what you want, like heavy lifting or female wellness..."
-				value={search}
-				onChange={(e) => setSearch(e.target.value)}
-				autoFocus
-			/>
+			<div style={styles.searchInputWrap}>
+				<textarea
+					className="coach-scroll-panel"
+					style={styles.searchInput}
+					placeholder=""
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+					rows={1}
+					autoFocus
+				/>
+				{search ? null : (
+					<div style={styles.searchPlaceholderMarquee}>
+						<span className="coach-placeholder-marquee">
+							Describe what you want, a city, a gym, etc. ex. "Heavy Lifting"
+						</span>
+					</div>
+				)}
+			</div>
 			<div>
 				{filtered.length === 0 ? (
 					<div style={styles.emptyState}>{emptyMessage}</div>
@@ -1484,6 +1769,36 @@ function addGlobalMapStyles() {
     }
     .cluster-tooltip-title { font-size: 13px; font-weight: 700; color: #F2F1EF; margin: 0 0 4px; }
     .cluster-tooltip-sub { font-size: 11px; color: #A8A6A2; margin: 0; }
+
+    .coach-scroll-panel {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(198,197,195,0.34) transparent;
+    }
+    .coach-scroll-panel::-webkit-scrollbar { width: 6px; }
+    .coach-scroll-panel::-webkit-scrollbar-track { background: transparent; }
+    .coach-scroll-panel::-webkit-scrollbar-thumb {
+      background: rgba(198,197,195,0.34);
+      border-radius: 999px;
+    }
+    .coach-scroll-panel::-webkit-scrollbar-thumb:hover {
+      background: rgba(198,197,195,0.48);
+    }
+    .coach-scroll-panel::-webkit-scrollbar-button {
+      display: none;
+      width: 0;
+      height: 0;
+    }
+
+    .coach-placeholder-marquee {
+      display: inline-block;
+      min-width: max-content;
+      padding-right: 48px;
+      animation: coachPlaceholderScroll 8.5s linear infinite;
+    }
+    @keyframes coachPlaceholderScroll {
+      0%, 16% { transform: translateX(0); }
+      72%, 100% { transform: translateX(-46%); }
+    }
   `;
 	document.head.appendChild(style);
 	return style;
@@ -1503,6 +1818,9 @@ export default function App() {
 	const selectedStateRef = useRef(null);
 	const allCoachesRef = useRef([]);
 	const showOnlineRef = useRef(false);
+	const zipSearchRef = useRef("");
+	const radiusMilesRef = useRef(25);
+	const filterRef = useRef("all");
 	const renderClustersRef = useRef(null);
 
 	const [selectedState, setSelectedState] = useState(null);
@@ -1516,20 +1834,39 @@ export default function App() {
 	const [showIntroModal, setShowIntroModal] = useState(true);
 	const [showOnline, setShowOnline] = useState(false);
 	const [locationDropdownOpen, setLocationDropdownOpen] = useState(false);
+	const [gymPanel, setGymPanel] = useState(null);
 	const [clusterPanel, setClusterPanel] = useState(null);
 	const [contactCoach, setContactCoach] = useState(null);
+	const [zipSearch, setZipSearch] = useState("");
+	const [radiusMiles, setRadiusMiles] = useState(25);
 
 	const allCoaches = useMemo(() => getAllCoaches(), []);
+	const allGyms = useMemo(() => getAllGyms(), []);
+	const zipOrigin = useMemo(
+		() => getZipOrigin(zipSearch, allGyms),
+		[allGyms, zipSearch],
+	);
+	const zipRadiusGyms = useMemo(
+		() => filterGymsByZipRadius(allGyms, zipSearch, radiusMiles),
+		[allGyms, radiusMiles, zipSearch],
+	);
+	const zipRadiusCoaches = useMemo(
+		() => uniqueCoaches(zipRadiusGyms.flatMap((gym) => gym.coachesAtGym)),
+		[zipRadiusGyms],
+	);
 	const favoriteCoaches = useMemo(
 		() => allCoaches.filter((c) => favoriteCoachIds.includes(c.id)),
 		[allCoaches, favoriteCoachIds],
 	);
+	const zipFilterActive = zipSearch.trim().length >= 5;
 
 	const panelVisible =
 		Boolean(selectedState) ||
 		favoritesOpen ||
 		semanticSearchOpen ||
 		showOnline ||
+		zipFilterActive ||
+		Boolean(gymPanel) ||
 		Boolean(clusterPanel) ||
 		Boolean(contactCoach);
 	const state = selectedState ? getStateByAbbr(selectedState) : null;
@@ -1544,6 +1881,20 @@ export default function App() {
 		showOnlineRef.current = showOnline;
 		renderClustersRef.current?.();
 	}, [showOnline]);
+	useEffect(() => {
+		filterRef.current = filter;
+	}, [filter]);
+	useEffect(() => {
+		zipSearchRef.current = zipSearch;
+		radiusMilesRef.current = radiusMiles;
+		renderClustersRef.current?.();
+	}, [radiusMiles, zipSearch]);
+	useEffect(() => {
+		if (!zipOrigin || !mapRef.current) return;
+		mapRef.current.flyTo([zipOrigin.latitude, zipOrigin.longitude], 9, {
+			duration: 0.65,
+		});
+	}, [zipOrigin]);
 
 	useEffect(() => {
 		if (!mapRef.current) return undefined;
@@ -1556,6 +1907,7 @@ export default function App() {
 	useEffect(() => {
 		if (!mapNodeRef.current || mapRef.current) return undefined;
 
+		let disposed = false;
 		const style = addGlobalMapStyles();
 		const map = L.map(mapNodeRef.current, {
 			zoomControl: true,
@@ -1568,10 +1920,12 @@ export default function App() {
 			{ maxZoom: 20 },
 		).addTo(map);
 
-		const coaches = getAllCoaches();
+		const gyms = getAllGyms();
 
 		// ---- Cluster rendering ----
 		function renderClusters() {
+			if (disposed) return;
+
 			// Remove existing cluster markers
 			layersRef.current.clusterMarkers.forEach(({ layer }) => {
 				if (map.hasLayer(layer)) map.removeLayer(layer);
@@ -1579,48 +1933,76 @@ export default function App() {
 			layersRef.current.clusterMarkers = [];
 
 			const zoom = map.getZoom();
-			const visibleCoaches = showOnlineRef.current
-				? coaches.filter((coach) => coach.onlineTraining)
-				: coaches;
-			const clusters = clusterCoaches(visibleCoaches, zoom);
+			const visibleGyms = showOnlineRef.current
+				? gyms
+						.map((gym) => {
+							const coachesAtGym = gym.coachesAtGym.filter(
+								(coach) => coach.onlineTraining,
+							);
+							return {
+								...gym,
+								coachesAtGym,
+								coachCount: coachesAtGym.length,
+							};
+						})
+						.filter((gym) => gym.coachCount > 0)
+				: gyms;
+			const clusters = clusterGyms(visibleGyms, zoom);
 
 			clusters.forEach((cluster) => {
-				const { lat, lng, count, coaches: clusterCoaches } = cluster;
-				const isMulti = count > 1;
+				const {
+					lat,
+					lng,
+					count,
+					gyms: clusterGyms,
+					coaches: clusterCoaches,
+				} = cluster;
+				const isMulti = cluster.gymCount > 1;
+				const primaryGym = clusterGyms[0];
+				const gymTags = [
+					...new Set(clusterGyms.flatMap((gym) => gym.tags || [])),
+				];
 
 				// Build tooltip HTML
 				let tooltipHtml;
 				if (isMulti) {
-					const stateLabel = clusterCoaches[0]?.state || "";
-					const cities = [...new Set(clusterCoaches.map((c) => c.city))];
+					const stateLabel = primaryGym?.stateName || "";
+					const cities = [...new Set(clusterGyms.map((gym) => gym.city))];
 					const cityLabel =
 						cities.length === 1 ? cities[0] : `${cities.length} cities`;
 					tooltipHtml = `
 						<div class="cluster-tooltip">
 							<div class="cluster-tooltip-title">${count} coaches</div>
-							<div class="cluster-tooltip-sub">📍 ${cityLabel}${stateLabel ? `, ${stateLabel}` : ""}</div>
+							<div class="cluster-tooltip-sub">📍 ${cluster.gymCount} gyms near ${cityLabel}${stateLabel ? `, ${stateLabel}` : ""}</div>
 						</div>`;
 				} else {
-					const coach = clusterCoaches[0];
 					tooltipHtml = `
 						<div class="coach-hover-tooltip">
 							<div class="cht-header">
-								<img class="cht-avatar" src="${coach.headshot}" alt="${coach.name}" />
 								<div>
-									<div class="cht-name">${coach.name}</div>
-									<div class="cht-title">${coach.title}</div>
+									<div class="cht-name">${primaryGym.name}</div>
+									<div class="cht-title">${count} ${count === 1 ? "coach" : "coaches"} available</div>
 								</div>
 							</div>
 							<div class="cht-divider"></div>
-							<div class="cht-location">📍 ${coach.city}${coach.onlineTraining ? " · Online" : ""}</div>
-							<div class="cht-rating">★ ${coach.rating}${coach.experience ? " · " + coach.experience : ""}</div>
-							<div class="cht-tags">${(coach.specialties || []).map((s) => `<span class="cht-tag">${s}</span>`).join("")}</div>
+							<div class="cht-location">📍 ${primaryGym.city}, ${primaryGym.state}</div>
+							<div class="cht-tags">${(primaryGym.tags || []).map((s) => `<span class="cht-tag">${s}</span>`).join("")}</div>
+							<div class="cht-rating">${clusterCoaches
+								.slice(0, 3)
+								.map((coach) => coach.name)
+								.join(" · ")}</div>
 						</div>`;
 				}
 
 				const popupHtml = isMulti
-					? `<p class="graphite-popup-title">${count} coaches nearby</p><p class="graphite-popup-meta">${[...new Set(clusterCoaches.map((c) => c.city))].join(", ")}</p>`
-					: `<p class="graphite-popup-title">${clusterCoaches[0].name}</p><p class="graphite-popup-meta">${clusterCoaches[0].title}<br />${clusterCoaches[0].city}</p>`;
+					? `<p class="graphite-popup-title">${count} coaches nearby</p><p class="graphite-popup-meta">${cluster.gymCount} gyms · ${gymTags.slice(0, 4).join(" · ")}<br />${clusterCoaches
+							.slice(0, 4)
+							.map((coach) => coach.name)
+							.join(" · ")}</p>`
+					: `<p class="graphite-popup-title">${primaryGym.name}</p><p class="graphite-popup-meta">${primaryGym.city}, ${primaryGym.state}<br />${count} ${count === 1 ? "coach" : "coaches"} available<br />${(primaryGym.tags || []).join(" · ")}<br />${clusterCoaches
+							.slice(0, 4)
+							.map((coach) => coach.name)
+							.join(" · ")}</p>`;
 
 				const marker = L.marker([lat, lng], { icon: createClusterIcon(count) })
 					.bindTooltip(tooltipHtml, {
@@ -1632,19 +2014,32 @@ export default function App() {
 					.bindPopup(popupHtml)
 					.on("click", () => {
 						if (isMulti) {
-							const cities = [...new Set(clusterCoaches.map((c) => c.city))];
-							const states = [...new Set(clusterCoaches.map((c) => c.state))];
+							const cities = [...new Set(clusterGyms.map((gym) => gym.city))];
+							const states = [
+								...new Set(clusterGyms.map((gym) => gym.stateName)),
+							];
 							const cityLabel =
 								cities.length === 1 ? cities[0] : `${cities.length} cities`;
 							const stateLabel =
 								states.length === 1 ? states[0] : `${states.length} states`;
 
-							setClusterPanel({
-								id: cluster.id,
-								coaches: clusterCoaches,
-								title: `${count} Coaches Nearby`,
-								eyebrow: `${cityLabel} • ${stateLabel}`,
-							});
+							if (filterRef.current === "coaches") {
+								setGymPanel({
+									id: cluster.id,
+									gyms: clusterGyms,
+									title: `${cluster.gymCount} Gyms`,
+									eyebrow: `${cityLabel} • ${stateLabel}`,
+								});
+								setClusterPanel(null);
+							} else {
+								setGymPanel(null);
+								setClusterPanel({
+									id: cluster.id,
+									coaches: clusterCoaches,
+									title: `${count} Coaches at ${cluster.gymCount} Gyms`,
+									eyebrow: `${cityLabel} • ${stateLabel}`,
+								});
+							}
 							setSelectedState(null);
 							setFavoritesOpen(false);
 							setSemanticSearchOpen(false);
@@ -1655,24 +2050,30 @@ export default function App() {
 							setLocationDropdownOpen(false);
 							map.flyTo([lat, lng], Math.max(zoom, 6), { duration: 0.65 });
 						} else {
-							const coach = clusterCoaches[0];
-							const stateAbbr = coach.abbr;
-							setSelectedState(stateAbbr);
-							setClusterPanel(null);
+							setSelectedState(primaryGym.state);
+							setGymPanel(null);
+							setClusterPanel({
+								id: primaryGym.id,
+								coaches: clusterCoaches,
+								title: primaryGym.name,
+								eyebrow: `${primaryGym.city}, ${primaryGym.state} • ${count} ${count === 1 ? "coach" : "coaches"} available`,
+							});
 							setFavoritesOpen(false);
 							setSemanticSearchOpen(false);
 							setShowOnline(false);
-							setProfileCoach(coach);
+							setProfileCoach(null);
 							setContactCoach(null);
 							setSearch("");
 							setLocationDropdownOpen(false);
-							map.flyTo(coach.coords, 10, { duration: 0.85 });
+							map.flyTo([primaryGym.latitude, primaryGym.longitude], 10, {
+								duration: 0.85,
+							});
 						}
 					})
 					.addTo(map);
 
 				layersRef.current.clusterMarkers.push({
-					abbr: clusterCoaches[0]?.abbr,
+					abbr: primaryGym?.state,
 					layer: marker,
 					count,
 				});
@@ -1708,10 +2109,12 @@ export default function App() {
 		fetch(statesGeoJsonUrl)
 			.then((r) => r.json())
 			.then((geojson) => {
+				if (disposed) return;
+
 				stateLayerRef.current = L.geoJSON(geojson, {
 					style: (feature) => {
 						const stateName = feature.properties.name;
-						const hasCoaches = coaches.some((c) => c.state === stateName);
+						const hasCoaches = gyms.some((gym) => gym.stateName === stateName);
 						return {
 							color: hasCoaches
 								? "rgba(218,220,215,0.48)"
@@ -1725,12 +2128,13 @@ export default function App() {
 					},
 					onEachFeature: (feature, layer) => {
 						const stateName = feature.properties.name;
-						const stateCoaches = coaches.filter((c) => c.state === stateName);
-						if (!stateCoaches.length) return;
+						const stateGyms = gyms.filter((gym) => gym.stateName === stateName);
+						if (!stateGyms.length) return;
 						layer.on("click", () => {
-							const abbr = stateCoaches[0].abbr;
+							const abbr = stateGyms[0].state;
 							const stateItem = getStateByAbbr(abbr);
 							setSelectedState(abbr);
+							setGymPanel(null);
 							setClusterPanel(null);
 							setFavoritesOpen(false);
 							setSemanticSearchOpen(false);
@@ -1761,7 +2165,7 @@ export default function App() {
 					const stateName = feature.properties.name;
 					const abbr = STATE_ABBR_BY_NAME[stateName];
 					if (!abbr) return;
-					const hasCoaches = coaches.some((c) => c.state === stateName);
+					const hasCoaches = gyms.some((gym) => gym.stateName === stateName);
 					const tempLayer = L.geoJSON(feature);
 					const bounds = tempLayer.getBounds();
 					const fallbackCenter = bounds.getCenter();
@@ -1802,6 +2206,8 @@ export default function App() {
 				renderClusters();
 			})
 			.catch(() => {
+				if (disposed) return;
+
 				// State borders failed, still render clusters
 				map.on("zoomend", renderClusters);
 				renderClusters();
@@ -1811,6 +2217,7 @@ export default function App() {
 		mapRef.current = map;
 
 		return () => {
+			disposed = true;
 			map.off("zoomend");
 			map.remove();
 			mapRef.current = null;
@@ -1866,6 +2273,7 @@ export default function App() {
 		setContactCoach(null);
 		setSearch("");
 		setShowOnline(false);
+		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
 		if (mapRef.current)
@@ -1881,6 +2289,7 @@ export default function App() {
 		setProfileCoach(null);
 		setContactCoach(null);
 		setSearch("");
+		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
 		if (mapRef.current)
@@ -1892,6 +2301,7 @@ export default function App() {
 		setProfileCoach(null);
 		setContactCoach(null);
 		setSearch("");
+		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
 		if (mapRef.current)
@@ -1906,6 +2316,7 @@ export default function App() {
 		setContactCoach(null);
 		setSearch("");
 		setShowOnline(false);
+		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
 	}
@@ -1917,6 +2328,7 @@ export default function App() {
 		setProfileCoach(null);
 		setContactCoach(null);
 		setShowOnline(false);
+		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
 	}
@@ -1927,10 +2339,51 @@ export default function App() {
 		setProfileCoach(null);
 		setContactCoach(null);
 		setSearch("");
+		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
 		setShowOnline((current) => !current);
 		setFilter((current) => (current === "states" ? "all" : current));
+	}
+
+	function selectGymFromPanel(gym) {
+		const parentGymPanel = gymPanel;
+		setSelectedState(gym.state);
+		setGymPanel(null);
+		setClusterPanel({
+			id: gym.id,
+			coaches: gym.coachesAtGym,
+			title: gym.name,
+			eyebrow: `${gym.city}, ${gym.state} • ${gym.coachCount} ${
+				gym.coachCount === 1 ? "coach" : "coaches"
+			} available`,
+			parentGymPanel,
+		});
+		setFavoritesOpen(false);
+		setSemanticSearchOpen(false);
+		setShowOnline(false);
+		setProfileCoach(null);
+		setContactCoach(null);
+		setSearch("");
+		setLocationDropdownOpen(false);
+		if (mapRef.current) {
+			mapRef.current.flyTo([gym.latitude, gym.longitude], 10, {
+				duration: 0.85,
+			});
+		}
+	}
+
+	function handlePanelBack() {
+		if (clusterPanel?.parentGymPanel) {
+			setGymPanel(clusterPanel.parentGymPanel);
+			setClusterPanel(null);
+			setProfileCoach(null);
+			setContactCoach(null);
+			setSearch("");
+			return;
+		}
+
+		resetToMap();
 	}
 
 	const locationScopedCoaches = selectedState
@@ -2010,7 +2463,9 @@ export default function App() {
 						>
 							×
 						</button>
-						<p style={styles.eyebrow}>Find the coach who sees what you are capable of</p>
+						<p style={styles.eyebrow}>
+							Find the coach who sees what you are capable of
+						</p>
 						<h1
 							id="coach-map-intro-title"
 							style={{
@@ -2023,7 +2478,8 @@ export default function App() {
 							Strength Coach Discovery
 						</h1>
 						<p style={{ ...styles.description, fontSize: 16, maxWidth: 460 }}>
-							Connect with coaches who know how to turn raw effort into structure, discipline, and progress you can feel under the bar.
+							Connect with coaches who know how to turn raw effort into
+							structure, discipline, and progress you can feel under the bar.
 						</p>
 						<div style={styles.stats}>
 							<div style={styles.stat}>
@@ -2105,7 +2561,9 @@ export default function App() {
 							...(filter === item ? styles.activeControl : {}),
 						}}
 					>
-						{item[0].toUpperCase() + item.slice(1)}
+						{item === "coaches"
+							? "Gyms"
+							: item[0].toUpperCase() + item.slice(1)}
 					</button>
 				))}
 			</nav>
@@ -2350,12 +2808,22 @@ export default function App() {
 				{isMobile && panelVisible ? (
 					<span style={styles.mobileSheetHandle} />
 				) : null}
-				{panelVisible ? (
+				{gymPanel ? (
+					<GymListPanel
+						title={gymPanel.title}
+						eyebrow={gymPanel.eyebrow}
+						gyms={gymPanel.gyms}
+						onBack={resetToMap}
+						onSelectGym={selectGymFromPanel}
+						search={search}
+						setSearch={setSearch}
+					/>
+				) : panelVisible ? (
 					<CoachListPanel
 						title={activePanelTitle}
 						eyebrow={activePanelEyebrow}
 						coaches={activePanelCoaches}
-						onBack={resetToMap}
+						onBack={handlePanelBack}
 						profileCoach={profileCoach}
 						setProfileCoach={setProfileCoach}
 						search={search}
