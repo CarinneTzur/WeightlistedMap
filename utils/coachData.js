@@ -1,51 +1,108 @@
-import { coaches } from "../data/coaches";
+import { coaches as staticCoaches } from "../data/coaches";
+import { gyms as staticGyms } from "../data/gyms";
+import { STATE_CENTERS } from "../data/usStates";
+import {
+	getApprovedApplicationCoaches,
+	getCreatedApplicationGyms,
+} from "./coachApplications";
 
-export const STATE_CENTERS = {
-	CA: {
-		name: "California",
-		center: [36.7783, -119.4179],
-	},
-	TX: {
-		name: "Texas",
-		center: [31.9686, -99.9018],
-	},
-	NY: {
-		name: "New York",
-		center: [42.1657, -74.9481],
-	},
-	GA: {
-		name: "Georgia",
-		center: [32.1656, -82.9001],
-	},
-};
+export { STATE_CENTERS };
+
+function uniqueById(items) {
+	return Array.from(new Map(items.map((item) => [item.id, item])).values());
+}
+
+function getCoachSource() {
+	return uniqueById([...staticCoaches, ...getApprovedApplicationCoaches()]);
+}
+
+function getGymSource() {
+	return uniqueById([...staticGyms, ...getCreatedApplicationGyms()]);
+}
 
 export function getApprovedCoaches() {
-	return coaches.filter((coach) => coach.approved);
+	return getCoachSource()
+		.filter((coach) => coach.approved)
+		.map(enrichCoachWithGyms);
+}
+
+export function getAllGyms() {
+	const approvedCoaches = getApprovedCoaches();
+	return getGymSource()
+		.map((gym) => {
+			const coachesAtGym = approvedCoaches.filter((coach) =>
+				coach.gymIds?.includes(gym.id),
+			);
+
+			return {
+				...gym,
+				stateName: STATE_CENTERS[gym.state]?.name || gym.state,
+				coachesAtGym,
+				coachCount: coachesAtGym.length,
+			};
+		})
+		.filter((gym) => gym.coachCount > 0);
+}
+
+export function getGymsByIds(gymIds = []) {
+	const gyms = getGymSource();
+	return gymIds.map((id) => gyms.find((gym) => gym.id === id)).filter(Boolean);
+}
+
+function enrichCoachWithGyms(coach) {
+	const coachGyms = getGymsByIds(coach.gymIds);
+	const primaryGym = coachGyms[0] || null;
+	const stateMeta = primaryGym ? STATE_CENTERS[primaryGym.state] : null;
+
+	return {
+		...coach,
+		gyms: coachGyms,
+		primaryGym,
+		city: primaryGym ? `${primaryGym.city}, ${primaryGym.state}` : "",
+		state: stateMeta?.name || primaryGym?.state || "",
+		stateAbbr: primaryGym?.state || "",
+		stateName: stateMeta?.name || primaryGym?.state || "",
+		abbr: primaryGym?.state || "",
+		inPersonCoaching: coach.inPersonCoaching ?? Boolean(primaryGym),
+		onlineTraining: coach.onlineTraining ?? coach.remoteAvailable ?? false,
+		remoteAvailable: coach.remoteAvailable ?? coach.onlineTraining ?? false,
+	};
 }
 
 export function getStatesWithCoaches() {
 	const approvedCoaches = getApprovedCoaches();
 
 	const grouped = approvedCoaches.reduce((acc, coach) => {
-		const stateMeta = STATE_CENTERS[coach.stateAbbr];
+		coach.gyms.forEach((gym) => {
+			const stateMeta = STATE_CENTERS[gym.state];
 
-		if (!stateMeta) return acc;
+			if (!stateMeta) return;
 
-		if (!acc[coach.stateAbbr]) {
-			acc[coach.stateAbbr] = {
-				abbr: coach.stateAbbr,
-				name: stateMeta.name,
-				center: stateMeta.center,
-				coaches: [],
-			};
-		}
+			if (!acc[gym.state]) {
+				acc[gym.state] = {
+					abbr: gym.state,
+					name: stateMeta.name,
+					center: stateMeta.center,
+					coaches: [],
+					gyms: [],
+				};
+			}
 
-		acc[coach.stateAbbr].coaches.push({
-			...coach,
-			city: `${coach.city}, ${coach.stateAbbr}`,
-			abbr: coach.stateAbbr,
-			state: stateMeta.name,
-			stateName: stateMeta.name,
+			if (!acc[gym.state].gyms.some((existing) => existing.id === gym.id)) {
+				acc[gym.state].gyms.push(gym);
+			}
+
+			if (acc[gym.state].coaches.some((existing) => existing.id === coach.id)) {
+				return;
+			}
+
+			acc[gym.state].coaches.push({
+				...coach,
+				city: `${gym.city}, ${gym.state}`,
+				abbr: gym.state,
+				state: stateMeta.name,
+				stateName: stateMeta.name,
+			});
 		});
 
 		return acc;
@@ -55,15 +112,7 @@ export function getStatesWithCoaches() {
 }
 
 export function getAllCoaches() {
-	return getStatesWithCoaches().flatMap((state) =>
-		state.coaches.map((coach) => ({
-			...coach,
-			abbr: state.abbr,
-			state: state.name,
-			stateAbbr: state.abbr,
-			stateName: state.name,
-		})),
-	);
+	return getApprovedCoaches();
 }
 
 export function getStateByAbbr(abbr) {

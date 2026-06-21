@@ -1,1726 +1,532 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
-import {
-	getAllCoaches,
-	getStateByAbbr,
-	getStatesWithCoaches,
-} from "./utils/coachData";
+import React, { useEffect, useMemo, useState } from "react";
+import liftCelebrate from "./assets/portfolio/lift-celebrate.jpeg";
+import mountainBlue from "./assets/portfolio/mountain-blue.jpeg";
+import snowSelfie from "./assets/portfolio/snow-selfie.jpeg";
+import carGuitar from "./assets/portfolio/car-guitar.jpeg";
+import snowboardGroup from "./assets/portfolio/snowboard-group.jpeg";
+import barbellFocus from "./assets/portfolio/barbell-focus-optimized.jpg";
+import clubCollegiate from "./assets/portfolio/club-collegiate.png";
+import clubPowerlifting from "./assets/portfolio/club-powerlifting.jpeg";
+import "./App.css";
 
-const palette = {
-	graphite900: "#1E1C1E",
-	graphite850: "#262326",
-	graphite800: "#373537",
-	graphite700: "#4E4C4E",
-	graphite500: "#6A6965",
-	graphite300: "#A8A6A2",
-	graphite100: "#C6C5C3",
-	text: "#F2F1EF",
-	muted: "#A8A6A2",
-	border: "rgba(198,197,195,0.14)",
-	panel: "rgba(30,28,30,0.88)",
-	gold: "rgba(217,189,125,0.88)",
-};
+const contactLinks = [
+	{ label: "Email", href: "mailto:ctzurdecker@outlook.com" },
+	{ label: "LinkedIn", href: "https://linkedin.com/in/carinnetzurdecker" },
+	{ label: "GitHub", href: "https://github.com/carinnetzur" },
+	{ label: "Website", href: "https://carinnetz.com" },
+];
 
-const STATE_ABBR_BY_NAME = {
-	Alabama: "AL",
-	Alaska: "AK",
-	Arizona: "AZ",
-	Arkansas: "AR",
-	California: "CA",
-	Colorado: "CO",
-	Connecticut: "CT",
-	Delaware: "DE",
-	Florida: "FL",
-	Georgia: "GA",
-	Hawaii: "HI",
-	Idaho: "ID",
-	Illinois: "IL",
-	Indiana: "IN",
-	Iowa: "IA",
-	Kansas: "KS",
-	Kentucky: "KY",
-	Louisiana: "LA",
-	Maine: "ME",
-	Maryland: "MD",
-	Massachusetts: "MA",
-	Michigan: "MI",
-	Minnesota: "MN",
-	Mississippi: "MS",
-	Missouri: "MO",
-	Montana: "MT",
-	Nebraska: "NE",
-	Nevada: "NV",
-	"New Hampshire": "NH",
-	"New Jersey": "NJ",
-	"New Mexico": "NM",
-	"New York": "NY",
-	"North Carolina": "NC",
-	"North Dakota": "ND",
-	Ohio: "OH",
-	Oklahoma: "OK",
-	Oregon: "OR",
-	Pennsylvania: "PA",
-	"Rhode Island": "RI",
-	"South Carolina": "SC",
-	"South Dakota": "SD",
-	Tennessee: "TN",
-	Texas: "TX",
-	Utah: "UT",
-	Vermont: "VT",
-	Virginia: "VA",
-	Washington: "WA",
-	"West Virginia": "WV",
-	Wisconsin: "WI",
-	Wyoming: "WY",
-};
+const stats = [
+	{ value: "11", label: "LLM automation agents owned end-to-end" },
+	{ value: "60+", label: "hours/week of manual work removed from repetitive ops" },
+	{ value: "30+", label: "client and external sites connected into workflows" },
+	{ value: "5-8", label: "hours saved per consultant per week on case context" },
+];
 
-const STATE_LABEL_COORD_OVERRIDES = {
-	Michigan: [43.82, -84.85],
-	Florida: [28.05, -81.55],
-	Louisiana: [30.88, -91.98],
-	Maryland: [39.03, -76.78],
-	Delaware: [39.05, -75.48],
-	"New Jersey": [40.12, -74.7],
-	Massachusetts: [42.22, -71.82],
-	Connecticut: [41.62, -72.72],
-	"Rhode Island": [41.68, -71.53],
-	"New Hampshire": [43.68, -71.58],
-	Vermont: [44.05, -72.72],
-	Hawaii: [20.78, -156.36],
-	Alaska: [64.2, -152.2],
-};
+const skillGroups = [
+	{
+		title: "Product Engineering",
+		items: ["React", "Vite", "JavaScript", "TypeScript", "HTML", "CSS", "Supabase", "SQL"],
+	},
+	{
+		title: "AI Systems",
+		items: [
+			"LLM agents",
+			"Prompt engineering",
+			"NLP",
+			"PyTorch",
+			"Sentence-BERT",
+			"Computer vision",
+		],
+	},
+	{
+		title: "Automation Ops",
+		items: ["Make.com", "n8n", "REST APIs", "JSON payloads", "Glean", "SOQL", "RabbitMQ"],
+	},
+	{
+		title: "Workflow Tools",
+		items: ["GitHub", "Postman", "Jira", "Kibana", "Figma", "Jupyter", "GCP"],
+	},
+];
 
-const STATE_LABEL_SIZE_OVERRIDES = {
-	Michigan: 0.72,
-	Florida: 0.78,
-};
+const experience = [
+	{
+		role: "Software Consultant",
+		company: "Manhattan Associates",
+		time: "Jan 2026 - Present",
+		copy:
+			"Building internal AI tools, investigating high-volume operational workflows, and supporting enterprise supply-chain platforms across GCP-hosted production environments.",
+		highlights: ["Award-winning internal case management agent", "Root-cause analysis across SQL, APIs, logs, and JSON", "Cross-team visibility for multi-client portfolios"],
+	},
+	{
+		role: "Applied AI Engineer Intern",
+		company: "Rankey",
+		time: "Apr 2025 - Nov 2025",
+		copy:
+			"Architected LLM automation agents across client operations, connecting data collection, reasoning, validation, and reporting systems.",
+		highlights: ["11 LLM agents across 30+ client sites", "Reusable automation patterns", "20% revenue increase in 5 months"],
+	},
+	{
+		role: "Founder / Software Engineer",
+		company: "Weightlisted",
+		time: "Jul 2025 - Present",
+		copy:
+			"Leading affordable web solutions for coaches, gyms, and small businesses, from client discovery and brand direction through deployment and launch support.",
+		highlights: ["Responsive websites and platforms", "Directory search and filtering", "API scheduling and conversion-focused pages"],
+	},
+	{
+		role: "Software Engineer & Scrum Master Intern",
+		company: "Poozle",
+		time: "Jun 2024 - Jan 2025",
+		copy:
+			"Built customer-facing React features for a production mobile app while supporting Agile delivery, frontend state logic, and REST API integration.",
+		highlights: ["Location API functionality", "MongoDB-backed workflow persistence", "30% sprint velocity improvement"],
+	},
+];
 
-const SEMANTIC_SYNONYMS = {
-	barbell: [
-		"powerlifting",
-		"olympic",
-		"lifting",
-		"strength",
-		"squat",
-		"bench",
-		"deadlift",
-		"technique",
-	],
-	heavy: [
-		"powerlifting",
-		"strength",
-		"barbell",
-		"deadlift",
-		"squat",
-		"olympic",
-	],
-	lifting: ["powerlifting", "olympic", "strength", "barbell", "technique"],
-	lift: ["powerlifting", "olympic", "strength", "barbell"],
-	strength: [
-		"powerlifting",
-		"conditioning",
-		"athleticism",
-		"resilience",
-		"performance",
-	],
-	power: ["powerlifting", "strength", "barbell"],
-	powerlifting: [
-		"barbell",
-		"squat",
-		"bench",
-		"deadlift",
-		"strength",
-		"technique",
-	],
-	olympic: [
-		"weightlifting",
-		"barbell",
-		"clean",
-		"jerk",
-		"snatch",
-		"technique",
-		"lifting",
-	],
-	weightlifting: ["olympic", "barbell", "clean", "jerk", "snatch", "technique"],
-	technique: ["olympic", "powerlifting", "barbell", "form"],
-	bodybuilding: ["hypertrophy", "muscle", "physique", "transformation"],
-	hypertrophy: ["bodybuilding", "muscle", "physique", "transformation"],
-	wellness: [
-		"lifestyle",
-		"nutrition",
-		"longevity",
-		"sustainable",
-		"health",
-		"transformation",
-	],
-	female: ["women", "woman", "female", "lifestyle", "wellness", "nutrition"],
-	woman: ["women", "female", "wellness", "lifestyle"],
-	women: ["woman", "female", "wellness", "lifestyle"],
-	nutrition: ["wellness", "lifestyle", "sustainable", "health"],
-	lifestyle: ["wellness", "nutrition", "longevity", "transformation"],
-	athlete: ["athleticism", "conditioning", "strength", "performance"],
-	athletic: ["athleticism", "conditioning", "strength", "performance"],
-	conditioning: ["athleticism", "strength", "performance", "resilience"],
-	performance: ["strength", "conditioning", "athleticism", "resilience"],
-};
+const projects = [
+	{
+		id: "coach-discovery",
+		title: "Coach Discovery Platform",
+		tagline: "A searchable fitness discovery product for comparing coaches and gyms.",
+		stack: ["React", "Vite", "Supabase", "SQL", "APIs", "TypeScript"],
+		status: "In progress",
+		date: "April 2026 - Present",
+		problem:
+			"Lifters need a faster way to find credible coaches and non-commercial gyms by location, specialty, availability, and market.",
+		approach:
+			"Designed a map-based directory with searchable coach profiles, gym listings, ratings, favorites, contact pathways, and specialty filters. Built a Supabase-backed data layer with SQL schema design, row-level access policies, and an edge function for coach submissions.",
+		outcome:
+			"Early product direction supports transparent coach comparison and gives future visitors a clear path to explore profiles, markets, and service fit.",
+		links: { caseStudy: "#project-coach-discovery", live: "", repo: "" },
+	},
+	{
+		id: "case-management",
+		title: "Consultant Case Management Agent",
+		tagline: "An internal AI agent that centralizes scattered case context.",
+		stack: ["Glean", "SOQL", "Salesforce", "Jira", "Outlook", "LLMs"],
+		status: "Award-winning",
+		date: "March 2026",
+		problem:
+			"Consultants were piecing together Jira tickets, emails, internal documents, and notes to understand ongoing case history.",
+		approach:
+			"Built an AI agent that retrieves and organizes context into status updates, blockers, ownership, and next steps for multi-client portfolios.",
+		outcome:
+			"Reduced manual coordination by roughly 5-8 hours per consultant per week and improved cross-team case visibility.",
+		links: { caseStudy: "#project-case-management", live: "", repo: "" },
+	},
+	{
+		id: "edi-agent",
+		title: "EDI Operations Email Intelligence Agent",
+		tagline: "Turns multi-party operational email threads into structured dashboards.",
+		stack: ["Glean", "SOQL", "Outlook", "LLMs", "Parsing Logic"],
+		status: "Internal",
+		date: "May 2026",
+		problem:
+			"EDI-related operational issues were hidden across carrier, shipper, 3PL, and enterprise email threads.",
+		approach:
+			"Parsed multi-party email threads, surfaced bottlenecks and delayed ownership, and converted communication history into structured operational views.",
+		outcome:
+			"Supported high-volume EDI operations and gave teams a cleaner way to analyze cross-party communication.",
+		links: { caseStudy: "#project-edi-agent", live: "", repo: "" },
+	},
+	{
+		id: "grocery-chatbot",
+		title: "Grocery List AI Chatbot App",
+		tagline: "A full-stack grocery planning app powered by natural language.",
+		stack: ["Flutter", "Dart", "APIs", "Figma", "LLMs"],
+		status: "Prototype",
+		date: "Aug 2025 - Nov 2025",
+		problem:
+			"Meal planning gets messy when recipes, dietary goals, party sizes, and portion-scaled shopping lists all live in separate workflows.",
+		approach:
+			"Designed an AI chatbot interface where users describe meals, events, goals, or party sizes and receive structured grocery lists with normalized ingredients.",
+		outcome:
+			"Created a maintainable full-stack prototype that blends LLM planning with traditional recipe and ingredient logic.",
+		links: { caseStudy: "#project-grocery-chatbot", live: "", repo: "" },
+	},
+	{
+		id: "seo-pipeline",
+		title: "AI SEO Extraction Pipeline",
+		tagline: "Autonomous audit and content workflows across client sites.",
+		stack: ["LLMs", "Make.com", "APIs", "JSON", "Python"],
+		status: "Shipped",
+		date: "Oct 2025",
+		problem:
+			"Manual SEO audits across many client sites were repetitive, slow, and hard to standardize.",
+		approach:
+			"Orchestrated multi-source data collection across client websites, sitemaps, robots.txt files, metadata, page structure, and crawl output. Used LLM reasoning chains to detect gaps and produce action-ready reports.",
+		outcome:
+			"Eliminated more than 10 hours per week of manual SEO analysis and produced structured reports for review and optimization planning.",
+		links: { caseStudy: "#project-seo-pipeline", live: "", repo: "" },
+	},
+	{
+		id: "book-recommender",
+		title: "Book Recommendation System",
+		tagline: "NLP recommendations across a large book corpus.",
+		stack: ["Python", "Flask", "Sentence-BERT", "scikit-learn", "pandas"],
+		status: "Academic",
+		date: "Sept 2025",
+		problem:
+			"Readers need recommendations that understand semantic similarity, not only category labels or popularity.",
+		approach:
+			"Built a full-stack recommendation system using Sentence-BERT embeddings and cosine similarity across more than 50,000 books.",
+		outcome:
+			"Connected NLP-backed search with a lightweight application layer for exploring related titles.",
+		links: { caseStudy: "#project-book-recommender", live: "", repo: "" },
+	},
+	{
+		id: "ui-detection",
+		title: "UI Element Detection for Visually Impaired Users",
+		tagline: "Computer vision research for accessibility-oriented UI classification.",
+		stack: ["Python", "PyTorch", "TorchVision", "Faster R-CNN", "LaTeX"],
+		status: "Research",
+		date: "April 2025",
+		problem:
+			"Assistive technologies benefit from reliable recognition of visual interface elements in app screens.",
+		approach:
+			"Built and optimized Faster R-CNN models using a ResNet backbone and the RICO dataset, then supported training, debugging, performance analysis, and paper development.",
+		outcome:
+			"Produced accessibility-focused computer vision work that classifies UI elements for visually impaired users.",
+		links: { caseStudy: "#project-ui-detection", live: "", repo: "" },
+	},
+];
 
-const STOP_WORDS = new Set([
-	"a",
-	"an",
-	"and",
-	"are",
-	"as",
-	"at",
-	"be",
-	"by",
-	"for",
-	"from",
-	"in",
-	"into",
-	"is",
-	"it",
-	"of",
-	"on",
-	"or",
-	"that",
-	"the",
-	"this",
-	"to",
-	"with",
-	"who",
-	"looking",
-	"look",
-	"find",
-	"coach",
-	"coaches",
-	"trainer",
-	"training",
-]);
+const cameraRoll = [
+	{
+		title: "Meet day voltage",
+		src: liftCelebrate,
+		className: "photo-a",
+	},
+	{
+		title: "Mountain air",
+		src: mountainBlue,
+		className: "photo-b",
+	},
+	{
+		title: "Snow day",
+		src: snowSelfie,
+		className: "photo-c",
+	},
+	{
+		title: "Car guitar",
+		src: carGuitar,
+		className: "photo-d",
+	},
+	{
+		title: "Board crew",
+		src: snowboardGroup,
+		className: "photo-e",
+	},
+	{
+		title: "Barbell focus",
+		src: barbellFocus,
+		className: "photo-f",
+	},
+];
 
-function useIsDesktop() {
-	const [isDesktop, setIsDesktop] = useState(
-		typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
+function getInitialProjectId() {
+	if (typeof window === "undefined") {
+		return projects[0].id;
+	}
+
+	const hashProjectId = window.location.hash.replace(/^#project-/, "");
+	return projects.some((project) => project.id === hashProjectId) ? hashProjectId : projects[0].id;
+}
+
+function scrollToProject(projectId) {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	scrollToElement(`project-${projectId}`);
+}
+
+function scrollToElement(elementId) {
+	if (typeof window === "undefined") {
+		return;
+	}
+
+	const scroll = () => document.getElementById(elementId)?.scrollIntoView({ block: "start" });
+	window.requestAnimationFrame(scroll);
+	window.setTimeout(scroll, 120);
+	window.setTimeout(scroll, 420);
+	window.setTimeout(scroll, 900);
+}
+
+function App() {
+	const [activeProjectId, setActiveProjectId] = useState(getInitialProjectId);
+	const [activePhotoIndex, setActivePhotoIndex] = useState(0);
+	const activeProject = useMemo(
+		() => projects.find((project) => project.id === activeProjectId) ?? projects[0],
+		[activeProjectId],
 	);
 
-	useEffect(() => {
-		const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
-		handleResize();
-		window.addEventListener("resize", handleResize);
-		return () => window.removeEventListener("resize", handleResize);
-	}, []);
-
-	return isDesktop;
-}
-
-function normalizeToken(token) {
-	return token
-		.toLowerCase()
-		.replace(/[^a-z0-9]/g, "")
-		.replace(/ies$/, "y")
-		.replace(/ing$/, "")
-		.replace(/ers$/, "er")
-		.replace(/s$/, "");
-}
-
-function tokenizeText(text) {
-	return String(text || "")
-		.toLowerCase()
-		.split(/[^a-z0-9]+/i)
-		.map(normalizeToken)
-		.filter((token) => token.length > 1 && !STOP_WORDS.has(token));
-}
-
-function expandTokens(tokens) {
-	const expanded = [];
-	tokens.forEach((token) => {
-		expanded.push({ token, weight: 1 });
-		const synonyms = SEMANTIC_SYNONYMS[token] || [];
-		synonyms.forEach((synonym) => {
-			expanded.push({ token: normalizeToken(synonym), weight: 0.72 });
-		});
-	});
-	return expanded.filter(
-		({ token }) => token.length > 1 && !STOP_WORDS.has(token),
-	);
-}
-
-function getCoachSearchText(coach) {
-	return [
-		coach.name,
-		coach.title,
-		coach.city,
-		coach.bio,
-		coach.state,
-		coach.stateAbbr,
-		coach.specialties?.join(" "),
-		coach.onlineTraining ? "online training" : "",
-	].join(" ");
-}
-
-function buildWeightedVector(weightedTokens, idfMap = {}) {
-	return weightedTokens.reduce((vector, { token, weight }) => {
-		const idf = idfMap[token] || 1;
-		vector[token] = (vector[token] || 0) + weight * idf;
-		return vector;
-	}, {});
-}
-
-function cosineSimilarity(vectorA, vectorB) {
-	let dot = 0;
-	let magnitudeA = 0;
-	let magnitudeB = 0;
-
-	Object.entries(vectorA).forEach(([token, value]) => {
-		dot += value * (vectorB[token] || 0);
-		magnitudeA += value * value;
-	});
-	Object.values(vectorB).forEach((value) => {
-		magnitudeB += value * value;
-	});
-
-	if (!magnitudeA || !magnitudeB) return 0;
-	return dot / (Math.sqrt(magnitudeA) * Math.sqrt(magnitudeB));
-}
-
-function rankCoachesBySemanticSearch(coaches, query) {
-	const trimmedQuery = query.trim();
-	if (!trimmedQuery) return coaches;
-
-	const documents = coaches.map((coach, index) => {
-		const baseTokens = tokenizeText(getCoachSearchText(coach));
-		const expandedTokens = expandTokens(baseTokens);
-		return {
-			coach,
-			index,
-			tokens: expandedTokens,
-			uniqueTokens: new Set(expandedTokens.map(({ token }) => token)),
-		};
-	});
-
-	const documentFrequency = {};
-	documents.forEach((document) => {
-		document.uniqueTokens.forEach((token) => {
-			documentFrequency[token] = (documentFrequency[token] || 0) + 1;
-		});
-	});
-
-	const idfMap = Object.fromEntries(
-		Object.entries(documentFrequency).map(([token, count]) => [
-			token,
-			Math.log((documents.length + 1) / (count + 1)) + 1,
-		]),
-	);
-
-	const queryTokens = expandTokens(tokenizeText(trimmedQuery));
-	const queryVector = buildWeightedVector(queryTokens, idfMap);
-
-	return documents
-		.map((document) => {
-			const coachVector = buildWeightedVector(document.tokens, idfMap);
-			const score = cosineSimilarity(queryVector, coachVector);
-			return { coach: document.coach, index: document.index, score };
-		})
-		.filter(({ score }) => score > 0.01)
-		.sort((a, b) => {
-			if (b.score !== a.score) return b.score - a.score;
-			return a.index - b.index;
-		})
-		.map(({ coach }) => coach);
-}
-
-function getOuterRingsFromGeometry(geometry) {
-	if (!geometry) return [];
-	if (geometry.type === "Polygon") {
-		return geometry.coordinates?.[0] ? [geometry.coordinates[0]] : [];
-	}
-	if (geometry.type === "MultiPolygon") {
-		return geometry.coordinates
-			.map((polygon) => polygon?.[0])
-			.filter((ring) => Array.isArray(ring) && ring.length > 2);
-	}
-	return [];
-}
-
-function getRingAreaAndCentroid(ring) {
-	let doubledArea = 0;
-	let centroidLng = 0;
-	let centroidLat = 0;
-
-	for (let i = 0; i < ring.length - 1; i += 1) {
-		const [lng1, lat1] = ring[i];
-		const [lng2, lat2] = ring[i + 1];
-		const cross = lng1 * lat2 - lng2 * lat1;
-		doubledArea += cross;
-		centroidLng += (lng1 + lng2) * cross;
-		centroidLat += (lat1 + lat2) * cross;
-	}
-
-	if (Math.abs(doubledArea) < 0.000001) {
-		const total = ring.reduce(
-			(acc, [lng, lat]) => ({ lng: acc.lng + lng, lat: acc.lat + lat }),
-			{ lng: 0, lat: 0 },
-		);
-		return {
-			area: 0,
-			center: [total.lat / ring.length, total.lng / ring.length],
-		};
-	}
-
-	return {
-		area: Math.abs(doubledArea / 2),
-		center: [centroidLat / (3 * doubledArea), centroidLng / (3 * doubledArea)],
+	const selectProject = (projectId) => {
+		setActiveProjectId(projectId);
+		if (typeof window !== "undefined") {
+			window.history.replaceState(null, "", `#project-${projectId}`);
+			scrollToProject(projectId);
+		}
 	};
-}
-
-function getBestStateLabelLatLng(feature, fallbackCenter) {
-	const stateName = feature.properties.name;
-	if (STATE_LABEL_COORD_OVERRIDES[stateName]) {
-		return L.latLng(STATE_LABEL_COORD_OVERRIDES[stateName]);
-	}
-	const rings = getOuterRingsFromGeometry(feature.geometry);
-	if (!rings.length) return fallbackCenter;
-
-	const largestRing = rings
-		.map((ring) => ({ ring, ...getRingAreaAndCentroid(ring) }))
-		.sort((a, b) => b.area - a.area)[0];
-
-	if (!largestRing?.center) return fallbackCenter;
-	return L.latLng(largestRing.center[0], largestRing.center[1]);
-}
-
-function runSelfTests() {
-	const coaches = getAllCoaches();
-	console.assert(
-		getStateByAbbr("CA")?.name === "California",
-		"CA state lookup should return California",
-	);
-	console.assert(
-		coaches.every((coach) => coach.state && coach.abbr),
-		"Every coach should include state metadata",
-	);
-	console.assert(
-		STATE_ABBR_BY_NAME["New York"] === "NY",
-		"State abbreviation lookup should include New York",
-	);
-}
-
-if (typeof window !== "undefined") {
-	runSelfTests();
-}
-
-const styles = {
-	shell: {
-		minHeight: "100vh",
-		background:
-			"radial-gradient(circle at top left, rgba(198,197,195,0.08), transparent 34%), linear-gradient(135deg, #1E1C1E, #373537)",
-		color: palette.text,
-		fontFamily:
-			"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
-		position: "relative",
-		overflow: "hidden",
-	},
-	map: {
-		width: "100%",
-		height: "100vh",
-		filter: "grayscale(1) contrast(1.05) brightness(0.82)",
-	},
-	introOverlay: {
-		position: "fixed",
-		inset: 0,
-		zIndex: 1200,
-		display: "grid",
-		placeItems: "center",
-		padding: 22,
-		background: "rgba(0,0,0,0.48)",
-		backdropFilter: "blur(7px)",
-		WebkitBackdropFilter: "blur(7px)",
-	},
-	introModal: {
-		position: "relative",
-		width: "min(560px, calc(100vw - 44px))",
-		padding: "28px 28px 26px",
-		background:
-			"linear-gradient(145deg, rgba(30,28,30,0.96), rgba(55,53,55,0.9))",
-		border: `1px solid ${palette.border}`,
-		borderRadius: 24,
-		boxShadow: "0 34px 90px rgba(0,0,0,0.52)",
-		color: palette.text,
-	},
-	introCloseButton: {
-		position: "absolute",
-		top: 16,
-		right: 16,
-		width: 40,
-		height: 40,
-		borderRadius: 999,
-		border: `1px solid ${palette.border}`,
-		background: "rgba(198,197,195,0.07)",
-		color: palette.graphite100,
-		cursor: "pointer",
-		fontSize: 22,
-		lineHeight: 1,
-		display: "inline-flex",
-		alignItems: "center",
-		justifyContent: "center",
-	},
-	eyebrow: {
-		margin: "0 0 8px",
-		fontSize: 11,
-		letterSpacing: "0.18em",
-		textTransform: "uppercase",
-		color: palette.muted,
-	},
-	title: {
-		margin: 0,
-		fontSize: 24,
-		lineHeight: 1.12,
-		fontWeight: 650,
-		letterSpacing: "-0.04em",
-		color: palette.muted,
-	},
-	description: {
-		margin: "10px 0 0",
-		color: palette.muted,
-		fontSize: 14,
-		lineHeight: 1.5,
-	},
-	stats: {
-		display: "grid",
-		gridTemplateColumns: "repeat(3, 1fr)",
-		gap: 10,
-		marginTop: 16,
-	},
-	stat: {
-		padding: "11px 10px",
-		border: `1px solid ${palette.border}`,
-		borderRadius: 12,
-		background: "rgba(198,197,195,0.045)",
-	},
-	statStrong: {
-		display: "block",
-		fontSize: 17,
-		lineHeight: 1,
-		color: palette.text,
-	},
-	statLabel: {
-		display: "block",
-		marginTop: 5,
-		fontSize: 11,
-		color: palette.muted,
-	},
-	semanticSearchButton: {
-		position: "absolute",
-		zIndex: 902,
-		left: 24,
-		bottom: 158,
-		display: "inline-flex",
-		alignItems: "center",
-		gap: 9,
-		padding: "13px 17px",
-		background: palette.panel,
-		border: `1px solid ${palette.border}`,
-		borderRadius: 999,
-		color: palette.text,
-		backdropFilter: "blur(18px)",
-		boxShadow: "0 20px 60px rgba(0,0,0,0.36)",
-		cursor: "pointer",
-		fontWeight: 700,
-		fontSize: 14,
-		lineHeight: 1,
-	},
-	semanticSearchButtonActive: {
-		background: palette.graphite100,
-		color: palette.graphite900,
-		border: "1px solid rgba(198,197,195,0.46)",
-	},
-	semanticSearchIcon: {
-		display: "inline-flex",
-		alignItems: "center",
-		justifyContent: "center",
-		color: "currentColor",
-		fontSize: 15,
-		lineHeight: 1,
-		fontWeight: 400,
-		transform: "translateY(-0.5px)",
-	},
-	controls: {
-		position: "absolute",
-		zIndex: 900,
-		left: 24,
-		bottom: 86,
-		display: "flex",
-		gap: 10,
-		padding: 8,
-		background: palette.panel,
-		border: `1px solid ${palette.border}`,
-		borderRadius: 999,
-		backdropFilter: "blur(18px)",
-		boxShadow: "0 20px 60px rgba(0,0,0,0.36)",
-	},
-	favoritesBar: {
-		position: "absolute",
-		zIndex: 901,
-		left: 24,
-		bottom: 24,
-		display: "inline-flex",
-		alignItems: "center",
-		gap: 10,
-		padding: "13px 17px",
-		background: palette.panel,
-		border: `1px solid ${palette.border}`,
-		borderRadius: 999,
-		color: palette.text,
-		backdropFilter: "blur(18px)",
-		boxShadow: "0 20px 60px rgba(0,0,0,0.36)",
-		cursor: "pointer",
-		fontWeight: 700,
-		fontSize: 14,
-		lineHeight: 1,
-	},
-	favoritesCount: {
-		display: "inline-flex",
-		alignItems: "center",
-		justifyContent: "center",
-		minWidth: 24,
-		height: 24,
-		padding: "0 7px",
-		borderRadius: 999,
-		background: palette.graphite100,
-		color: palette.graphite900,
-		fontSize: 12,
-		fontWeight: 850,
-	},
-	controlButton: {
-		border: 0,
-		borderRadius: 999,
-		padding: "11px 14px",
-		cursor: "pointer",
-		color: palette.text,
-		background: "transparent",
-		font: "inherit",
-		fontSize: 13,
-		transition: "background 160ms ease, color 160ms ease, transform 160ms ease",
-	},
-	activeControl: {
-		background: palette.graphite100,
-		color: palette.graphite900,
-	},
-	glassPanel: {
-		position: "fixed",
-		top: 0,
-		right: 0,
-		height: "100vh",
-		width: 430,
-		background:
-			"linear-gradient(145deg, rgba(30,28,30,0.96) 0%, rgba(55,53,55,0.94) 100%)",
-		boxShadow: "-2px 0 56px rgba(0,0,0,0.46)",
-		borderLeft: `1px solid ${palette.border}`,
-		zIndex: 1000,
-		padding: "34px 34px 22px",
-		display: "flex",
-		flexDirection: "column",
-		gap: 22,
-		transition: "all 0.42s cubic-bezier(.66,.09,.28,1)",
-		backdropFilter: "blur(18px) saturate(130%)",
-		overflowY: "auto",
-		overscrollBehavior: "contain",
-	},
-	glassPanelHidden: {
-		transform: "translateX(104%)",
-		pointerEvents: "none",
-		opacity: 0,
-	},
-	glassPanelShown: {
-		transform: "none",
-		pointerEvents: "all",
-		opacity: 1,
-	},
-	backArrow: {
-		cursor: "pointer",
-		width: 38,
-		height: 38,
-		display: "inline-flex",
-		alignItems: "center",
-		justifyContent: "center",
-		opacity: 0.92,
-		fontSize: 22,
-		fontWeight: "bold",
-		color: palette.graphite100,
-		background: "rgba(198,197,195,0.06)",
-		border: `1px solid ${palette.border}`,
-		borderRadius: 999,
-		outline: "none",
-		transition: "background 160ms ease, transform 160ms ease",
-	},
-	heartButton: {
-		cursor: "pointer",
-		width: 42,
-		height: 42,
-		display: "inline-flex",
-		alignItems: "center",
-		justifyContent: "center",
-		fontSize: 21,
-		color: palette.graphite100,
-		background: "rgba(198,197,195,0.06)",
-		border: `1px solid ${palette.border}`,
-		borderRadius: 999,
-		outline: "none",
-		transition: "background 160ms ease, transform 160ms ease, color 160ms ease",
-	},
-	heartButtonActive: {
-		background: "rgba(217,189,125,0.16)",
-		border: "1px solid rgba(217,189,125,0.46)",
-		color: "#F2D88B",
-	},
-	profileTopRow: {
-		width: "100%",
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "space-between",
-		marginBottom: 2,
-	},
-	coachListHeader: {
-		display: "flex",
-		alignItems: "center",
-		gap: 13,
-		marginBottom: 14,
-	},
-	searchInput: {
-		width: "100%",
-		padding: "12px 16px",
-		borderRadius: 13,
-		fontSize: 15,
-		margin: "0 0 22px 0",
-		outline: "none",
-		background: "rgba(30,28,30,0.72)",
-		border: `1px solid ${palette.border}`,
-		color: palette.text,
-		boxShadow: "0 1.5px 8px rgba(0,0,0,0.22) inset",
-	},
-	coachCard: {
-		background:
-			"linear-gradient(90deg, rgba(55,53,55,0.72), rgba(78,76,78,0.42))",
-		borderRadius: 18,
-		padding: "18px 20px",
-		marginBottom: 18,
-		boxShadow: "0 10px 30px rgba(0,0,0,0.22)",
-		display: "flex",
-		alignItems: "center",
-		gap: 16,
-		cursor: "pointer",
-		border: `1px solid ${palette.border}`,
-		transition:
-			"border-color 0.18s ease, box-shadow 0.26s ease, transform 0.18s ease",
-		position: "relative",
-	},
-	coachCardHovered: {
-		border: "1px solid rgba(198,197,195,0.34)",
-		boxShadow: "0 18px 42px rgba(0,0,0,0.34)",
-		transform: "translateY(-2px)",
-		zIndex: 3,
-	},
-	headshot: {
-		width: 68,
-		height: 68,
-		borderRadius: "50%",
-		objectFit: "cover",
-		border: "3px solid rgba(198,197,195,0.20)",
-		background: palette.graphite800,
-		margin: 0,
-		filter: "grayscale(0.15)",
-	},
-	coachInfo: {
-		flex: 1,
-		minWidth: 0,
-	},
-	coachName: {
-		fontWeight: 650,
-		fontSize: 17,
-		marginBottom: 2,
-		color: palette.text,
-	},
-	coachTitle: {
-		fontSize: 14,
-		color: palette.graphite100,
-		marginBottom: 3,
-	},
-	coachLocation: {
-		fontSize: 13,
-		color: palette.muted,
-		marginBottom: 4,
-	},
-	coachRating: {
-		fontSize: 13.5,
-		color: palette.graphite100,
-		fontWeight: 650,
-		marginBottom: 2,
-		marginLeft: 1,
-	},
-	tagList: {
-		display: "flex",
-		gap: 7,
-		flexWrap: "wrap",
-		marginTop: 7,
-	},
-	tag: {
-		display: "inline-block",
-		fontSize: 12.4,
-		fontWeight: 550,
-		padding: "4px 10px",
-		background: "rgba(198,197,195,0.08)",
-		color: palette.graphite100,
-		border: `1px solid ${palette.border}`,
-		borderRadius: 999,
-		marginTop: 2,
-		letterSpacing: 0.1,
-	},
-	profilePanel: {
-		display: "flex",
-		flexDirection: "column",
-		alignItems: "center",
-		gap: 15,
-		marginTop: 2,
-	},
-	profileHeadshot: {
-		width: 118,
-		height: 118,
-		borderRadius: "50%",
-		objectFit: "cover",
-		border: "4px solid rgba(198,197,195,0.24)",
-		boxShadow: "0 18px 56px rgba(0,0,0,0.42)",
-		marginBottom: 4,
-		marginTop: 6,
-		background: palette.graphite800,
-		filter: "grayscale(0.1)",
-	},
-	profileName: {
-		fontWeight: 720,
-		fontSize: 25,
-		color: palette.text,
-		lineHeight: 1.08,
-		marginBottom: 2,
-		textAlign: "center",
-	},
-	profileTitle: {
-		color: palette.graphite100,
-		fontSize: 16,
-		fontWeight: 550,
-		marginBottom: 4,
-		textAlign: "center",
-	},
-	profileLocation: {
-		color: palette.muted,
-		fontSize: 14,
-		marginBottom: 3,
-		textAlign: "center",
-	},
-	profileBio: {
-		color: "rgba(242,241,239,0.78)",
-		fontSize: 14.8,
-		lineHeight: 1.55,
-		marginBottom: 8,
-		textAlign: "center",
-		maxWidth: 320,
-	},
-	profileStats: {
-		display: "flex",
-		alignItems: "center",
-		justifyContent: "center",
-		gap: 10,
-		marginBottom: 10,
-		flexWrap: "wrap",
-	},
-	profileStat: {
-		color: palette.graphite100,
-		fontSize: 13.8,
-		fontWeight: 550,
-		background: "rgba(198,197,195,0.07)",
-		border: `1px solid ${palette.border}`,
-		padding: "7px 12px",
-		borderRadius: 999,
-		margin: 0,
-	},
-	primaryButton: {
-		display: "block",
-		width: "100%",
-		background: palette.graphite100,
-		color: palette.graphite900,
-		fontWeight: 750,
-		fontSize: 16.5,
-		border: "none",
-		borderRadius: 999,
-		padding: "15px 0",
-		marginTop: 10,
-		marginBottom: 20,
-		cursor: "pointer",
-		boxShadow: "0 18px 42px rgba(0,0,0,0.30)",
-		letterSpacing: 0.1,
-		transition: "filter 160ms ease, transform 160ms ease",
-	},
-	emptyState: {
-		color: "rgba(198,197,195,0.72)",
-		marginTop: 50,
-		fontSize: 15,
-		textAlign: "center",
-		lineHeight: 1.55,
-	},
-	coachListPanelInner: {
-		overflowY: "auto",
-		maxHeight: "calc(100vh - 56px)",
-		overscrollBehaviorY: "contain",
-		paddingBottom: 6,
-	},
-};
-
-function CoachTag({ children }) {
-	return <span style={styles.tag}>{children}</span>;
-}
-
-function StarRating({ value }) {
-	return <span style={styles.coachRating}>★ {value}</span>;
-}
-
-function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
-	return (
-		<div
-			style={{
-				...styles.coachCard,
-				...(hovered ? styles.coachCardHovered : {}),
-			}}
-			onClick={onClick}
-			onMouseEnter={onMouseEnter}
-			onMouseLeave={onMouseLeave}
-		>
-			<img
-				src={coach.headshot}
-				alt={coach.name}
-				style={styles.headshot}
-				loading="lazy"
-			/>
-			<div style={styles.coachInfo}>
-				<div style={styles.coachName}>{coach.name}</div>
-				<div style={styles.coachTitle}>{coach.title}</div>
-				<div style={styles.coachLocation}>
-					{coach.city}
-					{coach.onlineTraining ? " • Online coaching" : ""}
-				</div>
-				<StarRating value={coach.rating} />
-				<div style={styles.tagList}>
-					{coach.specialties.map((tag) => (
-						<CoachTag key={tag}>{tag}</CoachTag>
-					))}
-				</div>
-			</div>
-		</div>
-	);
-}
-
-function CoachProfile({ coach, onBack, isFavorite, onToggleFavorite }) {
-	return (
-		<div style={styles.profilePanel}>
-			<div style={styles.profileTopRow}>
-				<button
-					style={styles.backArrow}
-					aria-label="Back to list"
-					onClick={onBack}
-				>
-					←
-				</button>
-				<button
-					style={{
-						...styles.heartButton,
-						...(isFavorite ? styles.heartButtonActive : {}),
-					}}
-					aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
-					onClick={() => onToggleFavorite(coach.id)}
-				>
-					{isFavorite ? "♥" : "♡"}
-				</button>
-			</div>
-			<img
-				src={coach.headshot}
-				alt={coach.name}
-				style={styles.profileHeadshot}
-				loading="lazy"
-			/>
-			<div style={styles.profileName}>{coach.name}</div>
-			<div style={styles.profileTitle}>{coach.title}</div>
-			<div style={styles.profileLocation}>
-				📍 {coach.city}
-				{coach.onlineTraining ? " • Online coaching" : ""}
-			</div>
-			<div style={styles.profileBio}>{coach.bio}</div>
-			<div style={{ ...styles.tagList, justifyContent: "center" }}>
-				{coach.specialties.map((tag) => (
-					<CoachTag key={tag}>{tag}</CoachTag>
-				))}
-			</div>
-			<div style={styles.profileStats}>
-				<span style={styles.profileStat}>
-					{coach.experience
-						? `🏋️ ${coach.experience}`
-						: `🏋️ ${coach.roster} athletes`}
-				</span>
-				{coach.roster ? (
-					<span style={styles.profileStat}>Roster: {coach.roster}</span>
-				) : null}
-				{coach.onlineTraining ? (
-					<span style={styles.profileStat}>Online coaching</span>
-				) : null}
-			</div>
-			<button style={styles.primaryButton}>Contact now</button>
-		</div>
-	);
-}
-
-function CoachListPanel({
-	title,
-	eyebrow,
-	coaches,
-	onBack,
-	search,
-	setSearch,
-	hoveredCoachId,
-	setHoveredCoachId,
-	profileCoach,
-	setProfileCoach,
-	favoriteCoachIds,
-	onToggleFavorite,
-	emptyMessage,
-}) {
-	const filtered = rankCoachesBySemanticSearch(coaches, search);
-
-	if (profileCoach) {
-		return (
-			<CoachProfile
-				coach={profileCoach}
-				onBack={() => setProfileCoach(null)}
-				isFavorite={favoriteCoachIds.includes(profileCoach.id)}
-				onToggleFavorite={onToggleFavorite}
-			/>
-		);
-	}
-
-	return (
-		<div style={styles.coachListPanelInner}>
-			<div style={styles.coachListHeader}>
-				<button
-					style={styles.backArrow}
-					aria-label="Back to map"
-					onClick={onBack}
-				>
-					←
-				</button>
-				<div>
-					<div
-						style={{
-							fontSize: 12,
-							color: palette.muted,
-							textTransform: "uppercase",
-							letterSpacing: "0.18em",
-						}}
-					>
-						{eyebrow}
-					</div>
-					<div
-						style={{
-							fontWeight: 720,
-							fontSize: 21,
-							color: palette.text,
-							letterSpacing: -0.3,
-						}}
-					>
-						{title}
-					</div>
-				</div>
-			</div>
-
-			<input
-				style={styles.searchInput}
-				placeholder="Describe what you want, like heavy lifting or female wellness…"
-				value={search}
-				onChange={(event) => setSearch(event.target.value)}
-				autoFocus
-			/>
-
-			<div>
-				{filtered.length === 0 ? (
-					<div style={styles.emptyState}>{emptyMessage}</div>
-				) : null}
-				{filtered.map((coach) => (
-					<CoachCard
-						key={coach.id}
-						coach={coach}
-						onClick={() => setProfileCoach(coach)}
-						hovered={hoveredCoachId === coach.id}
-						onMouseEnter={() => setHoveredCoachId(coach.id)}
-						onMouseLeave={() => setHoveredCoachId(null)}
-					/>
-				))}
-			</div>
-		</div>
-	);
-}
-
-function createMarkerIcon(count, active = false) {
-	return L.divIcon({
-		className: "",
-		html: `<div class="coach-map-marker ${active ? "active" : ""}"><span>${count}</span></div>`,
-		iconSize: active ? [34, 34] : [28, 28],
-		iconAnchor: active ? [17, 17] : [14, 14],
-	});
-}
-
-function getResponsiveStateLabelSize(map, bounds) {
-	const northWest = map.latLngToLayerPoint(bounds.getNorthWest());
-	const southEast = map.latLngToLayerPoint(bounds.getSouthEast());
-	const pixelWidth = Math.abs(southEast.x - northWest.x);
-	const pixelHeight = Math.abs(southEast.y - northWest.y);
-	const smallestSide = Math.min(pixelWidth, pixelHeight);
-
-	return {
-		fontSize: Math.max(5, Math.min(12, smallestSide * 0.18)),
-		labelWidth: Math.max(12, Math.min(34, pixelWidth * 0.46)),
-		opacity: smallestSide < 14 ? 0.08 : smallestSide < 24 ? 0.14 : 0.22,
-	};
-}
-
-function createStateLabelIcon({
-	abbr,
-	hasCoaches,
-	fontSize,
-	labelWidth,
-	opacity,
-}) {
-	return L.divIcon({
-		className: "",
-		html: `<div class="state-block-label ${hasCoaches ? "has-coaches" : ""}" style="font-size:${fontSize}px;width:${labelWidth}px;opacity:${opacity};">${abbr}</div>`,
-		iconSize: [0, 0],
-		iconAnchor: [0, 0],
-	});
-}
-
-function addGlobalMapStyles() {
-	const style = document.createElement("style");
-	style.innerHTML = `
-    .leaflet-container { background: ${palette.graphite900}; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-    .leaflet-control-zoom { border: 1px solid ${palette.border} !important; border-radius: 14px !important; overflow: hidden; box-shadow: 0 18px 45px rgba(0,0,0,0.28) !important; }
-    .leaflet-control-zoom a { background: rgba(30,28,30,0.88) !important; color: ${palette.graphite100} !important; border-bottom: 1px solid ${palette.border} !important; }
-    .leaflet-control-zoom a:hover { background: ${palette.graphite700} !important; color: white !important; }
-    .leaflet-popup-content-wrapper { background: ${palette.graphite900}; color: ${palette.text}; border: 1px solid ${palette.border}; border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,0.45); }
-    .leaflet-popup-tip { background: ${palette.graphite900}; }
-    .coach-map-marker { width: 28px; height: 28px; border-radius: 999px; background: ${palette.graphite100}; border: 5px solid ${palette.graphite800}; box-shadow: 0 0 0 1px rgba(198,197,195,0.42), 0 12px 26px rgba(0,0,0,0.46); display: flex; align-items: center; justify-content: center; color: ${palette.graphite900}; font-size: 11px; font-weight: 800; }
-    .coach-map-marker.active { width: 34px; height: 34px; background: #F2F1EF; box-shadow: 0 0 0 1px rgba(198,197,195,0.66), 0 18px 40px rgba(0,0,0,0.56); }
-    .state-block-label { color: rgba(242,241,239,0.32); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,0.62); pointer-events: none; user-select: none; white-space: nowrap; line-height: 1; transform: translate(-50%, -50%); transition: opacity 160ms ease, font-size 160ms ease; }
-    .state-block-label.has-coaches { color: rgba(242,241,239,0.42); }
-    .graphite-popup-title { margin: 0 0 5px; font-size: 15px; font-weight: 700; color: ${palette.text}; }
-    .graphite-popup-meta { margin: 0; color: ${palette.muted}; font-size: 13px; line-height: 1.4; }
-
-    /* ── Hover tooltip wrapper: strip Leaflet defaults ── */
-    .coach-tooltip-wrapper {
-      background: transparent !important;
-      border: none !important;
-      box-shadow: none !important;
-      padding: 0 !important;
-    }
-    .coach-tooltip-wrapper::before { display: none !important; }
-
-    /* ── Hover tooltip card ── */
-    .coach-hover-tooltip {
-      pointer-events: none;
-      background: linear-gradient(145deg, rgba(22,20,22,0.98), rgba(50,48,50,0.96));
-      border: 1px solid rgba(198,197,195,0.16);
-      border-radius: 18px;
-      padding: 14px 16px;
-      min-width: 220px;
-      max-width: 260px;
-      box-shadow: 0 28px 64px rgba(0,0,0,0.58), 0 0 0 0.5px rgba(198,197,195,0.08);
-      backdrop-filter: blur(20px);
-      font-family: Inter, ui-sans-serif, system-ui, sans-serif;
-      animation: tooltipFadeIn 140ms ease;
-    }
-    @keyframes tooltipFadeIn {
-      from { opacity: 0; transform: translateY(4px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .cht-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-    .cht-avatar { width: 44px; height: 44px; border-radius: 50%; object-fit: cover; border: 2px solid rgba(198,197,195,0.22); flex-shrink: 0; }
-    .cht-name { font-size: 14px; font-weight: 700; color: #F2F1EF; margin: 0 0 1px; line-height: 1.2; }
-    .cht-title { font-size: 12px; color: #A8A6A2; margin: 0; line-height: 1.3; }
-    .cht-divider { height: 1px; background: rgba(198,197,195,0.10); margin: 9px 0; }
-    .cht-location { font-size: 12px; color: #A8A6A2; margin: 0 0 5px; }
-    .cht-rating { font-size: 12px; font-weight: 650; color: #C6C5C3; margin: 0 0 9px; }
-    .cht-tags { display: flex; gap: 5px; flex-wrap: wrap; }
-    .cht-tag { font-size: 11px; font-weight: 600; padding: 3px 9px; background: rgba(198,197,195,0.07); color: #C6C5C3; border: 1px solid rgba(198,197,195,0.13); border-radius: 999px; }
-  `;
-	document.head.appendChild(style);
-	return style;
-}
-
-export default function App() {
-	const MOCK_STATES = useMemo(() => getStatesWithCoaches(), []);
-	const mapNodeRef = useRef(null);
-	const mapRef = useRef(null);
-	const stateLayerRef = useRef(null);
-	const isDesktop = useIsDesktop();
-	const layersRef = useRef({
-		stateZones: [],
-		stateLabels: [],
-		coachMarkers: [],
-	});
-	const selectedStateRef = useRef(null);
-
-	const [selectedState, setSelectedState] = useState(null);
-	const [search, setSearch] = useState("");
-	const [hoveredCoachId, setHoveredCoachId] = useState(null);
-	const [profileCoach, setProfileCoach] = useState(null);
-	const [filter, setFilter] = useState("all");
-	const [favoritesOpen, setFavoritesOpen] = useState(false);
-	const [semanticSearchOpen, setSemanticSearchOpen] = useState(false);
-	const [favoriteCoachIds, setFavoriteCoachIds] = useState([]);
-	const [showIntroModal, setShowIntroModal] = useState(true);
-	const [showOnline, setShowOnline] = useState(false);
-
-	const allCoaches = useMemo(() => getAllCoaches(), []);
-	const favoriteCoaches = useMemo(
-		() => allCoaches.filter((coach) => favoriteCoachIds.includes(coach.id)),
-		[allCoaches, favoriteCoachIds],
-	);
-	const onlineCoaches = useMemo(
-		() => allCoaches.filter((coach) => coach.onlineTraining),
-		[allCoaches],
-	);
-
-	const panelVisible =
-		Boolean(selectedState) || favoritesOpen || semanticSearchOpen || showOnline;
-	const state = selectedState ? getStateByAbbr(selectedState) : null;
 
 	useEffect(() => {
-		selectedStateRef.current = selectedState;
-	}, [selectedState]);
+		const syncProjectFromHash = () => {
+			const hash = window.location.hash;
 
-	useEffect(() => {
-		if (!mapNodeRef.current || mapRef.current) return undefined;
+			if (hash.startsWith("#project-")) {
+				const hashProjectId = hash.replace(/^#project-/, "");
+				if (!projects.some((project) => project.id === hashProjectId)) {
+					return;
+				}
 
-		const style = addGlobalMapStyles();
-		const map = L.map(mapNodeRef.current, {
-			zoomControl: true,
-			attributionControl: false,
-			scrollWheelZoom: true,
-		}).setView([38.8, -96.5], window.innerWidth >= 1024 ? 4 : 3);
+				setActiveProjectId(hashProjectId);
+				scrollToProject(hashProjectId);
+				return;
+			}
 
-		L.tileLayer(
-			"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-			{
-				maxZoom: 20,
-			},
-		).addTo(map);
-
-		const coaches = getAllCoaches();
-		const statesGeoJsonUrl =
-			"https://raw.githubusercontent.com/PublicaMundi/MappingAPI/master/data/geojson/us-states.json";
-
-		const updateStateLabels = () => {
-			layersRef.current.stateLabels.forEach(
-				({ abbr, stateName, layer, bounds, hasCoaches }) => {
-					const labelScale = STATE_LABEL_SIZE_OVERRIDES[stateName] || 1;
-					const { fontSize, labelWidth, opacity } = getResponsiveStateLabelSize(
-						map,
-						bounds,
-					);
-					layer.setIcon(
-						createStateLabelIcon({
-							abbr,
-							hasCoaches,
-							fontSize: fontSize * labelScale,
-							labelWidth: labelWidth * labelScale,
-							opacity,
-						}),
-					);
-				},
-			);
+			if (hash.length > 1) {
+				scrollToElement(hash.slice(1));
+			}
 		};
 
-		fetch(statesGeoJsonUrl)
-			.then((response) => response.json())
-			.then((geojson) => {
-				stateLayerRef.current = L.geoJSON(geojson, {
-					style: (feature) => {
-						const stateName = feature.properties.name;
-						const hasCoaches = coaches.some(
-							(coach) => coach.state === stateName,
-						);
-						return {
-							color: hasCoaches
-								? "rgba(218,220,215,0.48)"
-								: "rgba(218,220,215,0.24)",
-							weight: hasCoaches ? 0.95 : 0.55,
-							fillColor: hasCoaches
-								? "rgba(244,242,238,0.065)"
-								: "rgba(244,242,238,0.025)",
-							fillOpacity: 1,
-						};
-					},
-					onEachFeature: (feature, layer) => {
-						const stateName = feature.properties.name;
-						const stateCoaches = coaches.filter(
-							(coach) => coach.state === stateName,
-						);
-						if (!stateCoaches.length) return;
+		syncProjectFromHash();
+		window.addEventListener("hashchange", syncProjectFromHash);
 
-						layer.on("click", () => {
-							const abbr = stateCoaches[0].abbr;
-							const stateItem = getStateByAbbr(abbr);
-							setSelectedState(abbr);
-							setFavoritesOpen(false);
-							setSemanticSearchOpen(false);
-							setProfileCoach(null);
-							setSearch("");
-							setShowOnline(false);
-							if (stateItem) map.flyTo(stateItem.center, 6, { duration: 0.85 });
-						});
-
-						layer.on("mouseover", () => {
-							layer.setStyle({
-								color: "rgba(217,189,125,0.88)",
-								fillColor: "rgba(217,189,125,0.12)",
-								weight: 1.3,
-							});
-						});
-
-						layer.on("mouseout", () => {
-							stateLayerRef.current?.resetStyle(layer);
-						});
-					},
-				}).addTo(map);
-
-				layersRef.current.stateZones = [
-					{ abbr: "US_STATES", layer: stateLayerRef.current },
-				];
-
-				geojson.features.forEach((feature) => {
-					const stateName = feature.properties.name;
-					const abbr = STATE_ABBR_BY_NAME[stateName];
-					if (!abbr) return;
-
-					const hasCoaches = coaches.some((coach) => coach.state === stateName);
-					const tempLayer = L.geoJSON(feature);
-					const bounds = tempLayer.getBounds();
-					const fallbackCenter = bounds.getCenter();
-					const labelLatLng = getBestStateLabelLatLng(feature, fallbackCenter);
-					const labelScale = STATE_LABEL_SIZE_OVERRIDES[stateName] || 1;
-					const { fontSize, labelWidth, opacity } = getResponsiveStateLabelSize(
-						map,
-						bounds,
-					);
-
-					const labelMarker = L.marker(labelLatLng, {
-						interactive: false,
-						pane: "markerPane",
-						icon: createStateLabelIcon({
-							abbr,
-							hasCoaches,
-							fontSize: fontSize * labelScale,
-							labelWidth: labelWidth * labelScale,
-							opacity,
-						}),
-					}).addTo(map);
-
-					layersRef.current.stateLabels.push({
-						abbr,
-						stateName,
-						layer: labelMarker,
-						bounds,
-						center: labelLatLng,
-						hasCoaches,
-					});
-				});
-
-				map.on("zoomend", updateStateLabels);
-				updateStateLabels();
-			})
-			.catch(() => {
-				console.warn(
-					"State borders could not be loaded. Coach markers are still available.",
-				);
-			});
-
-		// ── Coach markers with hover tooltip ──
-		MOCK_STATES.forEach((stateItem) => {
-			stateItem.coaches.forEach((coach) => {
-				const tooltipHtml = `
-					<div class="coach-hover-tooltip">
-						<div class="cht-header">
-							<img class="cht-avatar" src="${coach.headshot}" alt="${coach.name}" />
-							<div>
-								<div class="cht-name">${coach.name}</div>
-								<div class="cht-title">${coach.title}</div>
-							</div>
-						</div>
-						<div class="cht-divider"></div>
-						<div class="cht-location">📍 ${coach.city}${coach.onlineTraining ? " · Online" : ""}</div>
-						<div class="cht-rating">★ ${coach.rating}${coach.experience ? " · " + coach.experience : ""}</div>
-						<div class="cht-tags">
-							${(coach.specialties || []).map((s) => `<span class="cht-tag">${s}</span>`).join("")}
-						</div>
-					</div>
-				`;
-
-				const marker = L.marker(coach.coords, { icon: createMarkerIcon(1) })
-					.bindTooltip(tooltipHtml, {
-						direction: "top",
-						offset: [0, -20],
-						opacity: 1,
-						className: "coach-tooltip-wrapper",
-					})
-					.bindPopup(
-						`<p class="graphite-popup-title">${coach.name}</p><p class="graphite-popup-meta">${coach.title}<br />${coach.city}</p>`,
-					)
-					.on("click", () => {
-						setSelectedState(stateItem.abbr);
-						setFavoritesOpen(false);
-						setSemanticSearchOpen(false);
-						setProfileCoach(coach);
-						setSearch("");
-						setShowOnline(false);
-						map.flyTo(coach.coords, 10, { duration: 0.85 });
-					})
-					.addTo(map);
-
-				layersRef.current.coachMarkers.push({
-					abbr: stateItem.abbr,
-					coachId: coach.id,
-					layer: marker,
-				});
-			});
-		});
-
-		mapRef.current = map;
-
-		return () => {
-			map.off("zoomend", updateStateLabels);
-			map.remove();
-			mapRef.current = null;
-			stateLayerRef.current = null;
-			layersRef.current = { stateZones: [], stateLabels: [], coachMarkers: [] };
-			style.remove();
-		};
+		return () => window.removeEventListener("hashchange", syncProjectFromHash);
 	}, []);
 
 	useEffect(() => {
-		if (!mapRef.current) return;
+		if (typeof window === "undefined") {
+			return;
+		}
 
-		const shouldShowStates = filter === "all" || filter === "states";
-		const shouldShowCoaches = filter === "all" || filter === "coaches";
-
-		layersRef.current.stateZones.forEach(({ layer }) => {
-			if (shouldShowStates && !mapRef.current.hasLayer(layer))
-				layer.addTo(mapRef.current);
-			if (!shouldShowStates && mapRef.current.hasLayer(layer))
-				mapRef.current.removeLayer(layer);
-		});
-
-		layersRef.current.stateLabels.forEach(({ layer }) => {
-			if (shouldShowStates && !mapRef.current.hasLayer(layer))
-				layer.addTo(mapRef.current);
-			if (!shouldShowStates && mapRef.current.hasLayer(layer))
-				mapRef.current.removeLayer(layer);
-		});
-
-		layersRef.current.coachMarkers.forEach(({ layer }) => {
-			if (shouldShowCoaches && !mapRef.current.hasLayer(layer))
-				layer.addTo(mapRef.current);
-			if (!shouldShowCoaches && mapRef.current.hasLayer(layer))
-				mapRef.current.removeLayer(layer);
-		});
-	}, [filter]);
-
-	function toggleFavoriteCoach(coachId) {
-		setFavoriteCoachIds((current) =>
-			current.includes(coachId)
-				? current.filter((id) => id !== coachId)
-				: [...current, coachId],
-		);
-	}
-
-	function resetToMap() {
-		setSelectedState(null);
-		setFavoritesOpen(false);
-		setSemanticSearchOpen(false);
-		setProfileCoach(null);
-		setSearch("");
-		setShowOnline(false);
-		if (mapRef.current)
-			mapRef.current.flyTo([38.8, -96.5], 4, { duration: 0.8 });
-	}
-
-	function selectState(abbr) {
-		const stateItem = getStateByAbbr(abbr);
-		if (!stateItem) return;
-		setSelectedState(abbr);
-		setFavoritesOpen(false);
-		setSemanticSearchOpen(false);
-		setProfileCoach(null);
-		setSearch("");
-		setShowOnline(false);
-		if (mapRef.current)
-			mapRef.current.flyTo(stateItem.center, 6, { duration: 0.85 });
-	}
-
-	function openFavoritesPanel() {
-		setSelectedState(null);
-		setFavoritesOpen(true);
-		setSemanticSearchOpen(false);
-		setProfileCoach(null);
-		setSearch("");
-		setShowOnline(false);
-	}
-
-	function openSemanticSearchPanel() {
-		setSelectedState(null);
-		setFavoritesOpen(false);
-		setSemanticSearchOpen(true);
-		setProfileCoach(null);
-		setShowOnline(false);
-	}
-
-	function openOnlinePanel() {
-		setSelectedState(null);
-		setFavoritesOpen(false);
-		setSemanticSearchOpen(false);
-		setProfileCoach(null);
-		setShowOnline(true);
-		setSearch("");
-	}
-
-	const activePanelCoaches = semanticSearchOpen
-		? allCoaches
-		: favoritesOpen
-			? favoriteCoaches
-			: showOnline
-				? onlineCoaches
-				: state?.coaches || [];
-
-	const activePanelTitle = semanticSearchOpen
-		? "Coach Search"
-		: favoritesOpen
-			? "Favorites"
-			: showOnline
-				? "Online Training"
-				: state?.name || "";
-
-	const activePanelEyebrow = semanticSearchOpen
-		? "Semantic matches"
-		: favoritesOpen
-			? "Saved coaches"
-			: showOnline
-				? "Remote coaches"
-				: "Selected state";
-
-	const activePanelEmptyMessage = semanticSearchOpen
-		? "No matching coaches found. Try a broader phrase like strength, wellness, barbell, or performance."
-		: favoritesOpen
-			? "No favorites yet. Open a coach profile and tap the heart to save them here."
-			: showOnline
-				? "No online training coaches found."
-				: "No matching coaches found.";
+		if (window.location.hash === `#project-${activeProjectId}`) {
+			scrollToProject(activeProjectId);
+		}
+	}, [activeProjectId]);
 
 	return (
-		<main style={styles.shell}>
-			{showIntroModal ? (
-				<div
-					style={styles.introOverlay}
-					role="dialog"
-					aria-modal="true"
-					aria-labelledby="coach-map-intro-title"
-				>
-					<section style={styles.introModal}>
-						<button
-							type="button"
-							style={styles.introCloseButton}
-							onClick={() => setShowIntroModal(false)}
-							aria-label="Close intro popup"
-						>
-							×
-						</button>
-						<p style={styles.eyebrow}>Graphite Mix</p>
-						<h1
-							id="coach-map-intro-title"
-							style={{
-								...styles.title,
-								fontSize: 32,
-								color: palette.graphite100,
-								paddingRight: 44,
-							}}
-						>
-							Strength Coach Discovery
-						</h1>
-						<p style={{ ...styles.description, fontSize: 16, maxWidth: 460 }}>
-							A minimal graphite map for finding powerlifting, strength,
-							bodybuilding, and lifestyle coaches by location.
+		<main className="site-shell">
+			<header className="site-header">
+				<a className="wordmark" href="#top" aria-label="Carinne Tzurdecker home">
+					CTZ
+				</a>
+				<nav className="nav-links" aria-label="Primary navigation">
+					<a href="#work">Work</a>
+					<a href="#projects">Projects</a>
+					<a href="#camera-roll">Camera Roll</a>
+					<a href="#contact">Contact</a>
+				</nav>
+			</header>
+
+			<section className="hero-section" id="top">
+				<div className="hero-lockup">
+					<p className="hero-kicker">Mastering the art of</p>
+					<h1>Modern Tech</h1>
+					<div className="hero-bottom">
+						<p className="section-code">Carinne Tzurdecker / Atlanta</p>
+						<p className="lede">
+							Software engineer building AI automation, workflow tools, and full-stack products with a
+							product-minded, human-centered approach.
 						</p>
-						<div style={styles.stats}>
-							<div style={styles.stat}>
-								<strong style={styles.statStrong}>{MOCK_STATES.length}</strong>
-								<span style={styles.statLabel}>States</span>
-							</div>
-							<div style={styles.stat}>
-								<strong style={styles.statStrong}>{allCoaches.length}</strong>
-								<span style={styles.statLabel}>Coaches</span>
-							</div>
-							<div style={styles.stat}>
-								<strong style={styles.statStrong}>4.8</strong>
-								<span style={styles.statLabel}>Avg rating</span>
-							</div>
+						<div className="hero-actions" aria-label="Primary portfolio actions">
+							<a href="#projects">View work</a>
+							<a href="#camera-roll">Camera roll</a>
 						</div>
-					</section>
+					</div>
 				</div>
-			) : null}
+			</section>
 
-			<div ref={mapNodeRef} style={styles.map} />
-
-			<button
-				type="button"
-				style={{
-					...styles.semanticSearchButton,
-					...(semanticSearchOpen ? styles.semanticSearchButtonActive : {}),
-				}}
-				onClick={openSemanticSearchPanel}
-				aria-label="Open semantic coach search"
-			>
-				<span style={styles.semanticSearchIcon}>⌕</span>
-				<span>Search coaches</span>
-			</button>
-
-			<nav style={styles.controls} aria-label="Map filters">
-				{["all", "states", "coaches"].map((item) => (
-					<button
-						key={item}
-						onClick={() => setFilter(item)}
-						style={{
-							...styles.controlButton,
-							...(filter === item ? styles.activeControl : {}),
-						}}
-					>
-						{item[0].toUpperCase() + item.slice(1)}
-					</button>
+			<section className="impact-ledger" aria-label="Selected impact metrics">
+				{stats.map((stat) => (
+					<div className="ledger-item" key={stat.label}>
+						<strong>{stat.value}</strong>
+						<span>{stat.label}</span>
+					</div>
 				))}
-			</nav>
+			</section>
 
-			<button
-				type="button"
-				style={styles.favoritesBar}
-				onClick={openFavoritesPanel}
-				aria-label="Open favorite coaches"
-			>
-				<span>♡ Favorites</span>
-				<span style={styles.favoritesCount}>{favoriteCoachIds.length}</span>
-			</button>
-
-			<div
-				style={{
-					position: "absolute",
-					zIndex: 900,
-					right: isDesktop && panelVisible ? 458 : 24,
-					top: 24,
-					display: "flex",
-					flexDirection: "column",
-					gap: 10,
-					transition: "right 0.42s cubic-bezier(.66,.09,.28,1)",
-				}}
-			>
-				<div style={{ display: "flex", gap: 10 }}>
-					{MOCK_STATES.map((stateItem) => (
-						<button
-							key={stateItem.abbr}
-							onClick={() => selectState(stateItem.abbr)}
-							style={{
-								border: `1px solid ${selectedState === stateItem.abbr ? "rgba(198,197,195,0.46)" : palette.border}`,
-								background:
-									selectedState === stateItem.abbr
-										? palette.graphite100
-										: "rgba(30,28,30,0.82)",
-								color:
-									selectedState === stateItem.abbr
-										? palette.graphite900
-										: palette.text,
-								borderRadius: 999,
-								padding: "10px 13px",
-								cursor: "pointer",
-								backdropFilter: "blur(14px)",
-								boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
-								fontWeight: 650,
-							}}
-						>
-							{stateItem.abbr}
-						</button>
+			<section className="work-section" id="work">
+				<header className="section-heading">
+					<span>01</span>
+					<h2>Experience</h2>
+				</header>
+				<div className="work-intro">
+					<p>
+						I like building useful systems: clearer workflows, better handoffs, and products that help
+						people understand what needs to happen next.
+					</p>
+				</div>
+				<div className="timeline" aria-label="Professional experience">
+					{experience.map((job) => (
+						<article className="timeline-item" key={`${job.role}-${job.company}`}>
+							<p className="timeline-meta">{job.time}</p>
+							<div className="timeline-body">
+								<h3>{job.role}</h3>
+								<p className="company">{job.company}</p>
+								<p>{job.copy}</p>
+								<div className="mini-list">
+									{job.highlights.map((highlight) => (
+										<span key={highlight}>{highlight}</span>
+									))}
+								</div>
+							</div>
+						</article>
 					))}
 				</div>
-				<div style={{ display: "flex", gap: 10 }}>
-					<button
-						onClick={openOnlinePanel}
-						style={{
-							border: `1px solid ${showOnline ? "rgba(198,197,195,0.46)" : palette.border}`,
-							background: showOnline
-								? palette.graphite100
-								: "rgba(30,28,30,0.82)",
-							color: showOnline ? palette.graphite900 : palette.text,
-							borderRadius: 999,
-							padding: "10px 13px",
-							cursor: "pointer",
-							backdropFilter: "blur(14px)",
-							boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
-							fontWeight: 650,
-							minWidth: 132,
-						}}
-						aria-pressed={showOnline ? "true" : "false"}
-					>
-						🌐 Online Training
-					</button>
-				</div>
-			</div>
+			</section>
 
-			<aside
-				style={{
-					...styles.glassPanel,
-					width: isDesktop ? 430 : "100vw",
-					height: isDesktop ? "100vh" : "72vh",
-					top: isDesktop ? 0 : "auto",
-					bottom: isDesktop ? "auto" : 0,
-					right: 0,
-					borderLeft: isDesktop ? `1px solid ${palette.border}` : "none",
-					borderTop: isDesktop ? "none" : `1px solid ${palette.border}`,
-					borderTopLeftRadius: isDesktop ? 0 : 24,
-					borderTopRightRadius: isDesktop ? 0 : 24,
-					padding: isDesktop ? "34px 34px 22px" : "24px 18px 20px",
-					...(panelVisible
-						? styles.glassPanelShown
-						: {
-								...styles.glassPanelHidden,
-								transform: isDesktop ? "translateX(104%)" : "translateY(104%)",
-							}),
-				}}
-				aria-hidden={!panelVisible}
-			>
-				{panelVisible ? (
-					<CoachListPanel
-						title={activePanelTitle}
-						eyebrow={activePanelEyebrow}
-						coaches={activePanelCoaches}
-						onBack={resetToMap}
-						profileCoach={profileCoach}
-						setProfileCoach={setProfileCoach}
-						search={search}
-						setSearch={setSearch}
-						hoveredCoachId={hoveredCoachId}
-						setHoveredCoachId={setHoveredCoachId}
-						favoriteCoachIds={favoriteCoachIds}
-						onToggleFavorite={toggleFavoriteCoach}
-						emptyMessage={activePanelEmptyMessage}
-					/>
-				) : null}
-			</aside>
+			<section className="tools-section" aria-label="Technical skills">
+				<header className="section-heading compact">
+					<span>Skills</span>
+					<h2>Technical toolkit</h2>
+				</header>
+				<div className="tool-columns">
+					{skillGroups.map((group, index) => (
+						<article className={`tool-group tool-group-${index + 1}`} key={group.title}>
+							<h3>{group.title}</h3>
+							<div className="chips">
+								{group.items.map((item) => (
+									<span key={item}>{item}</span>
+								))}
+							</div>
+						</article>
+					))}
+				</div>
+			</section>
+
+			<section className="projects-section" id="projects">
+				<header className="section-heading project-heading">
+					<span>02</span>
+					<h2>Selected work</h2>
+				</header>
+				<div className="project-layout">
+					<div className="project-list" aria-label="Project selector">
+						{projects.map((project, index) => (
+							<button
+								className={project.id === activeProject.id ? "project-button active" : "project-button"}
+								key={project.id}
+								onClick={() => selectProject(project.id)}
+								type="button"
+							>
+								<span>{String(index + 1).padStart(2, "0")}</span>
+								<strong>{project.title}</strong>
+								<small>{project.status}</small>
+							</button>
+						))}
+					</div>
+
+					<article className="project-detail" id={`project-${activeProject.id}`}>
+						<header className="project-copy">
+							<p className="project-date">{activeProject.date}</p>
+							<h3>{activeProject.title}</h3>
+							<p className="tagline">{activeProject.tagline}</p>
+						</header>
+						<div className="case-study-grid">
+							<div>
+								<span>Problem</span>
+								<p>{activeProject.problem}</p>
+							</div>
+							<div>
+								<span>Approach</span>
+								<p>{activeProject.approach}</p>
+							</div>
+							<div>
+								<span>Outcome</span>
+								<p>{activeProject.outcome}</p>
+							</div>
+						</div>
+						<div className="stack-row" aria-label="Project stack">
+							{activeProject.stack.map((item) => (
+								<span key={item}>{item}</span>
+							))}
+						</div>
+						<div className="project-actions">
+							<a href={activeProject.links.caseStudy}>Keep this record open</a>
+							<button disabled type="button">
+								Live link later
+							</button>
+							<button disabled type="button">
+								Repo later
+							</button>
+						</div>
+					</article>
+				</div>
+			</section>
+
+			<section className="leadership-section">
+				<header className="section-heading compact">
+					<span>03</span>
+					<h2>Community leadership</h2>
+				</header>
+				<div className="leadership-copy">
+					<p>
+						At Kennesaw State University Club Barbell, I helped run the less glamorous systems behind a
+						visible team: officer coordination, budgeting, inventory, a club website, merchandise, campus
+						presence, and a community that grew to 11K+ social followers.
+					</p>
+					<div className="leadership-collage" aria-label="Club Barbell photo collage">
+						<figure className="club-photo club-photo-a">
+							<img src={clubCollegiate} alt="KSU Club Barbell team at a collegiate meet" />
+							<figcaption>Collegiate meet crew</figcaption>
+						</figure>
+						<figure className="club-photo club-photo-b">
+							<img src={clubPowerlifting} alt="KSU Club Barbell team at a Powerlifting America event" />
+							<figcaption>Club Barbell team</figcaption>
+						</figure>
+					</div>
+				</div>
+			</section>
+
+			<section className="camera-section" id="camera-roll" aria-label="Personal photo collage">
+				<div className="camera-heading">
+					<p className="section-code">Outside the work</p>
+					<h2>Camera roll, taped to the wall</h2>
+					<p>
+						A little proof that the person building agent workflows also lifts, wanders around in the
+						snow, plays guitar in cars, and occasionally closes the laptop.
+					</p>
+				</div>
+				<div className="photo-collage">
+					{cameraRoll.map((photo, index) => (
+						<figure
+							className={`photo-card ${photo.className}${index === activePhotoIndex ? " active" : ""}`}
+							key={photo.title}
+							onFocus={() => setActivePhotoIndex(index)}
+							onMouseEnter={() => setActivePhotoIndex(index)}
+							tabIndex={0}
+						>
+							<img src={photo.src} alt={photo.title} />
+							<figcaption>
+								<span>{String(index + 1).padStart(2, "0")}</span>
+								<strong>{photo.title}</strong>
+							</figcaption>
+						</figure>
+					))}
+				</div>
+			</section>
+
+			<section className="contact-section" id="contact">
+				<div>
+					<p className="section-code">Contact</p>
+					<h2>Send the messy version first.</h2>
+					<p>
+						I am open to software engineering, applied AI, automation, and product-minded technical
+						roles. Project pages can grow into deeper case studies as screenshots, metrics, and public
+						links become shareable.
+					</p>
+				</div>
+				<div className="contact-links">
+					{contactLinks.map((link) => (
+						<a href={link.href} key={link.label}>
+							{link.label}
+						</a>
+					))}
+				</div>
+			</section>
 		</main>
 	);
 }
+
+export default App;
