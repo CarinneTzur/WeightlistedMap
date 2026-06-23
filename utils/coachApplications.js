@@ -1,6 +1,6 @@
 import { gyms as staticGyms } from "../data/gyms";
 import { STATE_ABBR_BY_NAME, STATE_CENTERS } from "../data/usStates";
-import { supabase } from "../src/lib/supabase";
+import { isSupabaseConfigured, requireSupabase } from "../src/lib/supabase";
 
 export const COACH_APPLICATION_ADMIN_EMAIL = "ctzurdecker@outlook.com";
 export const COACH_APPLICATION_CHANGED_EVENT =
@@ -181,6 +181,7 @@ function safeFileName(fileName) {
 export async function uploadCoachProfilePhoto(file) {
 	if (!file) return { profilePhotoUrl: "", profilePhotoFileName: "" };
 
+	const supabase = requireSupabase();
 	const filePath = `applications/${Date.now()}-${safeFileName(file.name)}`;
 	const { error: uploadError } = await supabase.storage
 		.from(COACH_PHOTOS_BUCKET)
@@ -309,6 +310,7 @@ export function mapSupabaseApplication(row) {
 }
 
 export async function submitCoachApplication(input) {
+	const supabase = requireSupabase();
 	const { profilePhotoFile, ...applicationInput } = input;
 	let photoFields = {
 		profilePhotoUrl: compactString(input.profilePhotoUrl),
@@ -345,7 +347,16 @@ export async function resolveCalInterviewBooking({
 } = {}) {
 	const normalizedFallbackUrl = compactString(fallbackUrl);
 
+	if (!isSupabaseConfigured) {
+		return {
+			interviewBookingUrl: normalizedFallbackUrl,
+			interviewDateTime: "",
+			bookingUid: compactString(bookingUid),
+		};
+	}
+
 	try {
+		const supabase = requireSupabase();
 		const { data, error } = await supabase.functions.invoke(
 			"cal-interview-booking",
 			{
@@ -378,6 +389,7 @@ export async function resolveCalInterviewBooking({
 }
 
 export async function getCoachApplications(status = "pending") {
+	const supabase = requireSupabase();
 	let query = supabase
 		.from(COACH_APPLICATION_TABLE)
 		.select("*")
@@ -393,6 +405,7 @@ export async function getCoachApplications(status = "pending") {
 }
 
 export async function getCoachApplicationById(applicationId) {
+	const supabase = requireSupabase();
 	const { data, error } = await supabase
 		.from(COACH_APPLICATION_TABLE)
 		.select("*")
@@ -408,6 +421,7 @@ export async function reviewCoachApplication(
 	nextStatus,
 	{ adminNotes = "", declineReason = "" } = {},
 ) {
+	const supabase = requireSupabase();
 	if (!Object.values(COACH_APPLICATION_STATUSES).includes(nextStatus)) {
 		throw new Error(`Unsupported coach application status: ${nextStatus}`);
 	}
@@ -528,6 +542,10 @@ function buildApprovedData(applications) {
 }
 
 export async function refreshApprovedCoachCache() {
+	if (!isSupabaseConfigured) {
+		return getApprovedCache();
+	}
+
 	const applications = await getCoachApplications(
 		COACH_APPLICATION_STATUSES.ACCEPTED,
 	);

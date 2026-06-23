@@ -15,8 +15,7 @@ import {
 } from "./utils/coachApplications";
 
 const SHOW_COACH_APPLICATION_CTA =
-	import.meta.env.DEV ||
-	import.meta.env.VITE_SHOW_COACH_APPLICATION_CTA === "true";
+	import.meta.env.VITE_SHOW_COACH_APPLICATION_CTA !== "false";
 
 function getCurrentAppRoute() {
 	if (typeof window === "undefined") {
