@@ -6,6 +6,8 @@ import {
 	submitCoachApplication,
 } from "../../utils/coachApplications";
 import coachApplicationBackground from "../../assets/coach-application-bg-optimized.jpg";
+import { gyms as knownGyms } from "../../data/gyms";
+import { STATE_CENTERS } from "../../data/usStates";
 
 const CAL_INTERVIEW_LINK = "https://cal.com/carinne-tzurdecker-rwwlw0/30min";
 const CAL_INTERVIEW_EVENT_SLUG = "30min";
@@ -30,6 +32,7 @@ const blankForm = {
 	phone: "",
 	city: "",
 	state: "",
+	onlineOnly: false,
 	gymName: "",
 	gymCity: "",
 	gymState: "",
@@ -211,6 +214,110 @@ const SOCIAL_LINK_TYPES = [
 	"Other",
 ];
 
+const ADDITIONAL_CITY_OPTIONS = [
+	{ city: "New Braunfels", state: "TX" },
+	{ city: "Seguin", state: "TX" },
+	{ city: "San Antonio", state: "TX" },
+	{ city: "Phoenix", state: "AZ" },
+	{ city: "Denver", state: "CO" },
+	{ city: "Miami", state: "FL" },
+	{ city: "Orlando", state: "FL" },
+	{ city: "Tampa", state: "FL" },
+	{ city: "Chicago", state: "IL" },
+	{ city: "Indianapolis", state: "IN" },
+	{ city: "Boston", state: "MA" },
+	{ city: "Detroit", state: "MI" },
+	{ city: "Minneapolis", state: "MN" },
+	{ city: "Charlotte", state: "NC" },
+	{ city: "Las Vegas", state: "NV" },
+	{ city: "New York", state: "NY" },
+	{ city: "Columbus", state: "OH" },
+	{ city: "Portland", state: "OR" },
+	{ city: "Philadelphia", state: "PA" },
+	{ city: "Nashville", state: "TN" },
+	{ city: "Seattle", state: "WA" },
+];
+
+const LOCAL_LOCATION_OPTIONS = Array.from(
+	new Map(
+		[...knownGyms, ...ADDITIONAL_CITY_OPTIONS]
+			.map((location) => ({
+				city: String(location.city || "").trim(),
+				state: normalizeStateAbbr(location.state),
+			}))
+			.filter((location) => location.city && STATE_CENTERS[location.state])
+			.map((location) => [
+				`${location.city.toLowerCase()},${location.state}`,
+				{
+					...location,
+					label: `${location.city}, ${location.state}`,
+					searchText: `${location.city} ${location.state} ${
+						STATE_CENTERS[location.state]?.name || ""
+					}`.toLowerCase(),
+				},
+			]),
+	).values(),
+).sort((left, right) => left.label.localeCompare(right.label));
+
+function buildLocationOption(city, state) {
+	const normalizedCity = String(city || "").trim();
+	const normalizedState = normalizeStateAbbr(state);
+
+	if (!normalizedCity || !STATE_CENTERS[normalizedState]) return null;
+
+	return {
+		city: normalizedCity,
+		state: normalizedState,
+		label: `${normalizedCity}, ${normalizedState}`,
+		searchText: `${normalizedCity} ${normalizedState} ${
+			STATE_CENTERS[normalizedState]?.name || ""
+		}`.toLowerCase(),
+	};
+}
+
+function getCityFromAddress(address = {}) {
+	return (
+		address.city ||
+		address.town ||
+		address.village ||
+		address.municipality ||
+		address.county ||
+		""
+	);
+}
+
+function mapNominatimLocation(result) {
+	const address = result?.address || {};
+	return buildLocationOption(getCityFromAddress(address), address.state);
+}
+
+async function searchUsLocations(query, signal) {
+	const url = new URL("https://nominatim.openstreetmap.org/search");
+	url.searchParams.set("format", "jsonv2");
+	url.searchParams.set("addressdetails", "1");
+	url.searchParams.set("countrycodes", "us");
+	url.searchParams.set("limit", "8");
+	url.searchParams.set("dedupe", "1");
+	url.searchParams.set("q", query);
+
+	const response = await fetch(url.toString(), {
+		headers: { Accept: "application/json" },
+		signal,
+	});
+
+	if (!response.ok) throw new Error("Location search failed.");
+
+	const results = await response.json();
+	return Array.from(
+		new Map(
+			results
+				.map(mapNominatimLocation)
+				.filter(Boolean)
+				.map((option) => [`${option.city.toLowerCase()},${option.state}`, option]),
+		).values(),
+	);
+}
+
 const styles = {
 	page: {
 		minHeight: "100vh",
@@ -243,7 +350,7 @@ const styles = {
 		borderRadius: 999,
 		padding: "11px 15px",
 		font: "inherit",
-		fontWeight: 700,
+		fontWeight: 500,
 		cursor: "pointer",
 		textDecoration: "none",
 	},
@@ -374,6 +481,11 @@ const styles = {
 		width: "100%",
 		minWidth: 0,
 	},
+	locationPicker: {
+		position: "relative",
+		width: "100%",
+		minWidth: 0,
+	},
 	customSelectButton: {
 		width: "100%",
 		minHeight: 49,
@@ -437,6 +549,12 @@ const styles = {
 	customSelectOptionPlaceholder: {
 		color: "#a8a6a2",
 	},
+	locationEmpty: {
+		color: "#a8a6a2",
+		padding: "10px 11px",
+		fontSize: 13,
+		lineHeight: 1.35,
+	},
 	textarea: {
 		width: "100%",
 		minHeight: 110,
@@ -467,13 +585,42 @@ const styles = {
 		borderRadius: 8,
 		padding: "13px 14px",
 		color: "#f2f1ef",
-		fontWeight: 700,
+		fontWeight: 500,
 		cursor: "pointer",
 	},
+	onlineOnlyBox: {
+		display: "flex",
+		alignItems: "center",
+		gap: 9,
+		border: "1px solid rgba(198,197,195,0.12)",
+		background: "rgba(198,197,195,0.035)",
+		borderRadius: 8,
+		padding: "10px 12px",
+		color: "#f2f1ef",
+		lineHeight: 1.4,
+		width: "fit-content",
+		maxWidth: "100%",
+		marginBottom: 10,
+	},
 	checkbox: {
-		width: 18,
-		height: 18,
+		width: 16,
+		height: 16,
 		accentColor: "#c6c5c3",
+		flexShrink: 0,
+	},
+	onlineOnlyText: {
+		display: "grid",
+		gap: 2,
+	},
+	onlineOnlyTitle: {
+		color: "#f2f1ef",
+		fontSize: 14,
+		fontWeight: 500,
+	},
+	onlineOnlyHint: {
+		color: "#a8a6a2",
+		fontSize: 12,
+		lineHeight: 1.35,
 	},
 	formatPicker: {
 		display: "flex",
@@ -488,7 +635,7 @@ const styles = {
 		padding: "10px 13px",
 		font: "inherit",
 		fontSize: 14,
-		fontWeight: 780,
+		fontWeight: 500,
 		cursor: "pointer",
 		display: "inline-flex",
 		alignItems: "center",
@@ -522,7 +669,7 @@ const styles = {
 		padding: "12px 15px",
 		font: "inherit",
 		fontSize: 14,
-		fontWeight: 820,
+		fontWeight: 600,
 		cursor: "pointer",
 		whiteSpace: "nowrap",
 	},
@@ -545,7 +692,7 @@ const styles = {
 		borderRadius: 999,
 		padding: "7px 9px 7px 11px",
 		fontSize: 13,
-		fontWeight: 720,
+		fontWeight: 500,
 		maxWidth: "100%",
 	},
 	pillText: {
@@ -584,7 +731,7 @@ const styles = {
 		borderRadius: 999,
 		padding: "14px 20px",
 		font: "inherit",
-		fontWeight: 820,
+		fontWeight: 600,
 		cursor: "pointer",
 		minWidth: 180,
 	},
@@ -615,7 +762,7 @@ const styles = {
 	},
 	link: {
 		color: "#f2f1ef",
-		fontWeight: 800,
+		fontWeight: 600,
 	},
 };
 
@@ -635,6 +782,12 @@ function formatStateInput(value) {
 	return trimmedStart
 		.toLowerCase()
 		.replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+}
+
+function hasSelectedLocation(city, state) {
+	const normalizedCity = String(city ?? "").trim();
+	const normalizedState = normalizeStateAbbr(state);
+	return Boolean(normalizedCity && STATE_CENTERS[normalizedState]);
 }
 
 function getSubmitErrorMessage(error) {
@@ -819,6 +972,156 @@ function SelectField({
 					})
 				}
 			/>
+		</label>
+	);
+}
+
+function LocationField({
+	label,
+	cityName,
+	stateName,
+	cityValue,
+	stateValue,
+	onChoose,
+	placeholder = "Start typing a city or state",
+	required = true,
+	disabled = false,
+}) {
+	const [open, setOpen] = useState(false);
+	const selectedLabel = cityValue && stateValue ? `${cityValue}, ${stateValue}` : "";
+	const [inputValue, setInputValue] = useState(selectedLabel);
+	const [apiOptions, setApiOptions] = useState([]);
+	const [searchStatus, setSearchStatus] = useState("idle");
+	const normalizedInput = inputValue.trim().toLowerCase();
+	const localOptions = LOCAL_LOCATION_OPTIONS.filter((option) =>
+		normalizedInput ? option.searchText.includes(normalizedInput) : true,
+	).slice(0, 8);
+	const mergedOptions = Array.from(
+		new Map(
+			[...apiOptions, ...localOptions].map((option) => [
+				`${option.city.toLowerCase()},${option.state}`,
+				option,
+			]),
+		).values(),
+	).slice(0, 8);
+
+	useEffect(() => {
+		setInputValue(selectedLabel);
+	}, [selectedLabel]);
+
+	useEffect(() => {
+		if (disabled || !open || inputValue.trim().length < 3) {
+			setApiOptions([]);
+			setSearchStatus("idle");
+			return undefined;
+		}
+
+		const controller = new AbortController();
+		const timeoutId = window.setTimeout(async () => {
+			setSearchStatus("loading");
+
+			try {
+				const results = await searchUsLocations(inputValue.trim(), controller.signal);
+				setApiOptions(results);
+				setSearchStatus("done");
+			} catch (error) {
+				if (error?.name === "AbortError") return;
+				console.warn("Location search failed.", error);
+				setApiOptions([]);
+				setSearchStatus("error");
+			}
+		}, 350);
+
+		return () => {
+			controller.abort();
+			window.clearTimeout(timeoutId);
+		};
+	}, [disabled, inputValue, open]);
+
+	function chooseLocation(option) {
+		onChoose({
+			cityName,
+			stateName,
+			city: option.city,
+			state: option.state,
+		});
+		setInputValue(option.label);
+		setOpen(false);
+	}
+
+	function handleInputChange(event) {
+		const nextValue = event.target.value;
+		setInputValue(nextValue);
+		setOpen(true);
+		onChoose({
+			cityName,
+			stateName,
+			city: nextValue,
+			state: "",
+		});
+	}
+
+	function handleBlur(event) {
+		if (!event.currentTarget.contains(event.relatedTarget)) {
+			setOpen(false);
+		}
+	}
+
+	return (
+		<label style={styles.field} onBlur={handleBlur}>
+			<span style={styles.label}>{label}</span>
+			<div style={styles.locationPicker}>
+				<input
+					style={{
+						...styles.input,
+						...(disabled ? styles.submitDisabled : {}),
+					}}
+					name={cityName}
+					required={required}
+					disabled={disabled}
+					value={inputValue}
+					onChange={handleInputChange}
+					onFocus={() => {
+						if (!disabled) setOpen(true);
+					}}
+					placeholder={placeholder}
+					autoComplete="off"
+				/>
+				<input type="hidden" name={stateName} value={stateValue} />
+				{open ? (
+					<div style={styles.customSelectMenu} role="listbox">
+						{mergedOptions.length ? (
+							mergedOptions.map((option) => (
+								<button
+									key={option.label}
+									type="button"
+									style={{
+										...styles.customSelectOption,
+										...(selectedLabel === option.label
+											? styles.customSelectOptionActive
+											: {}),
+									}}
+									onMouseDown={(event) => event.preventDefault()}
+									onClick={() => chooseLocation(option)}
+									role="option"
+									aria-selected={selectedLabel === option.label}
+								>
+									{option.label}
+								</button>
+							))
+						) : (
+							<div style={styles.locationEmpty}>
+								{searchStatus === "loading"
+									? "Searching city and state..."
+									: "No matching city yet. Keep typing the gym location."}
+							</div>
+						)}
+						{mergedOptions.length && searchStatus === "loading" ? (
+							<div style={styles.locationEmpty}>Searching more matches...</div>
+						) : null}
+					</div>
+				) : null}
+			</div>
 		</label>
 	);
 }
@@ -1074,6 +1377,14 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 		}));
 	}
 
+	function chooseLocation({ cityName, stateName, city, state }) {
+		setForm((current) => ({
+			...current,
+			[cityName]: city,
+			[stateName]: state,
+		}));
+	}
+
 	function addUniqueItem(fieldName, value) {
 		const trimmed = String(value ?? "").trim();
 		if (!trimmed) return;
@@ -1133,6 +1444,21 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 		}));
 	}
 
+	function toggleOnlineOnly(event) {
+		const checked = event.target.checked;
+
+		setForm((current) => ({
+			...current,
+			onlineOnly: checked,
+			gymName: checked ? "" : current.gymName,
+			gymCity: checked ? "" : current.gymCity,
+			gymState: checked ? "" : current.gymState,
+			coachingFormats: checked
+				? ["Online coaching"]
+				: current.coachingFormats,
+		}));
+	}
+
 	function resetForm() {
 		setForm(blankForm);
 		setPhotoFile(null);
@@ -1170,6 +1496,12 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 				return;
 			}
 
+			if (!form.onlineOnly && !hasSelectedLocation(form.gymCity, form.gymState)) {
+				setError("Choose the gym city from the location suggestions.");
+				setSubmitting(false);
+				return;
+			}
+
 			if (!form.interviewAcknowledged) {
 				setError(
 					"Book your approval interview and confirm it before submitting.",
@@ -1196,11 +1528,21 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 					CAL_INTERVIEW_LINK,
 				interviewDateTime: interviewBooking.interviewDateTime,
 				interviewRequired: true,
-				onlineTraining: form.coachingFormats.includes("Online coaching"),
-				remoteAvailable: form.coachingFormats.includes("Online coaching"),
-				inPersonCoaching: form.coachingFormats.includes("In-person coaching"),
-				state: normalizeStateAbbr(form.state),
-				gymState: normalizeStateAbbr(form.gymState),
+				gymName: form.onlineOnly ? "" : form.gymName,
+				gymCity: form.onlineOnly ? "" : form.gymCity,
+				gymState: form.onlineOnly ? "" : normalizeStateAbbr(form.gymState),
+				coachingFormats: form.onlineOnly
+					? ["Online coaching"]
+					: form.coachingFormats,
+				onlineTraining:
+					form.onlineOnly || form.coachingFormats.includes("Online coaching"),
+				remoteAvailable:
+					form.onlineOnly || form.coachingFormats.includes("Online coaching"),
+				inPersonCoaching:
+					!form.onlineOnly &&
+					form.coachingFormats.includes("In-person coaching"),
+				city: "",
+				state: "",
 				profilePhotoFile: photoFile,
 			});
 
@@ -1295,19 +1637,6 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 									value={form.phone}
 									onChange={updateField}
 								/>
-								<Field
-									label="City"
-									name="city"
-									value={form.city}
-									onChange={updateField}
-								/>
-								<Field
-									label="State"
-									name="state"
-									value={form.state}
-									onChange={updateStateField}
-									maxLength={24}
-								/>
 								<SelectField
 									label="Coach title"
 									name="coachTitle"
@@ -1321,25 +1650,46 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 
 						<section style={styles.section}>
 							<h2 style={styles.sectionTitle}>Gym</h2>
+							<label style={styles.onlineOnlyBox}>
+								<input
+									style={styles.checkbox}
+									type="checkbox"
+									name="onlineOnly"
+									checked={form.onlineOnly}
+									onChange={toggleOnlineOnly}
+								/>
+								<span style={styles.onlineOnlyText}>
+									<span style={styles.onlineOnlyTitle}>
+										Online trainer only - no in-person training
+									</span>
+									<span style={styles.onlineOnlyHint}>
+										Use this if you coach remotely only and do not need a gym
+										location listed.
+									</span>
+								</span>
+							</label>
 							<div style={styles.gridThree}>
 								<Field
 									label="Gym name"
 									name="gymName"
 									value={form.gymName}
 									onChange={updateField}
+									required={!form.onlineOnly}
+									disabled={form.onlineOnly}
+									placeholder={
+										form.onlineOnly ? "Not needed for online-only coaches" : ""
+									}
 								/>
-								<Field
-									label="Gym city"
-									name="gymCity"
-									value={form.gymCity}
-									onChange={updateField}
-								/>
-								<Field
-									label="Gym state"
-									name="gymState"
-									value={form.gymState}
-									onChange={updateStateField}
-									maxLength={24}
+								<LocationField
+									label="Gym city and state"
+									cityName="gymCity"
+									stateName="gymState"
+									cityValue={form.gymCity}
+									stateValue={form.gymState}
+									onChoose={chooseLocation}
+									placeholder="Start typing the gym city"
+									required={!form.onlineOnly}
+									disabled={form.onlineOnly}
 								/>
 							</div>
 						</section>
@@ -1418,6 +1768,9 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 									onChange={(nextFormats) =>
 										setForm((current) => ({
 											...current,
+											onlineOnly: nextFormats.includes("In-person coaching")
+												? false
+												: current.onlineOnly,
 											coachingFormats: nextFormats,
 										}))
 									}

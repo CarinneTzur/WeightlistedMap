@@ -468,7 +468,7 @@ export function buildCoachFromApplication(application, gymId) {
 		id: `coach_${slugify(application.fullName)}_${slugify(application.id).slice(0, 8)}`,
 		name: application.fullName,
 		title: application.coachTitle,
-		gymIds: [gymId],
+		gymIds: gymId ? [gymId] : [],
 		rating: 0,
 		headshot:
 			application.profilePhotoUrl || buildDefaultHeadshot(application.fullName),
@@ -508,6 +508,13 @@ function findStaticGymForApplication(application) {
 function buildApprovedData(applications) {
 	const createdGyms = [];
 	const coaches = applications.map((application) => {
+		const isOnlineOnly =
+			Boolean(application.onlineTraining) && !Boolean(application.inPersonCoaching);
+
+		if (isOnlineOnly && !application.gymName) {
+			return buildCoachFromApplication(application, null);
+		}
+
 		const existingGym = findStaticGymForApplication(application);
 		const gym = existingGym || buildGymFromApplication(application);
 		if (!existingGym) createdGyms.push(gym);
