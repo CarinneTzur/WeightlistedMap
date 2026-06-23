@@ -890,6 +890,15 @@ const styles = {
 		maxHeight: 46,
 		resize: "none",
 		overflowY: "hidden",
+		appearance: "none",
+	},
+	searchInputCompact: {
+		minHeight: 42,
+		height: 42,
+		maxHeight: 42,
+		padding: "10px 14px",
+		borderRadius: 12,
+		fontSize: 16,
 	},
 	searchInputWrap: {
 		position: "relative",
@@ -927,6 +936,13 @@ const styles = {
 			"border-color 0.18s ease, box-shadow 0.26s ease, transform 0.18s ease",
 		position: "relative",
 	},
+	coachCardCompact: {
+		borderRadius: 15,
+		padding: "13px 14px",
+		marginBottom: 10,
+		gap: 12,
+		boxShadow: "0 8px 22px rgba(0,0,0,0.20)",
+	},
 	coachCardHovered: {
 		border: "1px solid rgba(198,197,195,0.34)",
 		boxShadow: "0 18px 42px rgba(0,0,0,0.34)",
@@ -943,12 +959,21 @@ const styles = {
 		margin: 0,
 		filter: "grayscale(0.15)",
 	},
+	headshotCompact: {
+		width: 52,
+		height: 52,
+		borderWidth: 2,
+	},
 	coachInfo: { flex: 1, minWidth: 0 },
 	coachName: {
 		fontWeight: 650,
 		fontSize: 17,
 		marginBottom: 2,
 		color: palette.text,
+	},
+	coachNameCompact: {
+		fontSize: 15.5,
+		marginBottom: 1,
 	},
 	coachTitle: { fontSize: 14, color: palette.graphite100, marginBottom: 3 },
 	coachLocation: { fontSize: 13, color: palette.muted, marginBottom: 4 },
@@ -1223,7 +1248,14 @@ function getCoachGymNames(coach) {
 	return coach.gyms?.map((gym) => gym.name).filter(Boolean) || [];
 }
 
-function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
+function CoachCard({
+	coach,
+	onClick,
+	hovered,
+	onMouseEnter,
+	onMouseLeave,
+	compact = false,
+}) {
 	const gymNames = getCoachGymNames(coach);
 	const gymCities = coach.gyms?.map((gym) => gym.city).filter(Boolean) || [];
 	const cityLabel = [...new Set(gymCities)].join(" + ") || coach.city;
@@ -1232,6 +1264,7 @@ function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
 		<div
 			style={{
 				...styles.coachCard,
+				...(compact ? styles.coachCardCompact : {}),
 				...(hovered ? styles.coachCardHovered : {}),
 			}}
 			onClick={onClick}
@@ -1241,22 +1274,51 @@ function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
 			<img
 				src={coach.headshot}
 				alt={coach.name}
-				style={styles.headshot}
+				style={{
+					...styles.headshot,
+					...(compact ? styles.headshotCompact : {}),
+				}}
 				loading="lazy"
 			/>
 			<div style={styles.coachInfo}>
-				<div style={styles.coachName}>{coach.name}</div>
-				<div style={styles.coachTitle}>{coach.title}</div>
-				<div style={styles.coachLocation}>{cityLabel}</div>
-				<div style={styles.coachGymLine}>
+				<div
+					style={{
+						...styles.coachName,
+						...(compact ? styles.coachNameCompact : {}),
+					}}
+				>
+					{coach.name}
+				</div>
+				<div
+					style={{
+						...styles.coachTitle,
+						...(compact ? { fontSize: 12.8, marginBottom: 2 } : {}),
+					}}
+				>
+					{coach.title}
+				</div>
+				<div
+					style={{
+						...styles.coachLocation,
+						...(compact ? { fontSize: 12.5, marginBottom: 3 } : {}),
+					}}
+				>
+					{cityLabel}
+				</div>
+				<div
+					style={{
+						...styles.coachGymLine,
+						...(compact ? { fontSize: 12.6, marginBottom: 3 } : {}),
+					}}
+				>
 					{gymNames.slice(0, 2).join(" + ") || "Gym details coming soon"}
 					{gymNames.length > 2 ? ` + ${gymNames.length - 2} more` : ""}
 				</div>
-				{coach.remoteAvailable ? (
+				{coach.remoteAvailable && !compact ? (
 					<div style={styles.coachLocation}>Remote coaching available</div>
 				) : null}
 				<StarRating value={coach.rating} />
-				<div style={styles.tagList}>
+				<div style={{ ...styles.tagList, ...(compact ? { marginTop: 4 } : {}) }}>
 					{coach.specialties.map((tag) => (
 						<CoachTag key={tag}>{tag}</CoachTag>
 					))}
@@ -1266,11 +1328,25 @@ function CoachCard({ coach, onClick, hovered, onMouseEnter, onMouseLeave }) {
 	);
 }
 
-function GymCard({ gym, onClick }) {
+function GymCard({ gym, onClick, compact = false }) {
 	return (
-		<button type="button" style={styles.coachCard} onClick={onClick}>
+		<button
+			type="button"
+			style={{
+				...styles.coachCard,
+				...(compact ? styles.coachCardCompact : {}),
+			}}
+			onClick={onClick}
+		>
 			<div style={styles.coachInfo}>
-				<div style={styles.coachName}>{gym.name}</div>
+				<div
+					style={{
+						...styles.coachName,
+						...(compact ? styles.coachNameCompact : {}),
+					}}
+				>
+					{gym.name}
+				</div>
 				<div style={styles.coachLocation}>
 					{gym.city}, {gym.state}
 				</div>
@@ -1290,14 +1366,28 @@ function GymCard({ gym, onClick }) {
 	);
 }
 
-function StateCard({ state, onClick }) {
+function StateCard({ state, onClick, compact = false }) {
 	const gymCount = state.gyms?.length || 0;
 	const coachCount = state.coaches?.length || 0;
 
 	return (
-		<button type="button" style={styles.coachCard} onClick={onClick}>
+		<button
+			type="button"
+			style={{
+				...styles.coachCard,
+				...(compact ? styles.coachCardCompact : {}),
+			}}
+			onClick={onClick}
+		>
 			<div style={styles.coachInfo}>
-				<div style={styles.coachName}>{state.name}</div>
+				<div
+					style={{
+						...styles.coachName,
+						...(compact ? styles.coachNameCompact : {}),
+					}}
+				>
+					{state.name}
+				</div>
 				<div style={styles.coachLocation}>{state.abbr}</div>
 				<div style={styles.coachGymLine}>
 					{gymCount} {gymCount === 1 ? "gym" : "gyms"} • {coachCount}{" "}
@@ -1528,6 +1618,10 @@ function GymListPanel({
 	onSelectGym,
 	search,
 	setSearch,
+	searchAutoFocus = false,
+	onSearchFocus,
+	onSearchBlur,
+	isCompact = false,
 }) {
 	const filtered = rankGymsBySemanticSearch(gyms, search);
 
@@ -1565,14 +1659,20 @@ function GymListPanel({
 				</div>
 			</div>
 			<div style={styles.searchInputWrap}>
-				<textarea
+				<input
+					type="search"
 					className="coach-scroll-panel"
-					style={styles.searchInput}
+					style={{
+						...styles.searchInput,
+						...(isCompact ? styles.searchInputCompact : {}),
+					}}
 					placeholder=""
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
-					rows={1}
-					autoFocus
+					onFocus={onSearchFocus}
+					onBlur={onSearchBlur}
+					autoFocus={searchAutoFocus}
+					enterKeyHint="search"
 				/>
 				{search ? null : (
 					<div style={styles.searchPlaceholderMarquee}>
@@ -1589,14 +1689,29 @@ function GymListPanel({
 					</div>
 				) : null}
 				{filtered.map((gym) => (
-					<GymCard key={gym.id} gym={gym} onClick={() => onSelectGym(gym)} />
+					<GymCard
+						key={gym.id}
+						gym={gym}
+						onClick={() => onSelectGym(gym)}
+						compact={isCompact}
+					/>
 				))}
 			</div>
 		</div>
 	);
 }
 
-function StateListPanel({ states, onBack, onSelectState, search, setSearch }) {
+function StateListPanel({
+	states,
+	onBack,
+	onSelectState,
+	search,
+	setSearch,
+	searchAutoFocus = false,
+	onSearchFocus,
+	onSearchBlur,
+	isCompact = false,
+}) {
 	const normalizedSearch = search.trim().toLowerCase();
 	const filtered = normalizedSearch
 		? states.filter((state) => {
@@ -1648,14 +1763,20 @@ function StateListPanel({ states, onBack, onSelectState, search, setSearch }) {
 				</div>
 			</div>
 			<div style={styles.searchInputWrap}>
-				<textarea
+				<input
+					type="search"
 					className="coach-scroll-panel"
-					style={styles.searchInput}
+					style={{
+						...styles.searchInput,
+						...(isCompact ? styles.searchInputCompact : {}),
+					}}
 					placeholder=""
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
-					rows={1}
-					autoFocus
+					onFocus={onSearchFocus}
+					onBlur={onSearchBlur}
+					autoFocus={searchAutoFocus}
+					enterKeyHint="search"
 				/>
 				{search ? null : (
 					<div style={styles.searchPlaceholderMarquee}>
@@ -1676,6 +1797,7 @@ function StateListPanel({ states, onBack, onSelectState, search, setSearch }) {
 						key={state.abbr}
 						state={state}
 						onClick={() => onSelectState(state.abbr)}
+						compact={isCompact}
 					/>
 				))}
 			</div>
@@ -1700,8 +1822,12 @@ function CoachListPanel({
 	setContactCoach,
 	isDesktop,
 	emptyMessage,
+	searchAutoFocus = false,
+	onSearchFocus,
+	onSearchBlur,
 }) {
 	const filtered = rankCoachesBySemanticSearch(coaches, search);
+	const isCompact = !isDesktop;
 
 	if (contactCoach) {
 		return (
@@ -1759,14 +1885,20 @@ function CoachListPanel({
 				</div>
 			</div>
 			<div style={styles.searchInputWrap}>
-				<textarea
+				<input
+					type="search"
 					className="coach-scroll-panel"
-					style={styles.searchInput}
+					style={{
+						...styles.searchInput,
+						...(isCompact ? styles.searchInputCompact : {}),
+					}}
 					placeholder=""
 					value={search}
 					onChange={(e) => setSearch(e.target.value)}
-					rows={1}
-					autoFocus
+					onFocus={onSearchFocus}
+					onBlur={onSearchBlur}
+					autoFocus={searchAutoFocus}
+					enterKeyHint="search"
 				/>
 				{search ? null : (
 					<div style={styles.searchPlaceholderMarquee}>
@@ -1788,6 +1920,7 @@ function CoachListPanel({
 							setContactCoach(null);
 							setProfileCoach(coach);
 						}}
+						compact={isCompact}
 						hovered={hoveredCoachId === coach.id}
 						onMouseEnter={() => setHoveredCoachId(coach.id)}
 						onMouseLeave={() => setHoveredCoachId(null)}
@@ -1996,6 +2129,7 @@ function CoachMapApp({ onOpenApplication }) {
 	const [contactCoach, setContactCoach] = useState(null);
 	const [zipSearch, setZipSearch] = useState("");
 	const [radiusMiles, setRadiusMiles] = useState(25);
+	const [searchFocused, setSearchFocused] = useState(false);
 
 	const allCoaches = useMemo(() => getAllCoaches(), []);
 	const allGyms = useMemo(() => getAllGyms(), []);
@@ -2056,12 +2190,18 @@ function CoachMapApp({ onOpenApplication }) {
 	}, [zipOrigin]);
 
 	useEffect(() => {
+		if (!panelVisible) {
+			setSearchFocused(false);
+		}
+	}, [panelVisible]);
+
+	useEffect(() => {
 		if (!mapRef.current) return undefined;
 		const timeout = window.setTimeout(() => {
 			mapRef.current?.invalidateSize();
 		}, 260);
 		return () => window.clearTimeout(timeout);
-	}, [isDesktop, panelVisible]);
+	}, [isDesktop, panelVisible, searchFocused]);
 
 	useEffect(() => {
 		if (!mapNodeRef.current || mapRef.current) return undefined;
@@ -2698,7 +2838,13 @@ function CoachMapApp({ onOpenApplication }) {
 							: "No matching coaches found.";
 
 	const isMobile = !isDesktop;
-	const mobilePanelHeight = contactCoach ? "82dvh" : "76dvh";
+	const mobilePanelHeight = contactCoach
+		? "72dvh"
+		: profileCoach
+			? "66dvh"
+			: searchFocused
+				? "42dvh"
+				: "58dvh";
 	const mobileActionBottom = panelVisible
 		? `calc(${mobilePanelHeight} + 14px + env(safe-area-inset-bottom))`
 		: "calc(18px + env(safe-area-inset-bottom))";
@@ -3115,6 +3261,10 @@ function CoachMapApp({ onOpenApplication }) {
 							onSelectState={selectState}
 							search={search}
 							setSearch={setSearch}
+							searchAutoFocus={isDesktop}
+							onSearchFocus={() => setSearchFocused(true)}
+							onSearchBlur={() => setSearchFocused(false)}
+							isCompact={isMobile}
 						/>
 					) : gymPanel ? (
 						<GymListPanel
@@ -3125,6 +3275,10 @@ function CoachMapApp({ onOpenApplication }) {
 							onSelectGym={selectGymFromPanel}
 							search={search}
 							setSearch={setSearch}
+							searchAutoFocus={isDesktop}
+							onSearchFocus={() => setSearchFocused(true)}
+							onSearchBlur={() => setSearchFocused(false)}
+							isCompact={isMobile}
 						/>
 					) : panelVisible ? (
 						<CoachListPanel
@@ -3144,6 +3298,9 @@ function CoachMapApp({ onOpenApplication }) {
 							setContactCoach={setContactCoach}
 							isDesktop={isDesktop}
 							emptyMessage={activePanelEmptyMessage}
+							searchAutoFocus={isDesktop}
+							onSearchFocus={() => setSearchFocused(true)}
+							onSearchBlur={() => setSearchFocused(false)}
 						/>
 					) : null}
 				</div>
