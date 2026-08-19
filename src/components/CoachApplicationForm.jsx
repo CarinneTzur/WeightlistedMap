@@ -320,27 +320,28 @@ async function searchUsLocations(query, signal) {
 
 const styles = {
 	page: {
-		minHeight: "100vh",
-		height: "100vh",
-		overflowY: "auto",
+		minHeight: "100dvh",
+		overflowX: "clip",
 		backgroundImage: `radial-gradient(circle at 18% 12%, rgba(198,197,195,0.13), transparent 24%), linear-gradient(90deg, rgba(30,28,30,0.96) 0%, rgba(30,28,30,0.9) 42%, rgba(30,28,30,0.76) 100%), linear-gradient(180deg, rgba(30,28,30,0.7), rgba(30,28,30,0.96)), url(${coachApplicationBackground})`,
 		backgroundSize: "auto, auto, auto, cover",
 		backgroundPosition: "left top, center, center, center",
-		backgroundAttachment: "fixed",
+		backgroundAttachment: "scroll",
 		color: "#f2f1ef",
 		fontFamily:
 			"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
 	},
 	wrap: {
-		width: "min(1120px, calc(100% - 32px))",
+		width: "min(1120px, calc(100% - clamp(24px, 5vw, 48px)))",
 		margin: "0 auto",
-		padding: "28px 0 56px",
+		padding:
+			"calc(20px + env(safe-area-inset-top)) 0 calc(48px + env(safe-area-inset-bottom))",
 	},
 	topBar: {
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "space-between",
 		gap: 16,
+		flexWrap: "wrap",
 		marginBottom: 28,
 	},
 	backLink: {
@@ -361,7 +362,8 @@ const styles = {
 	},
 	header: {
 		display: "grid",
-		gridTemplateColumns: "minmax(0, 1.1fr) minmax(280px, 0.9fr)",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 360px), 1fr))",
 		gap: 24,
 		alignItems: "end",
 		marginBottom: 24,
@@ -409,7 +411,8 @@ const styles = {
 	},
 	calEmbedFrame: {
 		width: "100%",
-		minHeight: 650,
+		height: "min(680px, 78dvh)",
+		minHeight: 520,
 		border: "1px solid rgba(198,197,195,0.16)",
 		borderRadius: 8,
 		background: "rgba(30,28,30,0.88)",
@@ -424,7 +427,7 @@ const styles = {
 		border: "1px solid rgba(198,197,195,0.15)",
 		background: "rgba(30,28,30,0.78)",
 		borderRadius: 8,
-		padding: 20,
+		padding: "clamp(16px, 3.5vw, 20px)",
 		boxShadow: "0 24px 70px rgba(0,0,0,0.28)",
 	},
 	sectionTitle: {
@@ -436,12 +439,14 @@ const styles = {
 	},
 	gridTwo: {
 		display: "grid",
-		gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 220px), 1fr))",
 		gap: 14,
 	},
 	gridThree: {
 		display: "grid",
-		gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 210px), 1fr))",
 		gap: 14,
 	},
 	field: {
@@ -462,7 +467,8 @@ const styles = {
 		color: "#f2f1ef",
 		padding: "12px 13px",
 		font: "inherit",
-		fontSize: 15,
+		fontSize: 16,
+		minHeight: 48,
 		outline: "none",
 	},
 	select: {
@@ -473,7 +479,8 @@ const styles = {
 		color: "#f2f1ef",
 		padding: "12px 13px",
 		font: "inherit",
-		fontSize: 15,
+		fontSize: 16,
+		minHeight: 48,
 		outline: "none",
 	},
 	customSelect: {
@@ -521,7 +528,7 @@ const styles = {
 		top: "calc(100% + 7px)",
 		left: 0,
 		right: 0,
-		maxHeight: 268,
+		maxHeight: "min(268px, 42dvh)",
 		overflowY: "auto",
 		border: "1px solid rgba(198,197,195,0.16)",
 		background:
@@ -565,7 +572,7 @@ const styles = {
 		color: "#f2f1ef",
 		padding: "12px 13px",
 		font: "inherit",
-		fontSize: 15,
+		fontSize: 16,
 		outline: "none",
 	},
 	longTextarea: {
@@ -603,8 +610,8 @@ const styles = {
 		marginBottom: 10,
 	},
 	checkbox: {
-		width: 16,
-		height: 16,
+		width: 20,
+		height: 20,
 		accentColor: "#c6c5c3",
 		flexShrink: 0,
 	},
@@ -657,7 +664,8 @@ const styles = {
 	},
 	comboRow: {
 		display: "grid",
-		gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 180px), 1fr))",
 		gap: 10,
 		alignItems: "end",
 	},
@@ -672,6 +680,7 @@ const styles = {
 		fontWeight: 600,
 		cursor: "pointer",
 		whiteSpace: "nowrap",
+		minHeight: 44,
 	},
 	pillWrap: {
 		display: "flex",
@@ -702,8 +711,8 @@ const styles = {
 		maxWidth: 260,
 	},
 	pillRemove: {
-		width: 22,
-		height: 22,
+		width: 32,
+		height: 32,
 		border: 0,
 		borderRadius: 999,
 		background: "rgba(242,241,239,0.16)",
@@ -733,7 +742,8 @@ const styles = {
 		font: "inherit",
 		fontWeight: 600,
 		cursor: "pointer",
-		minWidth: 180,
+		minWidth: "min(180px, 100%)",
+		minHeight: 48,
 	},
 	submitDisabled: {
 		opacity: 0.58,
@@ -1206,8 +1216,14 @@ function MultiSelectInput({
 					onChange={(event) => setCustomValue(event.target.value)}
 					onKeyDown={handleKeyDown}
 					placeholder={customPlaceholder}
+					aria-label={`${label} custom value`}
 				/>
-				<button type="button" style={styles.addButton} onClick={addItem}>
+				<button
+					type="button"
+					style={styles.addButton}
+					onClick={addItem}
+					aria-label={`Add ${label.toLowerCase()}`}
+				>
 					Add
 				</button>
 			</div>
@@ -1258,8 +1274,14 @@ function SocialLinkInput({
 					onChange={(event) => setHandleValue(event.target.value)}
 					onKeyDown={handleKeyDown}
 					placeholder="@username, profile URL, or website"
+					aria-label="Social profile or website"
 				/>
-				<button type="button" style={styles.addButton} onClick={addItem}>
+				<button
+					type="button"
+					style={styles.addButton}
+					onClick={addItem}
+					aria-label="Add social link"
+				>
 					Add
 				</button>
 			</div>
@@ -1584,7 +1606,7 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 				</header>
 
 				{submittedApplication ? (
-					<section style={styles.successBox}>
+					<section style={styles.successBox} role="status" aria-live="polite">
 						<strong>Application submitted.</strong>
 						<br />
 						Status: {submittedApplication.status}
@@ -1852,7 +1874,11 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 							</label>
 						</section>
 
-						{error ? <div style={styles.errorBox}>{error}</div> : null}
+						{error ? (
+							<div style={styles.errorBox} role="alert">
+								{error}
+							</div>
+						) : null}
 
 						<div style={styles.actions}>
 							<p style={styles.status}>

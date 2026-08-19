@@ -9,24 +9,26 @@ import {
 
 const styles = {
 	page: {
-		minHeight: "100vh",
-		height: "100vh",
-		overflowY: "auto",
+		minHeight: "100dvh",
+		overflowX: "clip",
+		display: "flow-root",
 		background: "#1e1c1e",
 		color: "#f2f1ef",
 		fontFamily:
 			"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
 	},
 	wrap: {
-		width: "min(1180px, calc(100% - 32px))",
+		width: "min(1180px, calc(100% - clamp(24px, 5vw, 48px)))",
 		margin: "0 auto",
-		padding: "28px 0 56px",
+		padding:
+			"calc(20px + env(safe-area-inset-top)) 0 calc(48px + env(safe-area-inset-bottom))",
 	},
 	topBar: {
 		display: "flex",
 		alignItems: "center",
 		justifyContent: "space-between",
 		gap: 16,
+		flexWrap: "wrap",
 		marginBottom: 26,
 	},
 	buttonSoft: {
@@ -39,6 +41,9 @@ const styles = {
 		fontWeight: 740,
 		cursor: "pointer",
 		textDecoration: "none",
+		minHeight: 44,
+		display: "inline-flex",
+		alignItems: "center",
 	},
 	title: {
 		margin: 0,
@@ -70,6 +75,7 @@ const styles = {
 		fontSize: 14,
 		fontWeight: 760,
 		cursor: "pointer",
+		minHeight: 44,
 	},
 	tabActive: {
 		background: "#c6c5c3",
@@ -81,7 +87,8 @@ const styles = {
 		borderRadius: 8,
 		padding: 20,
 		display: "grid",
-		gridTemplateColumns: "132px minmax(0, 1fr)",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 220px), max-content))",
 		gap: 18,
 		marginBottom: 14,
 		boxShadow: "0 20px 58px rgba(0,0,0,0.26)",
@@ -103,6 +110,7 @@ const styles = {
 		alignItems: "flex-start",
 		justifyContent: "space-between",
 		gap: 14,
+		flexWrap: "wrap",
 		marginBottom: 14,
 	},
 	name: {
@@ -203,6 +211,7 @@ const styles = {
 		cursor: "pointer",
 		color: "#f2f1ef",
 		background: "rgba(198,197,195,0.06)",
+		minHeight: 44,
 	},
 	acceptButton: {
 		background: "#c6c5c3",
@@ -224,7 +233,8 @@ const styles = {
 	},
 	reviewShell: {
 		display: "grid",
-		gridTemplateColumns: "minmax(260px, 0.82fr) minmax(0, 1.45fr)",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
 		gap: 16,
 		alignItems: "start",
 	},
@@ -249,7 +259,7 @@ const styles = {
 		border: "1px solid rgba(198,197,195,0.15)",
 		background: "rgba(48,45,48,0.82)",
 		borderRadius: 8,
-		padding: 20,
+		padding: "clamp(14px, 3.5vw, 20px)",
 		boxShadow: "0 20px 58px rgba(0,0,0,0.26)",
 	},
 	previewSection: {
@@ -268,7 +278,8 @@ const styles = {
 	},
 	readonlyGrid: {
 		display: "grid",
-		gridTemplateColumns: "repeat(auto-fit, minmax(190px, 1fr))",
+		gridTemplateColumns:
+			"repeat(auto-fit, minmax(min(100%, 190px), 1fr))",
 		gap: 10,
 	},
 	openButton: {
@@ -282,10 +293,11 @@ const styles = {
 		fontWeight: 820,
 		cursor: "pointer",
 		marginTop: 12,
+		minHeight: 44,
 	},
 	lockPanel: {
 		width: "min(460px, calc(100% - 32px))",
-		margin: "12vh auto 0",
+		margin: "min(12vh, 72px) auto 0",
 		border: "1px solid rgba(198,197,195,0.15)",
 		background: "rgba(48,45,48,0.88)",
 		borderRadius: 8,
@@ -300,7 +312,8 @@ const styles = {
 		color: "#f2f1ef",
 		padding: "12px 13px",
 		font: "inherit",
-		fontSize: 15,
+		fontSize: 16,
+		minHeight: 48,
 		outline: "none",
 		margin: "14px 0",
 	},
@@ -313,7 +326,7 @@ const styles = {
 		color: "#f2f1ef",
 		padding: "12px 13px",
 		font: "inherit",
-		fontSize: 15,
+		fontSize: 16,
 		outline: "none",
 		resize: "vertical",
 		margin: "8px 0 12px",
@@ -339,6 +352,15 @@ function formatDate(value) {
 	} catch {
 		return value;
 	}
+}
+
+function getAdminErrorMessage(error, fallback) {
+	const message = error?.message || "";
+	if (message.toLowerCase().includes("failed to fetch")) {
+		return fallback;
+	}
+
+	return message || fallback;
 }
 
 function StatusBadge({ status }) {
@@ -397,18 +419,28 @@ function AdminLock({ onUnlock, onBackToMap }) {
 				</h1>
 				<p style={styles.subtitle}>Enter the coach review passcode.</p>
 				<form onSubmit={handleSubmit}>
-					<input
-						style={styles.input}
-						type="password"
-						value={pin}
-						onChange={(event) => setPin(event.target.value)}
-						autoFocus
-					/>
+					<label>
+						<span style={styles.label}>Review passcode</span>
+						<input
+							style={styles.input}
+							type="password"
+							value={pin}
+							onChange={(event) => setPin(event.target.value)}
+							autoComplete="current-password"
+							aria-invalid={Boolean(error)}
+							aria-describedby={error ? "admin-passcode-error" : undefined}
+							autoFocus
+						/>
+					</label>
 					<button type="submit" style={{ ...styles.buttonSoft, width: "100%" }}>
 						Unlock
 					</button>
 				</form>
-				{error ? <p style={styles.error}>{error}</p> : null}
+				{error ? (
+					<p id="admin-passcode-error" style={styles.error} role="alert">
+						{error}
+					</p>
+				) : null}
 			</section>
 		</main>
 	);
@@ -625,6 +657,7 @@ export default function CoachApplicationAdmin({
 	const [applications, setApplications] = useState([]);
 	const [tab, setTab] = useState(COACH_APPLICATION_STATUSES.PENDING);
 	const [message, setMessage] = useState("");
+	const [loadError, setLoadError] = useState("");
 	const [selectedApplicationId, setSelectedApplicationId] = useState(
 		highlightedApplicationId || "",
 	);
@@ -666,6 +699,7 @@ export default function CoachApplicationAdmin({
 
 	async function loadApplications(status) {
 		setLoading(true);
+		setLoadError("");
 		try {
 			const nextApplications = await getCoachApplications(status);
 			setApplications(nextApplications);
@@ -679,7 +713,12 @@ export default function CoachApplicationAdmin({
 			}
 			if (!nextApplications.length) setSelectedApplicationId("");
 		} catch (error) {
-			setMessage(error?.message || "Applications could not be loaded.");
+			setLoadError(
+				getAdminErrorMessage(
+					error,
+					"Applications could not be loaded. Check the connection and try again.",
+				),
+			);
 		} finally {
 			setLoading(false);
 		}
@@ -703,7 +742,12 @@ export default function CoachApplicationAdmin({
 					: `${result.application.fullName} is now ${nextStatus}.`,
 			);
 		} catch (error) {
-			setMessage(error?.message || "The review action could not be completed.");
+			setMessage(
+				getAdminErrorMessage(
+					error,
+					"The review action could not be completed. Check the connection and try again.",
+				),
+			);
 		} finally {
 			setActionBusy(false);
 		}
@@ -754,6 +798,8 @@ export default function CoachApplicationAdmin({
 								...(tab === value ? styles.tabActive : {}),
 							}}
 							onClick={() => setTab(value)}
+							role="tab"
+							aria-selected={tab === value}
 						>
 							{label}
 						</button>
@@ -767,13 +813,21 @@ export default function CoachApplicationAdmin({
 				) : null}
 
 				{message ? (
-					<div style={{ ...styles.empty, marginBottom: 14, textAlign: "left" }}>
+					<div
+						style={{ ...styles.empty, marginBottom: 14, textAlign: "left" }}
+						role="status"
+						aria-live="polite"
+					>
 						{message}
 					</div>
 				) : null}
 
 				{loading ? (
 					<div style={styles.empty}>Loading applications...</div>
+				) : loadError ? (
+					<div style={styles.empty} role="alert">
+						{loadError}
+					</div>
 				) : visibleApplications.length === 0 ? (
 					<div style={styles.empty}>No {tab} applications yet.</div>
 				) : (

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import CoachApplicationAdmin from "./src/components/CoachApplicationAdmin";
-import CoachApplicationForm from "./src/components/CoachApplicationForm";
 import {
 	getAllCoaches,
 	getAllGyms,
@@ -13,6 +11,13 @@ import {
 	COACH_APPLICATION_CHANGED_EVENT,
 	refreshApprovedCoachCache,
 } from "./utils/coachApplications";
+
+const CoachApplicationAdmin = React.lazy(
+	() => import("./src/components/CoachApplicationAdmin"),
+);
+const CoachApplicationForm = React.lazy(
+	() => import("./src/components/CoachApplicationForm"),
+);
 
 const SHOW_COACH_APPLICATION_CTA =
 	import.meta.env.VITE_SHOW_COACH_APPLICATION_CTA !== "false";
@@ -26,7 +31,12 @@ function getCurrentAppRoute() {
 	const rawRoute = hashRoute || window.location.pathname || "/";
 	const [pathPart, queryString = ""] = rawRoute.split("?");
 	const normalizedPath = pathPart.startsWith("/") ? pathPart : `/${pathPart}`;
-	const path = normalizedPath === "/index.html" ? "/" : normalizedPath;
+	const path =
+		normalizedPath === "/index.html"
+			? "/"
+			: normalizedPath.length > 1
+				? normalizedPath.replace(/\/+$/, "")
+				: normalizedPath;
 
 	return {
 		path,
@@ -58,6 +68,29 @@ const palette = {
 	panel: "rgba(30,28,30,0.88)",
 	gold: "rgba(217,189,125,0.88)",
 };
+
+function RouteLoading({ label }) {
+	return (
+		<main
+			style={{
+				minHeight: "100dvh",
+				display: "grid",
+				placeItems: "center",
+				padding:
+					"calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))",
+				background: palette.graphite900,
+				color: palette.text,
+				fontFamily:
+					"Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif",
+			}}
+		>
+			<div role="status" aria-live="polite" style={{ textAlign: "center" }}>
+				<div style={{ fontWeight: 760, fontSize: 18 }}>{label}</div>
+				<div style={{ color: palette.muted, marginTop: 6 }}>Loading…</div>
+			</div>
+		</main>
+	);
+}
 
 const STATE_ABBR_BY_NAME = {
 	Alabama: "AL",
@@ -359,17 +392,26 @@ function clusterGyms(gyms, zoom) {
 	);
 }
 
-function useIsDesktop() {
-	const [isDesktop, setIsDesktop] = useState(
-		typeof window !== "undefined" ? window.innerWidth >= 1024 : true,
-	);
+function useViewportLayout() {
+	const [viewport, setViewport] = useState(() => ({
+		width: typeof window !== "undefined" ? window.innerWidth : 1440,
+		height: typeof window !== "undefined" ? window.innerHeight : 900,
+	}));
+
 	useEffect(() => {
-		const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+		const handleResize = () =>
+			setViewport({ width: window.innerWidth, height: window.innerHeight });
 		handleResize();
 		window.addEventListener("resize", handleResize);
 		return () => window.removeEventListener("resize", handleResize);
 	}, []);
-	return isDesktop;
+
+	return {
+		...viewport,
+		isDesktop: viewport.width >= 1024,
+		isTablet: viewport.width >= 600 && viewport.width < 1024,
+		isShortMobile: viewport.width < 1024 && viewport.height < 560,
+	};
 }
 
 function normalizeToken(token) {
@@ -620,6 +662,8 @@ const styles = {
 		display: "grid",
 		placeItems: "center",
 		padding: 22,
+		overflowY: "auto",
+		overscrollBehavior: "contain",
 		background: "rgba(0,0,0,0.48)",
 		backdropFilter: "blur(7px)",
 		WebkitBackdropFilter: "blur(7px)",
@@ -634,13 +678,16 @@ const styles = {
 		borderRadius: 24,
 		boxShadow: "0 34px 90px rgba(0,0,0,0.52)",
 		color: palette.text,
+		maxHeight: "calc(100dvh - 28px - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+		overflowY: "auto",
+		overscrollBehavior: "contain",
 	},
 	introCloseButton: {
 		position: "absolute",
 		top: 16,
 		right: 16,
-		width: 40,
-		height: 40,
+		width: 44,
+		height: 44,
 		borderRadius: 999,
 		border: `1px solid ${palette.border}`,
 		background: "rgba(198,197,195,0.07)",
@@ -716,6 +763,7 @@ const styles = {
 		fontWeight: 700,
 		fontSize: 14,
 		lineHeight: 1,
+		minHeight: 44,
 	},
 	semanticSearchButtonActive: {
 		background: palette.graphite100,
@@ -823,8 +871,8 @@ const styles = {
 	glassPanelShown: { transform: "none", pointerEvents: "all", opacity: 1 },
 	backArrow: {
 		cursor: "pointer",
-		width: 38,
-		height: 38,
+		width: 44,
+		height: 44,
 		display: "inline-flex",
 		alignItems: "center",
 		justifyContent: "center",
@@ -840,8 +888,8 @@ const styles = {
 	},
 	heartButton: {
 		cursor: "pointer",
-		width: 42,
-		height: 42,
+		width: 44,
+		height: 44,
 		display: "inline-flex",
 		alignItems: "center",
 		justifyContent: "center",
@@ -892,9 +940,9 @@ const styles = {
 		appearance: "none",
 	},
 	searchInputCompact: {
-		minHeight: 42,
-		height: 42,
-		maxHeight: 42,
+		minHeight: 44,
+		height: 44,
+		maxHeight: 44,
 		padding: "10px 14px",
 		borderRadius: 12,
 		fontSize: 16,
@@ -957,11 +1005,12 @@ const styles = {
 		background: palette.graphite800,
 		margin: 0,
 		filter: "grayscale(0.15)",
+		flexShrink: 0,
 	},
 	headshotCompact: {
 		width: 52,
 		height: 52,
-		borderWidth: 2,
+		border: "2px solid rgba(198,197,195,0.20)",
 	},
 	coachInfo: { flex: 1, minWidth: 0 },
 	coachName: {
@@ -1009,6 +1058,11 @@ const styles = {
 		alignItems: "center",
 		gap: 15,
 		marginTop: 2,
+		height: "100%",
+		overflowY: "auto",
+		overflowX: "hidden",
+		overscrollBehavior: "contain",
+		paddingBottom: 6,
 	},
 	profileHeadshot: {
 		width: 118,
@@ -1184,7 +1238,7 @@ const styles = {
 		border: `1px solid ${palette.border}`,
 		color: palette.text,
 		fontFamily: "inherit",
-		fontSize: 14.5,
+		fontSize: 16,
 		lineHeight: 1.4,
 		boxShadow: "0 1.5px 8px rgba(0,0,0,0.22) inset",
 	},
@@ -1225,6 +1279,12 @@ const styles = {
 		padding: "0 24px 6px 0",
 		scrollbarGutter: "stable",
 	},
+	coachListPanelInnerCompact: {
+		marginRight: 0,
+		padding: "0 0 6px",
+		scrollbarGutter: "auto",
+		overflowX: "hidden",
+	},
 	mobileSheetHandle: {
 		display: "block",
 		width: 42,
@@ -1260,7 +1320,8 @@ function CoachCard({
 	const cityLabel = [...new Set(gymCities)].join(" + ") || coach.city;
 
 	return (
-		<div
+		<button
+			type="button"
 			style={{
 				...styles.coachCard,
 				...(compact ? styles.coachCardCompact : {}),
@@ -1323,7 +1384,7 @@ function CoachCard({
 					))}
 				</div>
 			</div>
-		</div>
+		</button>
 	);
 }
 
@@ -1412,7 +1473,7 @@ function CoachProfile({
 	const gymNames = getCoachGymNames(coach);
 
 	return (
-		<div style={styles.profilePanel}>
+		<div className="coach-scroll-panel" style={styles.profilePanel}>
 			<div style={styles.profileTopRow}>
 				<button
 					style={styles.backArrow}
@@ -1483,7 +1544,7 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 
 	const primarySpecialty = coach.specialties?.[0] || coach.title || "Coach";
 	const specialtyLabel = coach.specialties?.length
-		? coach.specialties.slice(0, 2).join(" • ")
+		? coach.specialties.slice(1, 3).join(" • ")
 		: coach.title;
 
 	function resizeMessageInput(textarea) {
@@ -1572,7 +1633,9 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 				}}
 			>
 				{sentMessage ? (
-					<div style={styles.messageSentBubble}>{sentMessage}</div>
+					<div style={styles.messageSentBubble} aria-live="polite">
+						{sentMessage}
+					</div>
 				) : (
 					<div style={styles.messageHint}>
 						Start with your goal, timeline, and whether you want in-person or
@@ -1585,6 +1648,7 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 						ref={messageInputRef}
 						style={styles.messageInput}
 						placeholder="Type your message..."
+						aria-label={`Message to ${coach.name}`}
 						value={message}
 						onChange={handleMessageChange}
 						onKeyDown={handleMessageKeyDown}
@@ -1625,7 +1689,13 @@ function GymListPanel({
 	const filtered = rankGymsBySemanticSearch(gyms, search);
 
 	return (
-		<div className="coach-scroll-panel" style={styles.coachListPanelInner}>
+		<div
+			className="coach-scroll-panel"
+			style={{
+				...styles.coachListPanelInner,
+				...(isCompact ? styles.coachListPanelInnerCompact : {}),
+			}}
+		>
 			<div style={styles.coachListHeader}>
 				<button
 					style={styles.backArrow}
@@ -1660,6 +1730,7 @@ function GymListPanel({
 			<div style={styles.searchInputWrap}>
 				<input
 					type="search"
+					aria-label="Search gyms"
 					className="coach-scroll-panel"
 					style={{
 						...styles.searchInput,
@@ -1729,7 +1800,13 @@ function StateListPanel({
 		: states;
 
 	return (
-		<div className="coach-scroll-panel" style={styles.coachListPanelInner}>
+		<div
+			className="coach-scroll-panel"
+			style={{
+				...styles.coachListPanelInner,
+				...(isCompact ? styles.coachListPanelInnerCompact : {}),
+			}}
+		>
 			<div style={styles.coachListHeader}>
 				<button
 					style={styles.backArrow}
@@ -1764,6 +1841,7 @@ function StateListPanel({
 			<div style={styles.searchInputWrap}>
 				<input
 					type="search"
+					aria-label="Search states"
 					className="coach-scroll-panel"
 					style={{
 						...styles.searchInput,
@@ -1851,7 +1929,13 @@ function CoachListPanel({
 	}
 
 	return (
-		<div style={styles.coachListPanelInner}>
+		<div
+			className="coach-scroll-panel"
+			style={{
+				...styles.coachListPanelInner,
+				...(isCompact ? styles.coachListPanelInnerCompact : {}),
+			}}
+		>
 			<div style={styles.coachListHeader}>
 				<button
 					style={styles.backArrow}
@@ -1886,6 +1970,7 @@ function CoachListPanel({
 			<div style={styles.searchInputWrap}>
 				<input
 					type="search"
+					aria-label="Search coaches"
 					className="coach-scroll-panel"
 					style={{
 						...styles.searchInput,
@@ -1980,7 +2065,7 @@ function addGlobalMapStyles() {
 	style.innerHTML = `
     .leaflet-container { background: ${palette.graphite900}; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
     .leaflet-control-zoom { border: 1px solid ${palette.border} !important; border-radius: 14px !important; overflow: hidden; box-shadow: 0 18px 45px rgba(0,0,0,0.28) !important; }
-    .leaflet-control-zoom a { background: rgba(30,28,30,0.88) !important; color: ${palette.graphite100} !important; border-bottom: 1px solid ${palette.border} !important; }
+    .leaflet-control-zoom a { width: 44px !important; height: 44px !important; line-height: 44px !important; background: rgba(30,28,30,0.88) !important; color: ${palette.graphite100} !important; border-bottom: 1px solid ${palette.border} !important; }
     .leaflet-control-zoom a:hover { background: ${palette.graphite700} !important; color: white !important; }
     .leaflet-popup-content-wrapper { background: ${palette.graphite900}; color: ${palette.text}; border: 1px solid ${palette.border}; border-radius: 16px; box-shadow: 0 18px 50px rgba(0,0,0,0.45); }
     .leaflet-popup-tip { background: ${palette.graphite900}; }
@@ -2086,6 +2171,17 @@ function addGlobalMapStyles() {
       0%, 16% { transform: translateX(0); }
       72%, 100% { transform: translateX(-46%); }
     }
+    @media (max-width: 1023px) {
+      .leaflet-control-zoom { display: none; }
+      .leaflet-popup-content { max-width: min(240px, calc(100vw - 64px)); }
+    }
+    @media (hover: none), (pointer: coarse) {
+      .coach-tooltip-wrapper { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .coach-placeholder-marquee { animation: none !important; }
+      .side-panel-content { animation: none !important; }
+    }
   `;
 	document.head.appendChild(style);
 	return style;
@@ -2096,7 +2192,9 @@ function CoachMapApp({ onOpenApplication }) {
 	const mapNodeRef = useRef(null);
 	const mapRef = useRef(null);
 	const stateLayerRef = useRef(null);
-	const isDesktop = useIsDesktop();
+	const introCloseButtonRef = useRef(null);
+	const locationMenuRef = useRef(null);
+	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
 	const layersRef = useRef({
 		stateZones: [],
 		stateLabels: [],
@@ -2162,6 +2260,39 @@ function CoachMapApp({ onOpenApplication }) {
 		Boolean(clusterPanel) ||
 		Boolean(contactCoach);
 	const state = selectedState ? getStateByAbbr(selectedState) : null;
+
+	useEffect(() => {
+		if (!showIntroModal) return undefined;
+
+		introCloseButtonRef.current?.focus();
+		const handleKeyDown = (event) => {
+			if (event.key === "Escape") setShowIntroModal(false);
+			if (event.key === "Tab") {
+				event.preventDefault();
+				introCloseButtonRef.current?.focus();
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		return () => window.removeEventListener("keydown", handleKeyDown);
+	}, [showIntroModal]);
+
+	useEffect(() => {
+		if (!locationDropdownOpen) return undefined;
+		const handleKeyDown = (event) => {
+			if (event.key === "Escape") setLocationDropdownOpen(false);
+		};
+		const handlePointerDown = (event) => {
+			if (!locationMenuRef.current?.contains(event.target)) {
+				setLocationDropdownOpen(false);
+			}
+		};
+		window.addEventListener("keydown", handleKeyDown);
+		document.addEventListener("pointerdown", handlePointerDown);
+		return () => {
+			window.removeEventListener("keydown", handleKeyDown);
+			document.removeEventListener("pointerdown", handlePointerDown);
+		};
+	}, [locationDropdownOpen]);
 
 	useEffect(() => {
 		selectedStateRef.current = selectedState;
@@ -2837,13 +2968,20 @@ function CoachMapApp({ onOpenApplication }) {
 							: "No matching coaches found.";
 
 	const isMobile = !isDesktop;
-	const mobilePanelHeight = contactCoach
-		? "72dvh"
-		: profileCoach
-			? "66dvh"
-			: searchFocused
-				? "42dvh"
-				: "58dvh";
+	const mobilePanelHeight = isShortMobile
+		? "100dvh"
+		: contactCoach
+			? "72dvh"
+			: profileCoach
+				? "66dvh"
+				: searchFocused
+					? "42dvh"
+					: isTablet
+						? "62dvh"
+						: "58dvh";
+	const hideFloatingControls =
+		(isShortMobile && panelVisible) ||
+		(isMobile && Boolean(profileCoach || contactCoach));
 	const mobileActionBottom = panelVisible
 		? `calc(${mobilePanelHeight} + 14px + env(safe-area-inset-bottom))`
 		: "calc(18px + env(safe-area-inset-bottom))";
@@ -2852,14 +2990,28 @@ function CoachMapApp({ onOpenApplication }) {
 		<main style={styles.shell}>
 			{showIntroModal ? (
 				<div
-					style={styles.introOverlay}
+					style={{
+						...styles.introOverlay,
+						...(isMobile ? { padding: 14, placeItems: "safe center" } : {}),
+					}}
 					role="dialog"
 					aria-modal="true"
 					aria-labelledby="coach-map-intro-title"
 				>
-					<section style={styles.introModal}>
+					<section
+						style={{
+							...styles.introModal,
+							...(isMobile
+								? {
+										width: "min(560px, calc(100vw - 28px))",
+										padding: "24px 22px 22px",
+									}
+								: {}),
+						}}
+					>
 						<button
 							type="button"
+							ref={introCloseButtonRef}
 							style={styles.introCloseButton}
 							onClick={() => setShowIntroModal(false)}
 							aria-label="Close intro popup"
@@ -2873,7 +3025,7 @@ function CoachMapApp({ onOpenApplication }) {
 							id="coach-map-intro-title"
 							style={{
 								...styles.title,
-								fontSize: 32,
+								fontSize: isMobile ? "clamp(27px, 9vw, 32px)" : 32,
 								color: palette.graphite100,
 								paddingRight: 44,
 							}}
@@ -2904,6 +3056,8 @@ function CoachMapApp({ onOpenApplication }) {
 
 			<div
 				ref={mapNodeRef}
+				role="region"
+				aria-label="Interactive map of strength coaches"
 				style={{
 					...styles.map,
 					height: isMobile ? "100dvh" : styles.map.height,
@@ -2916,15 +3070,16 @@ function CoachMapApp({ onOpenApplication }) {
 					...styles.semanticSearchButton,
 					...(isMobile
 						? {
-								left: 14,
+								left: isTablet ? "calc(50% - 250px)" : 14,
 								right: "auto",
 								bottom: mobileActionBottom,
-								width: "calc(50vw - 22px)",
+								width: isTablet ? 240 : "calc(50vw - 22px)",
 								justifyContent: "center",
 								padding: "13px 12px",
 								fontSize: 13,
 							}
 						: {}),
+					...(hideFloatingControls ? { display: "none" } : {}),
 					...(semanticSearchOpen ? styles.semanticSearchButtonActive : {}),
 				}}
 				onClick={openSemanticSearchPanel}
@@ -2939,8 +3094,10 @@ function CoachMapApp({ onOpenApplication }) {
 					...styles.controls,
 					...(isMobile
 						? {
-								left: 14,
-								right: 14,
+								left: isTablet ? "50%" : 14,
+								right: isTablet ? "auto" : 14,
+								width: isTablet ? "min(520px, calc(100vw - 28px))" : "auto",
+								transform: isTablet ? "translateX(-50%)" : "none",
 								bottom: panelVisible
 									? `calc(${mobilePanelHeight} + 74px + env(safe-area-inset-bottom))`
 									: "calc(78px + env(safe-area-inset-bottom))",
@@ -2949,6 +3106,7 @@ function CoachMapApp({ onOpenApplication }) {
 								padding: 6,
 							}
 						: {}),
+					...(hideFloatingControls ? { display: "none" } : {}),
 				}}
 				aria-label="Map filters"
 			>
@@ -2956,10 +3114,16 @@ function CoachMapApp({ onOpenApplication }) {
 					<button
 						key={item}
 						onClick={() => handleFilterChange(item)}
+						aria-pressed={filter === item}
 						style={{
 							...styles.controlButton,
 							...(isMobile
-								? { flex: 1, padding: "10px 8px", fontSize: 12 }
+								? {
+										flex: 1,
+										minHeight: 44,
+										padding: "10px 8px",
+										fontSize: 12,
+									}
 								: {}),
 							...(filter === item ? styles.activeControl : {}),
 						}}
@@ -2978,14 +3142,15 @@ function CoachMapApp({ onOpenApplication }) {
 					...(isMobile
 						? {
 								left: "auto",
-								right: 14,
+								right: isTablet ? "calc(50% - 250px)" : 14,
 								bottom: mobileActionBottom,
-								width: "calc(50vw - 22px)",
+								width: isTablet ? 240 : "calc(50vw - 22px)",
 								justifyContent: "center",
 								padding: "13px 12px",
 								fontSize: 13,
 							}
 						: {}),
+					...(hideFloatingControls ? { display: "none" } : {}),
 				}}
 				onClick={openFavoritesPanel}
 				aria-label="Open favorite coaches"
@@ -2995,9 +3160,10 @@ function CoachMapApp({ onOpenApplication }) {
 			</button>
 
 			<div
+				ref={locationMenuRef}
 				style={{
 					position: "absolute",
-					zIndex: 900,
+					zIndex: 1100,
 					...(isMobile
 						? {
 								left: 14,
@@ -3013,12 +3179,16 @@ function CoachMapApp({ onOpenApplication }) {
 					alignItems: isMobile ? "stretch" : "flex-start",
 					gap: 10,
 					transition: "right 0.42s cubic-bezier(.66,.09,.28,1)",
+					...(hideFloatingControls ? { display: "none" } : {}),
 				}}
 			>
 				<div
 					style={{
-						display: "flex",
-						flexDirection: isMobile ? "row" : "column",
+						display: isMobile ? "grid" : "flex",
+						gridTemplateColumns: isMobile
+							? `repeat(${isTablet && onOpenApplication ? 3 : 2}, minmax(0, 1fr))`
+							: undefined,
+						flexDirection: isMobile ? undefined : "column",
 						gap: 10,
 						width: isMobile ? "100%" : "auto",
 					}}
@@ -3043,6 +3213,15 @@ function CoachMapApp({ onOpenApplication }) {
 							display: "inline-flex",
 							alignItems: "center",
 							justifyContent: "center",
+							...(isMobile
+								? {
+										width: "100%",
+										minWidth: 0,
+										minHeight: 44,
+										padding: "11px 10px",
+										fontSize: 13,
+									}
+								: {}),
 						}}
 						aria-expanded={locationDropdownOpen ? "true" : "false"}
 						aria-label="Choose coach location"
@@ -3060,8 +3239,10 @@ function CoachMapApp({ onOpenApplication }) {
 								? {
 										position: "absolute",
 										left: 0,
-										right: 0,
-										top: 58,
+										right: isTablet ? "auto" : 0,
+										width: isTablet ? 340 : "auto",
+										top:
+											!isTablet && onOpenApplication ? 112 : 58,
 									}
 								: {}),
 							maxHeight: locationDropdownOpen ? (isMobile ? "42dvh" : 220) : 0,
@@ -3071,6 +3252,8 @@ function CoachMapApp({ onOpenApplication }) {
 								"max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease, margin-top 0.22s ease",
 							pointerEvents: locationDropdownOpen ? "all" : "none",
 						}}
+						aria-hidden={!locationDropdownOpen}
+						inert={locationDropdownOpen ? undefined : ""}
 					>
 						<div
 							style={{
@@ -3175,6 +3358,15 @@ function CoachMapApp({ onOpenApplication }) {
 							alignItems: "center",
 							justifyContent: "center",
 							gap: 9,
+							...(isMobile
+								? {
+										width: "100%",
+										minWidth: 0,
+										minHeight: 44,
+										padding: "11px 10px",
+										fontSize: 13,
+									}
+								: {}),
 						}}
 						aria-pressed={showOnline ? "true" : "false"}
 					>
@@ -3201,8 +3393,10 @@ function CoachMapApp({ onOpenApplication }) {
 								justifyContent: "center",
 								...(isMobile
 									? {
-											flex: "1 1 100%",
+											gridColumn: isTablet ? "auto" : "1 / -1",
+											width: "100%",
 											minWidth: 0,
+											minHeight: 44,
 											padding: "11px 10px",
 											fontSize: 13,
 										}
@@ -3218,27 +3412,48 @@ function CoachMapApp({ onOpenApplication }) {
 			<aside
 				style={{
 					...styles.glassPanel,
-					width: isDesktop ? 430 : "100vw",
+					width: isDesktop
+						? 430
+						: isTablet && !isShortMobile
+							? "min(680px, calc(100vw - 32px))"
+							: "100vw",
 					height: isDesktop ? "100vh" : mobilePanelHeight,
-					maxHeight: isDesktop ? "100vh" : "calc(100dvh - 84px)",
+					maxHeight:
+						isDesktop || isShortMobile ? "100dvh" : "calc(100dvh - 84px)",
 					top: isDesktop ? 0 : "auto",
 					bottom: isDesktop ? "auto" : 0,
-					right: 0,
-					borderLeft: isDesktop ? `1px solid ${palette.border}` : "none",
+					right: isTablet && !isShortMobile ? "50%" : 0,
+					borderLeft:
+						isDesktop || (isTablet && !isShortMobile)
+							? `1px solid ${palette.border}`
+							: "none",
+					borderRight:
+						isTablet && !isShortMobile ? `1px solid ${palette.border}` : "none",
 					borderTop: isDesktop ? "none" : `1px solid ${palette.border}`,
-					borderTopLeftRadius: isDesktop ? 0 : 24,
-					borderTopRightRadius: isDesktop ? 0 : 24,
+					borderTopLeftRadius: isDesktop || isShortMobile ? 0 : 24,
+					borderTopRightRadius: isDesktop || isShortMobile ? 0 : 24,
 					padding: isDesktop
 						? "34px 34px 22px"
-						: "10px 16px calc(18px + env(safe-area-inset-bottom))",
+						: isShortMobile
+							? "calc(10px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom))"
+							: "10px 16px calc(18px + env(safe-area-inset-bottom))",
 					...(panelVisible
-						? styles.glassPanelShown
+						? {
+								...styles.glassPanelShown,
+								transform:
+									isTablet && !isShortMobile ? "translateX(50%)" : "none",
+							}
 						: {
 								...styles.glassPanelHidden,
-								transform: isDesktop ? "translateX(104%)" : "translateY(104%)",
+								transform: isDesktop
+									? "translateX(104%)"
+									: isTablet && !isShortMobile
+										? "translate(50%, 104%)"
+										: "translateY(104%)",
 							}),
 				}}
 				aria-hidden={!panelVisible}
+				inert={panelVisible ? undefined : ""}
 			>
 				{isMobile && panelVisible ? (
 					<span style={styles.mobileSheetHandle} />
@@ -3366,20 +3581,24 @@ export default function App() {
 
 	if (SHOW_COACH_APPLICATION_CTA && route.path === "/coach-apply") {
 		return (
-			<CoachApplicationForm
-				onBackToMap={goHome}
-				adminHref="#/admin/coach-applications"
-			/>
+			<React.Suspense fallback={<RouteLoading label="Coach application" />}>
+				<CoachApplicationForm
+					onBackToMap={goHome}
+					adminHref="#/admin/coach-applications"
+				/>
+			</React.Suspense>
 		);
 	}
 
 	if (route.path === "/admin/coach-applications") {
 		return (
-			<CoachApplicationAdmin
-				onBackToMap={goHome}
-				applicationHref="#/coach-apply"
-				highlightedApplicationId={route.params.get("application")}
-			/>
+			<React.Suspense fallback={<RouteLoading label="Admin review" />}>
+				<CoachApplicationAdmin
+					onBackToMap={goHome}
+					applicationHref="#/coach-apply"
+					highlightedApplicationId={route.params.get("application")}
+				/>
+			</React.Suspense>
 		);
 	}
 
