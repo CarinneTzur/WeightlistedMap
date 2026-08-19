@@ -1051,6 +1051,23 @@ const styles = {
 		lineHeight: 1.35,
 		marginBottom: 5,
 	},
+	coachAvailabilityLine: {
+		display: "flex",
+		alignItems: "center",
+		gap: 6,
+		fontSize: 11.8,
+		lineHeight: 1.35,
+		color: palette.muted,
+		marginBottom: 4,
+	},
+	coachAvailabilityDot: {
+		width: 5,
+		height: 5,
+		borderRadius: 999,
+		background: palette.graphite100,
+		opacity: 0.72,
+		flexShrink: 0,
+	},
 	coachRating: {
 		fontSize: 13.5,
 		color: palette.graphite100,
@@ -1606,14 +1623,22 @@ function CoachCard({
 	isFavorite = false,
 	onToggleFavorite,
 	compact = false,
-	singleGymPreview = false,
+	clusterPreview = false,
 }) {
 	const gymNames = getCoachGymNames(coach);
 	const gymCities = coach.gyms?.map((gym) => gym.city).filter(Boolean) || [];
 	const cityLabel = [...new Set(gymCities)].join(" + ") || coach.city;
-	const visibleSpecialties = singleGymPreview
-		? coach.specialties.slice(0, 1)
+	const visibleSpecialties = clusterPreview
+		? coach.specialties.slice(0, 2)
 		: coach.specialties;
+	const hasInPerson = gymNames.length > 0;
+	const hasOnline = Boolean(coach.onlineTraining || coach.remoteAvailable);
+	const availabilityLabel =
+		hasInPerson && hasOnline
+			? "In person + online"
+			: hasOnline
+				? "Online only"
+				: "In person only";
 
 	return (
 		<div style={{ position: "relative", width: "100%" }}>
@@ -1654,7 +1679,26 @@ function CoachCard({
 				>
 					{coach.title}
 				</div>
-				{singleGymPreview ? null : (
+				{clusterPreview ? (
+					<>
+						{gymNames.length ? (
+							<div
+								style={{
+									...styles.coachGymLine,
+									fontSize: 12.6,
+									marginBottom: 3,
+								}}
+							>
+								{gymNames[0]}
+								{gymNames.length > 1 ? ` + ${gymNames.length - 1} more` : ""}
+							</div>
+						) : null}
+						<div style={styles.coachAvailabilityLine}>
+							<span style={styles.coachAvailabilityDot} aria-hidden="true" />
+							{availabilityLabel}
+						</div>
+					</>
+				) : (
 					<>
 						<div
 							style={{
@@ -2223,7 +2267,7 @@ function CoachListPanel({
 	onSearchBlur,
 	onResultsScroll,
 	headerAction,
-	singleGymPreview = false,
+	clusterPreview = false,
 }) {
 	const filtered = rankCoachesBySemanticSearch(coaches, search);
 	const isCompact = !isDesktop;
@@ -2337,7 +2381,7 @@ function CoachListPanel({
 							setProfileCoach(coach);
 						}}
 						compact={isCompact}
-						singleGymPreview={isCompact && singleGymPreview}
+						clusterPreview={isCompact && clusterPreview}
 						hovered={hoveredCoachId === coach.id}
 						onMouseEnter={() => setHoveredCoachId(coach.id)}
 						onMouseLeave={() => setHoveredCoachId(null)}
@@ -2599,6 +2643,7 @@ function addGlobalMapStyles() {
       outline-offset: 2px;
     }
     @media (max-width: 1023px) {
+      .coach-tooltip-wrapper { display: none !important; }
       .leaflet-top.leaflet-left {
         top: auto;
         bottom: calc(var(--mobile-results-height, 52dvh) + 12px);
@@ -2918,7 +2963,6 @@ function CoachMapApp({ onOpenApplication }) {
 	const showOnlineRef = useRef(false);
 	const zipSearchRef = useRef("");
 	const radiusMilesRef = useRef(25);
-	const filterRef = useRef("all");
 	const renderClustersRef = useRef(null);
 
 	const [selectedState, setSelectedState] = useState(null);
@@ -3034,9 +3078,6 @@ function CoachMapApp({ onOpenApplication }) {
 		showOnlineRef.current = showOnline;
 		renderClustersRef.current?.();
 	}, [showOnline]);
-	useEffect(() => {
-		filterRef.current = filter;
-	}, [filter]);
 	useEffect(() => {
 		zipSearchRef.current = zipSearch;
 		radiusMilesRef.current = radiusMiles;
@@ -3210,15 +3251,17 @@ function CoachMapApp({ onOpenApplication }) {
 					});
 				}
 
-				marker
-					.bindTooltip(tooltipHtml, {
+				marker.bindTooltip(tooltipHtml, {
 						direction: singleGymPlacement?.direction || "top",
 						offset:
 							singleGymPlacement?.offset || [0, -markerSize / 2 - 4],
 						opacity: 1,
 						className: "coach-tooltip-wrapper",
-					})
-					.bindPopup(popupHtml)
+					});
+
+				if (window.innerWidth >= 1024) marker.bindPopup(popupHtml);
+
+				marker
 					.on("click", () => {
 						if (isMulti) {
 							const cities = [...new Set(clusterGyms.map((gym) => gym.city))];
@@ -3230,23 +3273,17 @@ function CoachMapApp({ onOpenApplication }) {
 							const stateLabel =
 								states.length === 1 ? states[0] : `${states.length} states`;
 
-							if (filterRef.current === "coaches") {
-								setGymPanel({
-									id: cluster.id,
-									gyms: clusterGyms,
-									title: `${cluster.gymCount} Gyms`,
-									eyebrow: `${cityLabel} • ${stateLabel}`,
-								});
-								setClusterPanel(null);
-							} else {
-								setGymPanel(null);
-								setClusterPanel({
-									id: cluster.id,
-									coaches: clusterCoaches,
-									title: `${count} Coaches at ${cluster.gymCount} Gyms`,
-									eyebrow: `${cityLabel} • ${stateLabel}`,
-								});
-							}
+							setGymPanel(null);
+							setClusterPanel({
+								id: cluster.id,
+								coaches: clusterCoaches,
+								title: `${count} ${count === 1 ? "Coach" : "Coaches"}`,
+								eyebrow:
+									cities.length === 1
+										? cityLabel
+										: `${cityLabel}${stateLabel ? ` • ${stateLabel}` : ""}`,
+								clusterPreview: true,
+							});
 							setSelectedState(null);
 							setStatesPanelOpen(false);
 							setFavoritesOpen(false);
@@ -3256,6 +3293,7 @@ function CoachMapApp({ onOpenApplication }) {
 							setContactCoach(null);
 							setSearch("");
 							setLocationDropdownOpen(false);
+							if (window.innerWidth < 1024) setMobileSheetSnap("half");
 							map.flyTo([lat, lng], Math.max(zoom, 6), { duration: 0.65 });
 						} else {
 							setSelectedState(primaryGym.state);
@@ -3264,9 +3302,9 @@ function CoachMapApp({ onOpenApplication }) {
 							setClusterPanel({
 								id: primaryGym.id,
 								coaches: clusterCoaches,
-								title: primaryGym.name,
-								eyebrow: `${primaryGym.city}, ${primaryGym.state} • ${count} ${count === 1 ? "coach" : "coaches"} available`,
-								singleGymPreview: true,
+								title: `${count} ${count === 1 ? "Coach" : "Coaches"}`,
+								eyebrow: primaryGym.city,
+								clusterPreview: true,
 							});
 							setFavoritesOpen(false);
 							setSemanticSearchOpen(false);
@@ -3709,7 +3747,7 @@ function CoachMapApp({ onOpenApplication }) {
 			eyebrow: `${gym.city}, ${gym.state} • ${gym.coachCount} ${
 				gym.coachCount === 1 ? "coach" : "coaches"
 			} available`,
-			singleGymPreview: true,
+			clusterPreview: true,
 			parentGymPanel,
 		});
 		setFavoritesOpen(false);
@@ -4016,12 +4054,12 @@ function CoachMapApp({ onOpenApplication }) {
 										return next;
 									});
 								}}
-								aria-label={mobileSearchExpanded ? "Close coach search controls" : "Find coach"}
+								aria-label={mobileSearchExpanded ? "Close coach search controls" : "Search coaches"}
 								aria-expanded={mobileSearchExpanded}
 								aria-controls="mobile-coach-search-panel"
 							>
 								<span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">⌕</span>
-								<span className="mobile-search-launcher-label" style={styles.mobileSearchLauncherLabel}>Find coach</span>
+								<span className="mobile-search-launcher-label" style={styles.mobileSearchLauncherLabel}>Search</span>
 							</button>
 							<button
 								type="button"
@@ -4045,7 +4083,7 @@ function CoachMapApp({ onOpenApplication }) {
 										onOpenApplication();
 									}}
 								>
-									<span className="mobile-be-prefix">Be </span>Coach
+									<span className="mobile-be-prefix">Be a </span>Coach
 								</button>
 							) : null}
 							<button
@@ -4671,7 +4709,7 @@ function CoachMapApp({ onOpenApplication }) {
 							onSearchFocus={() => setSearchFocused(true)}
 							onSearchBlur={() => setSearchFocused(false)}
 							onResultsScroll={onResultsScroll}
-							singleGymPreview={Boolean(clusterPanel?.singleGymPreview)}
+							clusterPreview={Boolean(clusterPanel?.clusterPreview)}
 							headerAction={
 								isMobile && effectiveMobileSheetSnap === "full"
 									? {
