@@ -415,6 +415,36 @@ function useViewportLayout() {
 	};
 }
 
+function useVisualViewportMetrics() {
+	const getMetrics = () => ({
+		height:
+			typeof window !== "undefined"
+				? window.visualViewport?.height ?? window.innerHeight
+				: 900,
+		offsetTop:
+			typeof window !== "undefined" ? window.visualViewport?.offsetTop ?? 0 : 0,
+	});
+	const [metrics, setMetrics] = useState(getMetrics);
+
+	useEffect(() => {
+		const visualViewport = window.visualViewport;
+		const handleViewportChange = () => setMetrics(getMetrics());
+
+		handleViewportChange();
+		window.addEventListener("resize", handleViewportChange);
+		visualViewport?.addEventListener("resize", handleViewportChange);
+		visualViewport?.addEventListener("scroll", handleViewportChange);
+
+		return () => {
+			window.removeEventListener("resize", handleViewportChange);
+			visualViewport?.removeEventListener("resize", handleViewportChange);
+			visualViewport?.removeEventListener("scroll", handleViewportChange);
+		};
+	}, []);
+
+	return metrics;
+}
+
 function normalizeToken(token) {
 	return token
 		.toLowerCase()
@@ -2333,12 +2363,26 @@ function CoachListPanel({
 	onCommitSearch,
 	onRemoveSearchTag,
 	searchTagScrollerRef,
+	focusedSearchMode = false,
+	onOpenProfile,
+	onProfileBack,
+	restoreResultsScrollTop = 0,
 }) {
+	const scrollPanelRef = useRef(null);
 	const filtered = rankCoachesBySemanticSearchTerms(coaches, [
 		...searchTags,
 		search,
 	]);
 	const isCompact = !isDesktop;
+
+	useEffect(() => {
+		if (!focusedSearchMode || !scrollPanelRef.current) return undefined;
+
+		const frame = window.requestAnimationFrame(() => {
+			scrollPanelRef.current.scrollTop = restoreResultsScrollTop;
+		});
+		return () => window.cancelAnimationFrame(frame);
+	}, [focusedSearchMode, restoreResultsScrollTop]);
 
 	if (contactCoach) {
 		return (
@@ -2354,7 +2398,7 @@ function CoachListPanel({
 		return (
 			<CoachProfile
 				coach={profileCoach}
-				onBack={() => setProfileCoach(null)}
+				onBack={onProfileBack || (() => setProfileCoach(null))}
 				isFavorite={favoriteCoachIds.includes(profileCoach.id)}
 				onToggleFavorite={onToggleFavorite}
 				onContact={setContactCoach}
@@ -2364,6 +2408,7 @@ function CoachListPanel({
 
 	return (
 		<div
+			ref={scrollPanelRef}
 			className="coach-scroll-panel"
 			style={{
 				...styles.coachListPanelInner,
@@ -2371,46 +2416,48 @@ function CoachListPanel({
 			}}
 			onScroll={onResultsScroll}
 		>
-			<div style={styles.coachListHeader}>
-				<button
-					style={styles.backArrow}
-					aria-label="Back to map"
-					onClick={onBack}
-				>
-					←
-				</button>
-				<div style={{ flex: 1, minWidth: 0 }}>
-					<div
-						style={{
-							fontSize: 12,
-							color: palette.muted,
-							textTransform: "uppercase",
-							letterSpacing: "0.18em",
-						}}
-					>
-						{eyebrow}
-					</div>
-					<div
-						style={{
-							fontWeight: 720,
-							fontSize: 21,
-							color: palette.text,
-							letterSpacing: -0.3,
-						}}
-					>
-						{title}
-					</div>
-				</div>
-				{headerAction ? (
+			{focusedSearchMode ? null : (
+				<div style={styles.coachListHeader}>
 					<button
-						type="button"
-						style={{ ...styles.mobileControlButton, minHeight: 40, padding: "0 11px", flexShrink: 0 }}
-						onClick={headerAction.onClick}
+						style={styles.backArrow}
+						aria-label="Back to map"
+						onClick={onBack}
 					>
-						{headerAction.label}
+						←
 					</button>
-				) : null}
-			</div>
+					<div style={{ flex: 1, minWidth: 0 }}>
+						<div
+							style={{
+								fontSize: 12,
+								color: palette.muted,
+								textTransform: "uppercase",
+								letterSpacing: "0.18em",
+							}}
+						>
+							{eyebrow}
+						</div>
+						<div
+							style={{
+								fontWeight: 720,
+								fontSize: 21,
+								color: palette.text,
+								letterSpacing: -0.3,
+							}}
+						>
+							{title}
+						</div>
+					</div>
+					{headerAction ? (
+						<button
+							type="button"
+							style={{ ...styles.mobileControlButton, minHeight: 40, padding: "0 11px", flexShrink: 0 }}
+							onClick={headerAction.onClick}
+						>
+							{headerAction.label}
+						</button>
+					) : null}
+				</div>
+			)}
 			{isCompact ? null : (
 				<div style={styles.searchInputWrap}>
 					<form style={{ position: "relative" }} onSubmit={onCommitSearch}>
@@ -2469,7 +2516,11 @@ function CoachListPanel({
 						coach={coach}
 						onClick={() => {
 							setContactCoach(null);
-							setProfileCoach(coach);
+							if (onOpenProfile) {
+								onOpenProfile(coach, scrollPanelRef.current?.scrollTop || 0);
+							} else {
+								setProfileCoach(coach);
+							}
 						}}
 						compact={isCompact}
 						clusterPreview={isCompact && clusterPreview}
@@ -2722,6 +2773,12 @@ function addGlobalMapStyles() {
     }
     .mobile-search-tags::-webkit-scrollbar { display: none; }
     .desktop-search-tags::-webkit-scrollbar { display: none; }
+	.mobile-coach-search::-webkit-search-cancel-button,
+	.coach-search-input::-webkit-search-cancel-button {
+	  -webkit-appearance: none;
+	  appearance: none;
+	  display: none;
+	}
     .coach-search-input:focus-visible { outline-offset: -2px !important; }
     .mobile-coach-search::placeholder { font-size: 13px; }
     button:focus-visible,
@@ -2732,6 +2789,7 @@ function addGlobalMapStyles() {
     }
     @media (max-width: 1023px) {
       .coach-tooltip-wrapper { display: none !important; }
+	  .mobile-search-mode .leaflet-control-zoom { display: none !important; }
       .leaflet-top.leaflet-left {
         top: auto;
         bottom: calc(var(--mobile-results-height, 52dvh) + 12px);
@@ -3101,10 +3159,14 @@ function CoachMapApp({ onOpenApplication }) {
 	const mobileSheetDragMovedRef = useRef(false);
 	const mobileSearchInputRef = useRef(null);
 	const mobileSearchTagsRef = useRef(null);
+	const mobileHeaderRef = useRef(null);
+	const mobileSearchResultsScrollTopRef = useRef(0);
 	const desktopSearchTagsRef = useRef(null);
 	const preFavoritesViewRef = useRef(null);
 	const preLocationViewRef = useRef(null);
+	const preProfileViewRef = useRef(null);
 	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
+	const visualViewport = useVisualViewportMetrics();
 	const layersRef = useRef({
 		stateZones: [],
 		stateLabels: [],
@@ -3141,6 +3203,7 @@ function CoachMapApp({ onOpenApplication }) {
 	const [zipSearch, setZipSearch] = useState("");
 	const [radiusMiles, setRadiusMiles] = useState(25);
 	const [searchFocused, setSearchFocused] = useState(false);
+	const [mobileSearchResultsTop, setMobileSearchResultsTop] = useState(96);
 	const [mobileSheetDragOffset, setMobileSheetDragOffset] = useState(0);
 	const [isMobileSheetDragging, setIsMobileSheetDragging] = useState(false);
 	const showOnline = trainingType === "online";
@@ -3149,10 +3212,10 @@ function CoachMapApp({ onOpenApplication }) {
 		useMobileResultsHeader(!isDesktop);
 
 	useEffect(() => {
-		if (mobileHeaderCollapsed || profileCoach || contactCoach) {
+		if (mobileHeaderCollapsed) {
 			setMobileSearchExpanded(false);
 		}
-	}, [contactCoach, mobileHeaderCollapsed, profileCoach]);
+	}, [mobileHeaderCollapsed]);
 
 	useEffect(() => {
 		if (!searchTags.length) return;
@@ -3160,6 +3223,28 @@ function CoachMapApp({ onOpenApplication }) {
 			tagScroller?.scrollTo?.({ left: tagScroller.scrollWidth, behavior: "smooth" });
 		});
 	}, [searchTags]);
+
+	useEffect(() => {
+		if (!mobileSearchExpanded || !mobileHeaderRef.current) return undefined;
+
+		const updateResultsTop = () => {
+			const nextTop = Math.ceil(mobileHeaderRef.current.getBoundingClientRect().bottom + 6);
+			setMobileSearchResultsTop((current) => (current === nextTop ? current : nextTop));
+		};
+		const resizeObserver =
+			typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updateResultsTop);
+
+		updateResultsTop();
+		resizeObserver?.observe(mobileHeaderRef.current);
+		return () => resizeObserver?.disconnect();
+	}, [
+		mobileSearchExpanded,
+		contactCoach,
+		profileCoach,
+		searchTags.length,
+		visualViewport.height,
+		visualViewport.offsetTop,
+	]);
 
 	const allCoaches = useMemo(() => getAllCoaches(), []);
 	const allGyms = useMemo(() => getAllGyms(), []);
@@ -3675,18 +3760,67 @@ function CoachMapApp({ onOpenApplication }) {
 		);
 	}
 
+	function closeMobileSearchMode() {
+		mobileSearchInputRef.current?.blur();
+		setSearchFocused(false);
+		setMobileSearchExpanded(false);
+		mobileSearchResultsScrollTopRef.current = 0;
+	}
+
 	function toggleMobileSearchControls() {
 		if (mobileSearchExpanded) {
-			setMobileSearchExpanded(false);
+			closeMobileSearchMode();
 			return;
 		}
 
 		// Keep the render and focus inside the original tap so iOS opens the keyboard.
+		mobileSearchResultsScrollTopRef.current = 0;
 		flushSync(() => {
 			setMobileHeaderCollapsed(false);
 			setMobileSearchExpanded(true);
 		});
 		mobileSearchInputRef.current?.focus({ preventScroll: true });
+	}
+
+	function openCoachProfile(coach, resultsScrollTop = 0) {
+		preProfileViewRef.current = isDesktop
+			? null
+			: {
+				mobileSearchExpanded,
+				search,
+				searchTags: [...searchTags],
+				resultsScrollTop,
+				mobileSheetSnap,
+			};
+		if (!isDesktop && mobileSearchExpanded)
+			mobileSearchResultsScrollTopRef.current = resultsScrollTop;
+		setContactCoach(null);
+		setProfileCoach(coach);
+	}
+
+	function handleCoachProfileBack() {
+		const previousView = preProfileViewRef.current;
+		const shouldRestoreMobileSearch =
+			!isDesktop && previousView?.mobileSearchExpanded;
+
+		if (shouldRestoreMobileSearch) {
+			mobileSearchResultsScrollTopRef.current = previousView.resultsScrollTop;
+		}
+
+		flushSync(() => {
+			setProfileCoach(null);
+			if (shouldRestoreMobileSearch) {
+				setSearch(previousView.search);
+				setSearchTags(previousView.searchTags);
+				setMobileSheetSnap(previousView.mobileSheetSnap);
+				setMobileHeaderCollapsed(false);
+				setMobileSearchExpanded(true);
+			}
+		});
+		if (shouldRestoreMobileSearch) {
+			mobileSearchInputRef.current?.focus({ preventScroll: true });
+		}
+		preProfileViewRef.current = null;
 	}
 
 	function prepareMobileCoachSearch() {
@@ -4203,9 +4337,23 @@ function CoachMapApp({ onOpenApplication }) {
 										: "No matching coaches found.";
 
 	const isMobile = !isDesktop;
-	const effectiveMobileSheetSnap = profileCoach || contactCoach ? "full" : mobileSheetSnap;
+	const isMobileSearchMode =
+		isMobile && mobileSearchExpanded && !profileCoach && !contactCoach;
+	const focusedSearchResultsHeight = Math.max(
+		160,
+		Math.floor(
+			visualViewport.offsetTop + visualViewport.height - mobileSearchResultsTop,
+		),
+	);
+	const effectiveMobileSheetSnap = isMobileSearchMode
+		? "half"
+		: profileCoach || contactCoach
+			? "full"
+			: mobileSheetSnap;
 	const mobilePanelHeight =
-		effectiveMobileSheetSnap === "collapsed"
+		isMobileSearchMode
+			? `${focusedSearchResultsHeight}px`
+			: effectiveMobileSheetSnap === "collapsed"
 			? "calc(92px + env(safe-area-inset-bottom))"
 			: effectiveMobileSheetSnap === "full"
 				? "100dvh"
@@ -4216,12 +4364,15 @@ function CoachMapApp({ onOpenApplication }) {
 						: "52dvh";
 	const effectivePanelVisible = isMobile ? true : panelVisible;
 	const hideFloatingControls =
+		isMobileSearchMode ||
 		(isShortMobile && panelVisible) ||
 		(isMobile && Boolean(profileCoach || contactCoach));
 	const mobileActionBottom = panelVisible
 		? `calc(${mobilePanelHeight} + 14px + env(safe-area-inset-bottom))`
 		: "calc(18px + env(safe-area-inset-bottom))";
-	const mobilePanelBaseTransform = isTablet && !isShortMobile
+	const mobilePanelBaseTransform = isMobileSearchMode
+		? "none"
+		: isTablet && !isShortMobile
 		? "translateX(50%)"
 		: "none";
 	const mobilePanelTransform =
@@ -4240,7 +4391,7 @@ function CoachMapApp({ onOpenApplication }) {
 	const mobileDialogOpen = mobileLocationSheetOpen || mobileFilterSheetOpen;
 
 	return (
-		<main style={styles.shell}>
+		<main className={isMobileSearchMode ? "mobile-search-mode" : undefined} style={styles.shell}>
 			{showIntroModal ? (
 				<div
 					style={{
@@ -4315,12 +4466,30 @@ function CoachMapApp({ onOpenApplication }) {
 					...styles.map,
 					height: isMobile ? "100dvh" : styles.map.height,
 					...(isMobile ? { "--mobile-results-height": mobilePanelHeight } : {}),
+					...(isMobileSearchMode
+						? {
+							filter: "grayscale(1) contrast(.9) brightness(.38) blur(5px)",
+							opacity: 0.52,
+							pointerEvents: "none",
+							transform: "scale(1.025)",
+							transition: "filter 180ms ease, opacity 180ms ease, transform 180ms ease",
+						}
+						: {}),
 				}}
-				inert={isMobile && mobileDialogOpen ? "" : undefined}
+				inert={isMobile && (mobileDialogOpen || isMobileSearchMode) ? "" : undefined}
 			/>
 
 			{isMobile && !hideMobileDirectoryHeader ? (
-				<header style={styles.mobileHeader} aria-label="Coach directory controls">
+				<header
+					ref={mobileHeaderRef}
+					style={{
+						...styles.mobileHeader,
+						...(isMobileSearchMode
+							? { top: visualViewport.offsetTop, zIndex: 1020 }
+							: {}),
+					}}
+					aria-label="Coach directory controls"
+				>
 					<div
 						className="mobile-directory-header"
 						style={{
@@ -4329,17 +4498,88 @@ function CoachMapApp({ onOpenApplication }) {
 							borderRadius: 18,
 						}}
 					>
-						<div style={styles.mobileCommandBar}>
+						{isMobileSearchMode ? (
+							<>
+								<div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+									<form
+										id="mobile-coach-search-panel"
+										style={{ ...styles.mobileSearchWrap, flex: 1, minWidth: 0, marginBottom: 0 }}
+										onSubmit={commitMobileSearch}
+									>
+										<span style={styles.mobileSearchIcon}>⌕</span>
+										<input
+											ref={mobileSearchInputRef}
+											className="mobile-coach-search"
+											type="search"
+											style={styles.mobileSearchInput}
+											value={search}
+											onChange={(event) => {
+												setSearch(event.target.value);
+												prepareMobileCoachSearch();
+											}}
+											onFocus={() => {
+												setSearchFocused(true);
+												if (mobileSheetSnap === "collapsed") setMobileSheetSnap("half");
+											}}
+											onBlur={() => setSearchFocused(false)}
+											enterKeyHint="search"
+											autoComplete="off"
+											placeholder="Coach, city, gym, specialty"
+											aria-label="Search coach, city, gym, or specialty"
+										/>
+										{search ? (
+											<button
+												type="button"
+												style={{ ...styles.mobileIconButton, position: "absolute", top: 0, right: 0, border: 0, background: "transparent" }}
+												onClick={() => setSearch("")}
+												aria-label="Clear coach search"
+											>
+												×
+											</button>
+										) : null}
+									</form>
+									<button
+										type="button"
+										style={{ ...styles.mobileToolbarButton, height: 44, padding: "0 12px", fontWeight: 600 }}
+										onClick={closeMobileSearchMode}
+										aria-label="Close search"
+									>
+										Done
+									</button>
+								</div>
+								{searchTags.length ? (
+									<div
+										ref={mobileSearchTagsRef}
+										className="mobile-search-tags"
+										style={{ ...styles.mobileSearchTagScroller, minHeight: 0, padding: "11px 1px 1px" }}
+										aria-label="Active search tags"
+										aria-live="polite"
+									>
+										{searchTags.map((tag) => (
+											<span key={tag} style={styles.mobileSearchTag}>
+												<span style={styles.mobileSearchTagLabel}>{tag}</span>
+												<button
+													type="button"
+													style={styles.mobileSearchTagRemove}
+													onClick={() => removeSearchTag(tag)}
+													aria-label={`Remove ${tag} search`}
+												>
+													×
+												</button>
+											</span>
+										))}
+									</div>
+								) : null}
+							</>
+						) : (
+							<div style={styles.mobileCommandBar}>
 							<button
 								type="button"
 								className="mobile-search-launcher"
-								style={{
-									...styles.mobileSearchLauncher,
-									...(mobileSearchExpanded ? styles.mobileSearchLauncherActive : {}),
-								}}
+								style={styles.mobileSearchLauncher}
 								onClick={toggleMobileSearchControls}
-								aria-label={mobileSearchExpanded ? "Close coach search controls" : "Search coaches"}
-								aria-expanded={mobileSearchExpanded}
+								aria-label="Search coaches"
+								aria-expanded={false}
 								aria-controls="mobile-coach-search-panel"
 							>
 								<span style={{ fontSize: 18, lineHeight: 1 }} aria-hidden="true">⌕</span>
@@ -4382,75 +4622,8 @@ function CoachMapApp({ onOpenApplication }) {
 								♡
 								{favoriteCoachIds.length ? <span style={styles.mobileBadge}>{favoriteCoachIds.length}</span> : null}
 							</button>
-						</div>
-
-						{mobileSearchExpanded ? (
-							<div id="mobile-coach-search-panel" style={styles.mobileExpandedSearchPanel}>
-								<form
-									style={{ ...styles.mobileSearchWrap, marginBottom: 8 }}
-									onSubmit={commitMobileSearch}
-								>
-									<span style={styles.mobileSearchIcon}>⌕</span>
-									<input
-										ref={mobileSearchInputRef}
-										className="mobile-coach-search"
-										type="search"
-										style={styles.mobileSearchInput}
-										value={search}
-										onChange={(event) => {
-											setSearch(event.target.value);
-											prepareMobileCoachSearch();
-										}}
-										onFocus={() => {
-											setSearchFocused(true);
-											if (mobileSheetSnap === "collapsed") setMobileSheetSnap("half");
-										}}
-										onBlur={() => setSearchFocused(false)}
-										enterKeyHint="search"
-										autoComplete="off"
-										placeholder="Search coach, city, gym, specialty"
-										aria-label="Search coach, city, gym, or specialty"
-									/>
-									{search ? (
-										<button
-											type="button"
-											style={{ ...styles.mobileIconButton, position: "absolute", top: 0, right: 0, border: 0, background: "transparent" }}
-											onClick={() => setSearch("")}
-											aria-label="Clear coach search"
-										>
-											×
-										</button>
-									) : null}
-								</form>
-								<div
-									ref={mobileSearchTagsRef}
-									className="mobile-search-tags"
-									style={styles.mobileSearchTagScroller}
-									aria-label="Active search tags"
-									aria-live="polite"
-								>
-									{searchTags.length ? (
-										searchTags.map((tag) => (
-											<span key={tag} style={styles.mobileSearchTag}>
-												<span style={styles.mobileSearchTagLabel}>{tag}</span>
-												<button
-													type="button"
-													style={styles.mobileSearchTagRemove}
-												onClick={() => removeSearchTag(tag)}
-													aria-label={`Remove ${tag} search`}
-												>
-													×
-												</button>
-											</span>
-										))
-									) : (
-										<span style={styles.mobileSearchTagHint}>
-											Press return to keep a search and add another
-										</span>
-									)}
-								</div>
 							</div>
-						) : null}
+						)}
 					</div>
 				</header>
 			) : null}
@@ -4845,27 +5018,33 @@ function CoachMapApp({ onOpenApplication }) {
 					...styles.glassPanel,
 					width: isDesktop
 						? 430
+						: isMobileSearchMode
+							? "100vw"
 						: isTablet && !isShortMobile
 							? "min(680px, calc(100vw - 32px))"
 							: "100vw",
 					height: isDesktop ? "100vh" : mobilePanelHeight,
-					maxHeight: "100dvh",
-					top: isDesktop ? 0 : "auto",
-					bottom: isDesktop ? "auto" : 0,
-					right: isTablet && !isShortMobile ? "50%" : 0,
+					maxHeight: isMobileSearchMode ? `${visualViewport.height}px` : "100dvh",
+					top: isDesktop ? 0 : isMobileSearchMode ? mobileSearchResultsTop : "auto",
+					bottom: isDesktop || isMobileSearchMode ? "auto" : 0,
+					right: isMobileSearchMode ? 0 : isTablet && !isShortMobile ? "50%" : 0,
 					borderLeft:
-						isDesktop || (isTablet && !isShortMobile)
+						isMobileSearchMode
+							? "none"
+							: isDesktop || (isTablet && !isShortMobile)
 							? `1px solid ${palette.border}`
 							: "none",
 					borderRight:
-						isTablet && !isShortMobile ? `1px solid ${palette.border}` : "none",
+						!isMobileSearchMode && isTablet && !isShortMobile ? `1px solid ${palette.border}` : "none",
 					borderTop: isDesktop ? "none" : `1px solid ${palette.border}`,
 					borderTopLeftRadius:
-						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : 24,
+						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
 					borderTopRightRadius:
-						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : 24,
+						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
 					padding: isDesktop
 						? "34px 34px 22px"
+						: isMobileSearchMode
+							? "10px 14px 8px"
 						: effectiveMobileSheetSnap === "full"
 							? "calc(10px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom))"
 							: "4px 16px calc(12px + env(safe-area-inset-bottom))",
@@ -4874,7 +5053,9 @@ function CoachMapApp({ onOpenApplication }) {
 						? {
 								...styles.glassPanelShown,
 								transform: mobilePanelTransform,
-							transition: isMobileSheetDragging
+							transition: isMobileSearchMode
+								? "none"
+								: isMobileSheetDragging
 								? "none"
 								: "height 300ms cubic-bezier(.22,.7,.24,1), transform 300ms cubic-bezier(.22,.7,.24,1), opacity 180ms ease",
 							}
@@ -4890,7 +5071,7 @@ function CoachMapApp({ onOpenApplication }) {
 				aria-hidden={!effectivePanelVisible || (isMobile && mobileDialogOpen)}
 				inert={effectivePanelVisible && !mobileDialogOpen ? undefined : ""}
 			>
-				{isMobile && effectivePanelVisible ? (
+				{isMobile && effectivePanelVisible && !isMobileSearchMode ? (
 					<button
 						type="button"
 						style={{ ...styles.mobileSheetHandle, border: 0, padding: 0, cursor: "grab", touchAction: "none" }}
@@ -4975,6 +5156,10 @@ function CoachMapApp({ onOpenApplication }) {
 							onCommitSearch={commitDesktopSearch}
 							onRemoveSearchTag={removeSearchTag}
 							searchTagScrollerRef={desktopSearchTagsRef}
+							focusedSearchMode={isMobileSearchMode}
+							onOpenProfile={openCoachProfile}
+							onProfileBack={handleCoachProfileBack}
+							restoreResultsScrollTop={mobileSearchResultsScrollTopRef.current}
 							hoveredCoachId={hoveredCoachId}
 							setHoveredCoachId={setHoveredCoachId}
 							favoriteCoachIds={favoriteCoachIds}
@@ -4986,7 +5171,7 @@ function CoachMapApp({ onOpenApplication }) {
 							searchAutoFocus={isDesktop}
 							onSearchFocus={() => setSearchFocused(true)}
 							onSearchBlur={() => setSearchFocused(false)}
-							onResultsScroll={onResultsScroll}
+							onResultsScroll={isMobileSearchMode ? undefined : onResultsScroll}
 							clusterPreview={Boolean(clusterPanel?.clusterPreview)}
 							headerAction={
 								isMobile && effectiveMobileSheetSnap === "full"
