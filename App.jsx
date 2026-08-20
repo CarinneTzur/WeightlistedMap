@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -556,6 +557,17 @@ function rankCoachesBySemanticSearch(coaches, query) {
 		.map(({ coach }) => coach);
 }
 
+function rankCoachesBySemanticSearchTerms(coaches, queries) {
+	const normalizedQueries = queries
+		.map((query) => String(query || "").trim())
+		.filter(Boolean);
+
+	return normalizedQueries.reduce(
+		(matches, query) => rankCoachesBySemanticSearch(matches, query),
+		coaches,
+	);
+}
+
 function rankGymsBySemanticSearch(gyms, query) {
 	const trimmedQuery = query.trim();
 	if (!trimmedQuery) return gyms;
@@ -753,14 +765,14 @@ const styles = {
 		alignItems: "center",
 		gap: 9,
 		padding: "13px 17px",
-		background: palette.panel,
-		border: `1px solid ${palette.border}`,
+		background: "rgba(30,28,30,0.94)",
+		border: "1px solid rgba(242,241,239,0.28)",
 		borderRadius: 999,
 		color: palette.text,
 		backdropFilter: "blur(18px)",
-		boxShadow: "0 20px 60px rgba(0,0,0,0.36)",
+		boxShadow: "0 20px 60px rgba(0,0,0,0.42)",
 		cursor: "pointer",
-		fontWeight: 700,
+		fontWeight: 600,
 		fontSize: 14,
 		lineHeight: 1,
 		minHeight: 44,
@@ -810,7 +822,7 @@ const styles = {
 		backdropFilter: "blur(18px)",
 		boxShadow: "0 20px 60px rgba(0,0,0,0.36)",
 		cursor: "pointer",
-		fontWeight: 700,
+		fontWeight: 560,
 		fontSize: 14,
 		lineHeight: 1,
 	},
@@ -825,7 +837,7 @@ const styles = {
 		background: palette.graphite100,
 		color: palette.graphite900,
 		fontSize: 12,
-		fontWeight: 850,
+		fontWeight: 650,
 	},
 	controlButton: {
 		border: 0,
@@ -836,11 +848,13 @@ const styles = {
 		background: "transparent",
 		font: "inherit",
 		fontSize: 13,
+		fontWeight: 500,
 		transition: "background 160ms ease, color 160ms ease, transform 160ms ease",
 	},
 	activeControl: {
 		background: palette.graphite100,
 		color: palette.graphite900,
+		fontWeight: 600,
 	},
 	glassPanel: {
 		position: "fixed",
@@ -951,6 +965,17 @@ const styles = {
 		position: "relative",
 		margin: "0 0 22px 0",
 	},
+	desktopSearchTagScroller: {
+		display: "flex",
+		alignItems: "center",
+		gap: 8,
+		maxWidth: "100%",
+		overflowX: "auto",
+		overflowY: "hidden",
+		overscrollBehaviorX: "contain",
+		scrollbarWidth: "none",
+		padding: "10px 2px 2px",
+	},
 	searchPlaceholderMarquee: {
 		position: "absolute",
 		left: 17,
@@ -994,7 +1019,7 @@ const styles = {
 		position: "absolute",
 		top: 10,
 		right: 10,
-		zIndex: 2,
+		zIndex: 5,
 		width: 36,
 		height: 36,
 		padding: 0,
@@ -1486,12 +1511,6 @@ const styles = {
 		justifyContent: "center",
 		boxShadow: "0 0 0 2px rgba(30,28,30,0.94)",
 	},
-	mobileControlRow: {
-		display: "flex",
-		alignItems: "center",
-		gap: 8,
-		flexWrap: "wrap",
-	},
 	mobileControlButton: {
 		minHeight: 44,
 		maxWidth: "100%",
@@ -1510,9 +1529,23 @@ const styles = {
 		gap: 7,
 		whiteSpace: "nowrap",
 	},
-	mobileActiveChip: {
-		minHeight: 36,
-		padding: "0 10px",
+	mobileSearchTagScroller: {
+		display: "flex",
+		alignItems: "center",
+		gap: 8,
+		minHeight: 40,
+		overflowX: "auto",
+		overflowY: "hidden",
+		overscrollBehaviorX: "contain",
+		WebkitOverflowScrolling: "touch",
+		scrollSnapType: "x proximity",
+		scrollbarWidth: "none",
+		padding: "2px 1px 4px",
+	},
+	mobileSearchTag: {
+		minHeight: 34,
+		maxWidth: "min(72vw, 260px)",
+		padding: "0 8px 0 11px",
 		borderRadius: 999,
 		border: "1px solid rgba(198,197,195,0.3)",
 		background: "rgba(198,197,195,0.12)",
@@ -1522,6 +1555,34 @@ const styles = {
 		display: "inline-flex",
 		alignItems: "center",
 		gap: 7,
+		flex: "0 0 auto",
+		scrollSnapAlign: "start",
+	},
+	mobileSearchTagLabel: {
+		overflow: "hidden",
+		textOverflow: "ellipsis",
+		whiteSpace: "nowrap",
+	},
+	mobileSearchTagRemove: {
+		width: 26,
+		height: 26,
+		padding: 0,
+		border: 0,
+		borderRadius: 999,
+		background: "rgba(242,241,239,0.1)",
+		color: "inherit",
+		font: "inherit",
+		fontSize: 16,
+		lineHeight: 1,
+		cursor: "pointer",
+		flex: "0 0 auto",
+	},
+	mobileSearchTagHint: {
+		color: palette.muted,
+		fontSize: 12,
+		lineHeight: 1.35,
+		padding: "0 4px",
+		whiteSpace: "nowrap",
 	},
 	mobileCompactToolbar: {
 		display: "grid",
@@ -2268,8 +2329,15 @@ function CoachListPanel({
 	onResultsScroll,
 	headerAction,
 	clusterPreview = false,
+	searchTags = [],
+	onCommitSearch,
+	onRemoveSearchTag,
+	searchTagScrollerRef,
 }) {
-	const filtered = rankCoachesBySemanticSearch(coaches, search);
+	const filtered = rankCoachesBySemanticSearchTerms(coaches, [
+		...searchTags,
+		search,
+	]);
 	const isCompact = !isDesktop;
 
 	if (contactCoach) {
@@ -2343,31 +2411,54 @@ function CoachListPanel({
 					</button>
 				) : null}
 			</div>
-			{isCompact ? null : <div style={styles.searchInputWrap}>
-				<input
-					type="search"
-					aria-label="Search coaches"
-					className="coach-scroll-panel"
-					style={{
-						...styles.searchInput,
-						...(isCompact ? styles.searchInputCompact : {}),
-					}}
-					placeholder=""
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
-					onFocus={onSearchFocus}
-					onBlur={onSearchBlur}
-					autoFocus={searchAutoFocus}
-					enterKeyHint="search"
-				/>
-				{search ? null : (
-					<div style={styles.searchPlaceholderMarquee}>
-						<span className="coach-placeholder-marquee">
-							Describe what you want, a city, a gym, etc. ex. "Heavy Lifting"
-						</span>
-					</div>
-				)}
-			</div>}
+			{isCompact ? null : (
+				<div style={styles.searchInputWrap}>
+					<form style={{ position: "relative" }} onSubmit={onCommitSearch}>
+						<input
+							type="search"
+							aria-label="Search coaches"
+							className="coach-scroll-panel coach-search-input"
+							style={styles.searchInput}
+							placeholder=""
+							value={search}
+							onChange={(e) => setSearch(e.target.value)}
+							onFocus={onSearchFocus}
+							onBlur={onSearchBlur}
+							autoFocus={searchAutoFocus}
+							enterKeyHint="search"
+						/>
+						{search ? null : (
+							<div style={styles.searchPlaceholderMarquee}>
+								<span className="coach-placeholder-marquee">
+									Describe what you want, a city, a gym, etc. ex. "Heavy Lifting"
+								</span>
+							</div>
+						)}
+					</form>
+					{searchTags.length ? (
+						<div
+							ref={searchTagScrollerRef}
+							className="desktop-search-tags"
+							style={styles.desktopSearchTagScroller}
+							aria-label="Active search tags"
+						>
+							{searchTags.map((tag) => (
+								<span key={tag} style={styles.mobileSearchTag}>
+									<span style={styles.mobileSearchTagLabel}>{tag}</span>
+									<button
+										type="button"
+										style={styles.mobileSearchTagRemove}
+										onClick={() => onRemoveSearchTag(tag)}
+										aria-label={`Remove ${tag} search`}
+									>
+										×
+									</button>
+								</span>
+							))}
+						</div>
+					) : null}
+				</div>
+			)}
 			<div>
 				{filtered.length === 0 ? (
 					<div style={styles.emptyState}>{emptyMessage}</div>
@@ -2629,12 +2720,9 @@ function addGlobalMapStyles() {
       0%, 16% { transform: translateX(0); }
       72%, 100% { transform: translateX(-46%); }
     }
-    .mobile-location-chip-label {
-      max-width: min(54vw, 220px);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .mobile-search-tags::-webkit-scrollbar { display: none; }
+    .desktop-search-tags::-webkit-scrollbar { display: none; }
+    .coach-search-input:focus-visible { outline-offset: -2px !important; }
     .mobile-coach-search::placeholder { font-size: 13px; }
     button:focus-visible,
     input:focus-visible,
@@ -2701,9 +2789,9 @@ function useMobileResultsHeader(isMobile) {
 	return { collapsed, setCollapsed, onResultsScroll };
 }
 
-function MobileBottomSheetDialog({ title, onClose, children, footer }) {
+function MobileBottomSheetDialog({ title, onClose, onBack, children, footer }) {
 	const dialogRef = useRef(null);
-	const closeRef = useRef(null);
+	const actionRef = useRef(null);
 	const onCloseRef = useRef(onClose);
 
 	useEffect(() => {
@@ -2711,7 +2799,7 @@ function MobileBottomSheetDialog({ title, onClose, children, footer }) {
 	}, [onClose]);
 
 	useEffect(() => {
-		closeRef.current?.focus();
+		actionRef.current?.focus();
 		const handleKeyDown = (event) => {
 			if (event.key === "Escape") onCloseRef.current();
 			if (event.key !== "Tab") return;
@@ -2759,16 +2847,29 @@ function MobileBottomSheetDialog({ title, onClose, children, footer }) {
 					}}
 				/>
 				<header style={styles.mobileDialogHeader}>
-					<h2 style={styles.mobileDialogTitle}>{title}</h2>
-					<button
-						type="button"
-						ref={closeRef}
-						style={styles.mobileIconButton}
-						onClick={onClose}
-						aria-label={`Close ${title}`}
-					>
-						×
-					</button>
+					{onBack ? (
+						<button
+							type="button"
+							ref={actionRef}
+							style={styles.mobileIconButton}
+							onClick={onBack}
+							aria-label="Back to filters"
+						>
+							←
+						</button>
+					) : null}
+					<h2 style={{ ...styles.mobileDialogTitle, flex: 1 }}>{title}</h2>
+					{onBack ? null : (
+						<button
+							type="button"
+							ref={actionRef}
+							style={styles.mobileIconButton}
+							onClick={onClose}
+							aria-label={`Close ${title}`}
+						>
+							×
+						</button>
+					)}
 				</header>
 				<div className="coach-scroll-panel" style={styles.mobileDialogBody}>
 					{children}
@@ -2787,6 +2888,7 @@ function MobileLocationSheet({
 	onSelectState,
 	onSelectGym,
 	onClear,
+	onBack,
 	onClose,
 }) {
 	const [query, setQuery] = useState("");
@@ -2804,7 +2906,7 @@ function MobileLocationSheet({
 		: null;
 
 	return (
-		<MobileBottomSheetDialog title="Choose location" onClose={onClose}>
+		<MobileBottomSheetDialog title="Choose location" onClose={onClose} onBack={onBack}>
 			<div style={styles.mobileSearchWrap}>
 				<span style={styles.mobileSearchIcon}>⌕</span>
 				<input
@@ -2880,6 +2982,10 @@ function MobileLocationSheet({
 function MobileFilterSheet({
 	trainingType,
 	onTrainingTypeChange,
+	selectedLocationLabel,
+	hasSelectedLocation,
+	onOpenLocations,
+	onClearLocation,
 	resultCount,
 	onClear,
 	onApply,
@@ -2909,7 +3015,50 @@ function MobileFilterSheet({
 				</div>
 			}
 		>
-			<div style={{ ...styles.mobileSectionLabel, marginTop: 0 }}>Training type</div>
+			<div style={{ ...styles.mobileSectionLabel, marginTop: 0 }}>Location</div>
+			<div style={{ display: "grid", gap: 8 }}>
+				<button
+					type="button"
+					style={{
+						...styles.mobileOptionButton,
+						...(hasSelectedLocation
+							? {
+									background: "rgba(198,197,195,0.14)",
+									borderColor: "rgba(198,197,195,0.34)",
+								}
+							: {}),
+					}}
+					onClick={onOpenLocations}
+				>
+					<span style={{ minWidth: 0, textAlign: "left" }}>
+						<strong
+							style={{
+								display: "block",
+								overflow: "hidden",
+								textOverflow: "ellipsis",
+								whiteSpace: "nowrap",
+							}}
+						>
+							{hasSelectedLocation ? selectedLocationLabel : "All locations"}
+						</strong>
+						<small style={{ color: palette.muted, fontSize: 11.5 }}>
+							Search states, cities, and gyms
+						</small>
+					</span>
+					<span aria-hidden="true">{hasSelectedLocation ? "Change" : "Choose"} ›</span>
+				</button>
+				{hasSelectedLocation ? (
+					<button
+						type="button"
+						style={{ ...styles.mobileControlButton, justifySelf: "start", minHeight: 38 }}
+						onClick={onClearLocation}
+					>
+						Clear location
+					</button>
+				) : null}
+			</div>
+
+			<div style={styles.mobileSectionLabel}>Training type</div>
 			<div role="radiogroup" aria-label="Training type" style={{ display: "grid", gap: 8 }}>
 				{choices.map((choice) => (
 					<label
@@ -2951,7 +3100,10 @@ function CoachMapApp({ onOpenApplication }) {
 	const mobileSheetDragStartSnapRef = useRef("half");
 	const mobileSheetDragMovedRef = useRef(false);
 	const mobileSearchInputRef = useRef(null);
+	const mobileSearchTagsRef = useRef(null);
+	const desktopSearchTagsRef = useRef(null);
 	const preFavoritesViewRef = useRef(null);
+	const preLocationViewRef = useRef(null);
 	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
 	const layersRef = useRef({
 		stateZones: [],
@@ -2967,6 +3119,7 @@ function CoachMapApp({ onOpenApplication }) {
 
 	const [selectedState, setSelectedState] = useState(null);
 	const [search, setSearch] = useState("");
+	const [searchTags, setSearchTags] = useState([]);
 	const [hoveredCoachId, setHoveredCoachId] = useState(null);
 	const [profileCoach, setProfileCoach] = useState(null);
 	const [filter, setFilter] = useState("all");
@@ -3000,6 +3153,13 @@ function CoachMapApp({ onOpenApplication }) {
 			setMobileSearchExpanded(false);
 		}
 	}, [contactCoach, mobileHeaderCollapsed, profileCoach]);
+
+	useEffect(() => {
+		if (!searchTags.length) return;
+		[mobileSearchTagsRef.current, desktopSearchTagsRef.current].forEach((tagScroller) => {
+			tagScroller?.scrollTo?.({ left: tagScroller.scrollWidth, behavior: "smooth" });
+		});
+	}, [searchTags]);
 
 	const allCoaches = useMemo(() => getAllCoaches(), []);
 	const allGyms = useMemo(() => getAllGyms(), []);
@@ -3515,7 +3675,128 @@ function CoachMapApp({ onOpenApplication }) {
 		);
 	}
 
+	function toggleMobileSearchControls() {
+		if (mobileSearchExpanded) {
+			setMobileSearchExpanded(false);
+			return;
+		}
+
+		// Keep the render and focus inside the original tap so iOS opens the keyboard.
+		flushSync(() => {
+			setMobileHeaderCollapsed(false);
+			setMobileSearchExpanded(true);
+		});
+		mobileSearchInputRef.current?.focus({ preventScroll: true });
+	}
+
+	function prepareMobileCoachSearch() {
+		setAllPanelDismissed(false);
+		setStatesPanelOpen(false);
+		setGymPanel(null);
+		setFilter("all");
+		setMobileSheetSnap("half");
+	}
+
+	function saveCurrentSearchAsTag() {
+		const nextTag = search.trim();
+		if (!nextTag) return false;
+
+		setSearchTags((current) =>
+			current.some((tag) => tag.toLowerCase() === nextTag.toLowerCase())
+				? current
+				: [...current, nextTag],
+		);
+		setSearch("");
+		return true;
+	}
+
+	function commitMobileSearch(event) {
+		event.preventDefault();
+		if (!saveCurrentSearchAsTag()) return;
+		prepareMobileCoachSearch();
+		window.requestAnimationFrame(() =>
+			mobileSearchInputRef.current?.focus({ preventScroll: true }),
+		);
+	}
+
+	function commitDesktopSearch(event) {
+		event.preventDefault();
+		saveCurrentSearchAsTag();
+	}
+
+	function removeSearchTag(tagToRemove) {
+		setSearchTags((current) => current.filter((tag) => tag !== tagToRemove));
+	}
+
+	function openMobileLocationPicker() {
+		const map = mapRef.current;
+		preLocationViewRef.current = {
+			selectedState,
+			allPanelDismissed,
+			statesPanelOpen,
+			favoritesOpen,
+			semanticSearchOpen,
+			trainingType,
+			profileCoach,
+			contactCoach,
+			search,
+			searchTags,
+			filter,
+			gymPanel,
+			clusterPanel,
+			mobileSheetSnap,
+			mobileHeaderCollapsed,
+			mapView: map
+				? {
+						center: map.getCenter(),
+						zoom: map.getZoom(),
+					}
+				: null,
+		};
+		setMobileFilterSheetOpen(false);
+		setMobileLocationSheetOpen(true);
+	}
+
+	function returnToMobileFilters() {
+		preLocationViewRef.current = null;
+		setMobileLocationSheetOpen(false);
+		setMobileFilterSheetOpen(true);
+	}
+
+	function restorePreLocationView() {
+		const previousView = preLocationViewRef.current;
+		preLocationViewRef.current = null;
+		if (!previousView) {
+			resetToMap();
+			return;
+		}
+
+		setSelectedState(previousView.selectedState);
+		setAllPanelDismissed(previousView.allPanelDismissed);
+		setStatesPanelOpen(previousView.statesPanelOpen);
+		setFavoritesOpen(previousView.favoritesOpen);
+		setSemanticSearchOpen(previousView.semanticSearchOpen);
+		setTrainingType(previousView.trainingType);
+		setProfileCoach(previousView.profileCoach);
+		setContactCoach(previousView.contactCoach);
+		setSearch(previousView.search);
+		setSearchTags(previousView.searchTags);
+		setFilter(previousView.filter);
+		setGymPanel(previousView.gymPanel);
+		setClusterPanel(previousView.clusterPanel);
+		setMobileLocationSheetOpen(false);
+		setMobileFilterSheetOpen(false);
+		setMobileSheetSnap(previousView.mobileSheetSnap);
+		setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
+		if (previousView.mapView && mapRef.current) {
+			mapRef.current.setView(previousView.mapView.center, previousView.mapView.zoom, {
+				animate: false,
+			});
+		}
+	}
+
 	function resetToMap() {
+		preLocationViewRef.current = null;
 		setSelectedState(null);
 		setStatesPanelOpen(false);
 		setFavoritesOpen(false);
@@ -3523,6 +3804,7 @@ function CoachMapApp({ onOpenApplication }) {
 		setProfileCoach(null);
 		setContactCoach(null);
 		setSearch("");
+		setSearchTags([]);
 		setTrainingType("either");
 		setAllPanelDismissed(isDesktop);
 		setGymPanel(null);
@@ -3557,6 +3839,7 @@ function CoachMapApp({ onOpenApplication }) {
 	}
 
 	function clearLocation() {
+		preLocationViewRef.current = null;
 		setSelectedState(null);
 		setAllPanelDismissed(true);
 		setStatesPanelOpen(false);
@@ -3590,6 +3873,7 @@ function CoachMapApp({ onOpenApplication }) {
 		setGymPanel(previousView.gymPanel);
 		setClusterPanel(previousView.clusterPanel);
 		setSearch(previousView.search);
+		setSearchTags(previousView.searchTags || []);
 		setFilter(previousView.filter);
 		setMobileSheetSnap(previousView.mobileSheetSnap);
 		setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
@@ -3607,6 +3891,7 @@ function CoachMapApp({ onOpenApplication }) {
 			gymPanel,
 			clusterPanel,
 			search,
+			searchTags,
 			filter,
 			mobileSheetSnap,
 			mobileHeaderCollapsed,
@@ -3619,6 +3904,7 @@ function CoachMapApp({ onOpenApplication }) {
 		setProfileCoach(null);
 		setContactCoach(null);
 		setSearch("");
+		setSearchTags([]);
 		setTrainingType("either");
 		setGymPanel(null);
 		setClusterPanel(null);
@@ -3772,6 +4058,11 @@ function CoachMapApp({ onOpenApplication }) {
 			return;
 		}
 
+		if (preLocationViewRef.current) {
+			restorePreLocationView();
+			return;
+		}
+
 		if (clusterPanel?.parentGymPanel) {
 			setGymPanel(clusterPanel.parentGymPanel);
 			setClusterPanel(null);
@@ -3848,10 +4139,11 @@ function CoachMapApp({ onOpenApplication }) {
 			: selectedState || showOnline || inPersonOnly || filter === "all"
 				? locationAndTrainingCoaches
 				: [];
-	const filteredActivePanelCoaches = rankCoachesBySemanticSearch(
+	const filteredActivePanelCoaches = rankCoachesBySemanticSearchTerms(
 		activePanelCoaches,
-		search,
+		[...searchTags, search],
 	);
+	const hasActiveSearch = Boolean(search.trim() || searchTags.length);
 	const activePanelTitle = clusterPanel
 		? clusterPanel.title
 		: semanticSearchOpen
@@ -3890,23 +4182,25 @@ function CoachMapApp({ onOpenApplication }) {
 						: filter === "all"
 							? `${allCoaches.length} ${allCoaches.length === 1 ? "coach" : "coaches"} in directory`
 							: "Selected filters";
-	const activePanelEmptyMessage = clusterPanel
-		? "No coaches found in this cluster."
-		: semanticSearchOpen
-			? "No matching coaches found. Try a broader phrase like strength, wellness, barbell, or performance."
-			: favoritesOpen
-				? "No favorites yet. Open a coach profile and tap the heart to save them here."
-				: selectedState && showOnline
-					? "No online training coaches found in this location."
-					: selectedState && inPersonOnly
-						? "No in-person coaches found in this location."
-					: showOnline
-						? "No online training coaches found."
-						: inPersonOnly
-							? "No in-person coaches found."
-						: filter === "all"
-							? "No coaches found yet."
-							: "No matching coaches found.";
+	const activePanelEmptyMessage = hasActiveSearch
+		? "No matching coaches found. Remove a search tag or try a broader phrase."
+		: clusterPanel
+			? "No coaches found in this cluster."
+			: semanticSearchOpen
+				? "No matching coaches found. Try a broader phrase like strength, wellness, barbell, or performance."
+				: favoritesOpen
+					? "No favorites yet. Open a coach profile and tap the heart to save them here."
+					: selectedState && showOnline
+						? "No online training coaches found in this location."
+						: selectedState && inPersonOnly
+							? "No in-person coaches found in this location."
+							: showOnline
+								? "No online training coaches found."
+								: inPersonOnly
+									? "No in-person coaches found."
+									: filter === "all"
+										? "No coaches found yet."
+										: "No matching coaches found.";
 
 	const isMobile = !isDesktop;
 	const effectiveMobileSheetSnap = profileCoach || contactCoach ? "full" : mobileSheetSnap;
@@ -3935,10 +4229,9 @@ function CoachMapApp({ onOpenApplication }) {
 			? `${mobilePanelBaseTransform} translateY(${mobileSheetDragOffset}px)`
 			: mobilePanelBaseTransform;
 	const selectedLocationLabel = clusterPanel?.title || state?.name || "Locations";
-	const selectedLocationShortLabel = clusterPanel?.title
-		? "Gym"
-		: selectedState || "Loc";
-	const activeMobileFilterCount = trainingType === "either" ? 0 : 1;
+	const hasSelectedLocation = Boolean(selectedState || clusterPanel);
+	const activeMobileFilterCount =
+		(trainingType === "either" ? 0 : 1) + (hasSelectedLocation ? 1 : 0);
 	const hideMobileDirectoryHeader =
 		Boolean(profileCoach || contactCoach) ||
 		effectiveMobileSheetSnap === "full" ||
@@ -4044,16 +4337,7 @@ function CoachMapApp({ onOpenApplication }) {
 									...styles.mobileSearchLauncher,
 									...(mobileSearchExpanded ? styles.mobileSearchLauncherActive : {}),
 								}}
-								onClick={() => {
-									setMobileHeaderCollapsed(false);
-									setMobileSearchExpanded((current) => {
-										const next = !current;
-										if (next) {
-											window.setTimeout(() => mobileSearchInputRef.current?.focus(), 0);
-										}
-										return next;
-									});
-								}}
+								onClick={toggleMobileSearchControls}
 								aria-label={mobileSearchExpanded ? "Close coach search controls" : "Search coaches"}
 								aria-expanded={mobileSearchExpanded}
 								aria-controls="mobile-coach-search-panel"
@@ -4102,7 +4386,10 @@ function CoachMapApp({ onOpenApplication }) {
 
 						{mobileSearchExpanded ? (
 							<div id="mobile-coach-search-panel" style={styles.mobileExpandedSearchPanel}>
-								<div style={{ ...styles.mobileSearchWrap, marginBottom: 8 }}>
+								<form
+									style={{ ...styles.mobileSearchWrap, marginBottom: 8 }}
+									onSubmit={commitMobileSearch}
+								>
 									<span style={styles.mobileSearchIcon}>⌕</span>
 									<input
 										ref={mobileSearchInputRef}
@@ -4112,14 +4399,15 @@ function CoachMapApp({ onOpenApplication }) {
 										value={search}
 										onChange={(event) => {
 											setSearch(event.target.value);
-											setAllPanelDismissed(false);
-											setMobileSheetSnap("half");
+											prepareMobileCoachSearch();
 										}}
 										onFocus={() => {
 											setSearchFocused(true);
 											if (mobileSheetSnap === "collapsed") setMobileSheetSnap("half");
 										}}
 										onBlur={() => setSearchFocused(false)}
+										enterKeyHint="search"
+										autoComplete="off"
 										placeholder="Search coach, city, gym, specialty"
 										aria-label="Search coach, city, gym, or specialty"
 									/>
@@ -4133,55 +4421,33 @@ function CoachMapApp({ onOpenApplication }) {
 											×
 										</button>
 									) : null}
-								</div>
-								<div style={{ ...styles.mobileControlRow, flexWrap: "nowrap" }}>
-									{selectedState || clusterPanel ? (
-										<div style={{ ...styles.mobileActiveChip, minWidth: 0, flex: 1 }}>
-											<button
-												type="button"
-												style={{ border: 0, background: "transparent", color: "inherit", font: "inherit", padding: 0, cursor: "pointer", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
-												className="mobile-location-chip-label"
-												onClick={() => {
-													setMobileSearchExpanded(false);
-													setMobileLocationSheetOpen(true);
-												}}
-											>
-												📍 {selectedLocationLabel}
-											</button>
-											<button
-												type="button"
-												style={{ border: 0, background: "transparent", color: "inherit", font: "inherit", padding: 0, cursor: "pointer" }}
-												onClick={clearLocation}
-												aria-label="Clear location"
-											>
-												×
-											</button>
-										</div>
+								</form>
+								<div
+									ref={mobileSearchTagsRef}
+									className="mobile-search-tags"
+									style={styles.mobileSearchTagScroller}
+									aria-label="Active search tags"
+									aria-live="polite"
+								>
+									{searchTags.length ? (
+										searchTags.map((tag) => (
+											<span key={tag} style={styles.mobileSearchTag}>
+												<span style={styles.mobileSearchTagLabel}>{tag}</span>
+												<button
+													type="button"
+													style={styles.mobileSearchTagRemove}
+												onClick={() => removeSearchTag(tag)}
+													aria-label={`Remove ${tag} search`}
+												>
+													×
+												</button>
+											</span>
+										))
 									) : (
-										<button
-											type="button"
-											style={{ ...styles.mobileControlButton, minHeight: 40, flex: 1 }}
-											onClick={() => {
-												setMobileSearchExpanded(false);
-												setMobileLocationSheetOpen(true);
-											}}
-										>
-											📍 Locations
-										</button>
+										<span style={styles.mobileSearchTagHint}>
+											Press return to keep a search and add another
+										</span>
 									)}
-									{trainingType !== "either" ? (
-										<div style={styles.mobileActiveChip}>
-											<span>{showOnline ? "Online" : "In person"}</span>
-											<button
-												type="button"
-												style={{ border: 0, background: "transparent", color: "inherit", font: "inherit", padding: 0, cursor: "pointer" }}
-												onClick={() => setTrainingType("either")}
-												aria-label="Clear training type filter"
-											>
-												×
-											</button>
-										</div>
-									) : null}
 								</div>
 							</div>
 						) : null}
@@ -4198,13 +4464,18 @@ function CoachMapApp({ onOpenApplication }) {
 					onSelectState={selectState}
 					onSelectGym={selectGymFromPanel}
 					onClear={clearLocation}
-					onClose={() => setMobileLocationSheetOpen(false)}
+					onBack={returnToMobileFilters}
+					onClose={returnToMobileFilters}
 				/>
 			) : null}
 
 			{isMobile && mobileFilterSheetOpen ? (
 				<MobileFilterSheet
 					trainingType={trainingType}
+					selectedLocationLabel={selectedLocationLabel}
+					hasSelectedLocation={hasSelectedLocation}
+					onOpenLocations={openMobileLocationPicker}
+					onClearLocation={clearLocation}
 					onTrainingTypeChange={(nextType) => {
 						setTrainingType(nextType);
 						setFavoritesOpen(false);
@@ -4212,7 +4483,10 @@ function CoachMapApp({ onOpenApplication }) {
 						setAllPanelDismissed(false);
 					}}
 					resultCount={filteredActivePanelCoaches.length}
-					onClear={() => setTrainingType("either")}
+					onClear={() => {
+						setTrainingType("either");
+						clearLocation();
+					}}
 					onApply={() => {
 						setMobileFilterSheetOpen(false);
 						setMobileSheetSnap("half");
@@ -4358,15 +4632,15 @@ function CoachMapApp({ onOpenApplication }) {
 							border: `1px solid ${selectedState ? "rgba(198,197,195,0.46)" : palette.border}`,
 							background: selectedState
 								? palette.graphite100
-								: "rgba(30,28,30,0.82)",
+								: "rgba(30,28,30,0.78)",
 							color: selectedState ? palette.graphite900 : palette.text,
 							borderRadius: 999,
 							padding: "13px 17px",
 							cursor: "pointer",
 							backdropFilter: "blur(14px)",
-							boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
-							fontWeight: 750,
-							fontSize: 15,
+							boxShadow: "0 12px 30px rgba(0,0,0,0.22)",
+							fontWeight: selectedState ? 600 : 540,
+							fontSize: 14,
 							minWidth: 184,
 							display: "inline-flex",
 							alignItems: "center",
@@ -4501,15 +4775,15 @@ function CoachMapApp({ onOpenApplication }) {
 							border: `1px solid ${showOnline ? "rgba(198,197,195,0.46)" : palette.border}`,
 							background: showOnline
 								? palette.graphite100
-								: "rgba(30,28,30,0.82)",
+								: "rgba(30,28,30,0.78)",
 							color: showOnline ? palette.graphite900 : palette.text,
 							borderRadius: 999,
 							padding: "13px 17px",
 							cursor: "pointer",
 							backdropFilter: "blur(14px)",
-							boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
-							fontWeight: 750,
-							fontSize: 15,
+							boxShadow: "0 12px 30px rgba(0,0,0,0.22)",
+							fontWeight: showOnline ? 600 : 540,
+							fontSize: 14,
 							minWidth: 184,
 							display: "inline-flex",
 							alignItems: "center",
@@ -4535,15 +4809,15 @@ function CoachMapApp({ onOpenApplication }) {
 							onClick={onOpenApplication}
 							style={{
 								border: `1px solid ${palette.border}`,
-								background: "rgba(30,28,30,0.82)",
-								color: palette.text,
+								background: "rgba(30,28,30,0.58)",
+								color: palette.graphite100,
 								borderRadius: 999,
-								padding: "13px 17px",
+								padding: "11px 17px",
 								cursor: "pointer",
 								backdropFilter: "blur(14px)",
-								boxShadow: "0 14px 36px rgba(0,0,0,0.25)",
-								fontWeight: 750,
-								fontSize: 15,
+								boxShadow: "0 10px 26px rgba(0,0,0,0.18)",
+								fontWeight: 500,
+								fontSize: 13.5,
 								minWidth: 184,
 								display: "inline-flex",
 								alignItems: "center",
@@ -4697,6 +4971,10 @@ function CoachMapApp({ onOpenApplication }) {
 							setProfileCoach={setProfileCoach}
 							search={search}
 							setSearch={setSearch}
+							searchTags={searchTags}
+							onCommitSearch={commitDesktopSearch}
+							onRemoveSearchTag={removeSearchTag}
+							searchTagScrollerRef={desktopSearchTagsRef}
 							hoveredCoachId={hoveredCoachId}
 							setHoveredCoachId={setHoveredCoachId}
 							favoriteCoachIds={favoriteCoachIds}
