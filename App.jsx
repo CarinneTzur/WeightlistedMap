@@ -3165,6 +3165,7 @@ function CoachMapApp({ onOpenApplication }) {
 	const preFavoritesViewRef = useRef(null);
 	const preLocationViewRef = useRef(null);
 	const preProfileViewRef = useRef(null);
+	const currentPanelViewRef = useRef(null);
 	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
 	const visualViewport = useVisualViewportMetrics();
 	const layersRef = useRef({
@@ -3210,6 +3211,24 @@ function CoachMapApp({ onOpenApplication }) {
 	const inPersonOnly = trainingType === "inPerson";
 	const { collapsed: mobileHeaderCollapsed, setCollapsed: setMobileHeaderCollapsed, onResultsScroll } =
 		useMobileResultsHeader(!isDesktop);
+	currentPanelViewRef.current = {
+		selectedState,
+		allPanelDismissed,
+		statesPanelOpen,
+		favoritesOpen,
+		semanticSearchOpen,
+		trainingType,
+		profileCoach,
+		contactCoach,
+		search,
+		searchTags,
+		filter,
+		gymPanel,
+		clusterPanel,
+		mobileSheetSnap,
+		mobileHeaderCollapsed,
+		mobileSearchExpanded,
+	};
 
 	useEffect(() => {
 		if (mobileHeaderCollapsed) {
@@ -3508,6 +3527,17 @@ function CoachMapApp({ onOpenApplication }) {
 
 				marker
 					.on("click", () => {
+						const currentView = currentPanelViewRef.current;
+						const previousView = currentView
+							? {
+								...currentView,
+								searchTags: [...currentView.searchTags],
+								mapView: {
+									center: map.getCenter(),
+									zoom: map.getZoom(),
+								},
+							}
+							: null;
 						if (isMulti) {
 							const cities = [...new Set(clusterGyms.map((gym) => gym.city))];
 							const states = [
@@ -3528,6 +3558,7 @@ function CoachMapApp({ onOpenApplication }) {
 										? cityLabel
 										: `${cityLabel}${stateLabel ? ` • ${stateLabel}` : ""}`,
 								clusterPreview: true,
+								previousView,
 							});
 							setSelectedState(null);
 							setStatesPanelOpen(false);
@@ -3550,6 +3581,7 @@ function CoachMapApp({ onOpenApplication }) {
 								title: `${count} ${count === 1 ? "Coach" : "Coaches"}`,
 								eyebrow: primaryGym.city,
 								clusterPreview: true,
+								previousView,
 							});
 							setFavoritesOpen(false);
 							setSemanticSearchOpen(false);
@@ -4186,9 +4218,40 @@ function CoachMapApp({ onOpenApplication }) {
 		}
 	}
 
+	function restorePreviousClusterView(previousView) {
+		setSelectedState(previousView.selectedState);
+		setAllPanelDismissed(previousView.allPanelDismissed);
+		setStatesPanelOpen(previousView.statesPanelOpen);
+		setFavoritesOpen(previousView.favoritesOpen);
+		setSemanticSearchOpen(previousView.semanticSearchOpen);
+		setTrainingType(previousView.trainingType);
+		setProfileCoach(previousView.profileCoach);
+		setContactCoach(previousView.contactCoach);
+		setSearch(previousView.search);
+		setSearchTags(previousView.searchTags);
+		setFilter(previousView.filter);
+		setGymPanel(previousView.gymPanel);
+		setClusterPanel(previousView.clusterPanel);
+		setMobileSheetSnap(previousView.mobileSheetSnap);
+		setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
+		setMobileSearchExpanded(previousView.mobileSearchExpanded);
+		if (previousView.mapView && mapRef.current) {
+			mapRef.current.flyTo(
+				previousView.mapView.center,
+				previousView.mapView.zoom,
+				{ duration: 0.65 },
+			);
+		}
+	}
+
 	function handlePanelBack() {
 		if (favoritesOpen) {
 			restorePreFavoritesView();
+			return;
+		}
+
+		if (clusterPanel?.previousView) {
+			restorePreviousClusterView(clusterPanel.previousView);
 			return;
 		}
 
