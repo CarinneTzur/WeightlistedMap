@@ -12,6 +12,19 @@ import {
 	COACH_APPLICATION_CHANGED_EVENT,
 	refreshApprovedCoachCache,
 } from "./utils/coachApplications";
+import {
+	MediaDraftTray,
+	MediaPickerButton,
+	MessageMediaGallery,
+	useLocalMediaDrafts,
+} from "./src/components/ChatMedia";
+import ServicesFlow from "./src/components/ServicesFlow";
+import {
+	appendDirectMessage,
+	DIRECT_MESSAGES_CHANGED_EVENT,
+	loadDirectMessageThread,
+	loadDirectMessageThreads,
+} from "./src/services/conversationStore";
 
 const CoachApplicationAdmin = React.lazy(
 	() => import("./src/components/CoachApplicationAdmin"),
@@ -684,6 +697,8 @@ if (typeof window !== "undefined") runSelfTests();
 const styles = {
 	shell: {
 		minHeight: "100vh",
+		height: "100dvh",
+		width: "100%",
 		background:
 			"radial-gradient(circle at top left, rgba(198,197,195,0.08), transparent 34%), linear-gradient(135deg, #1E1C1E, #373537)",
 		color: palette.text,
@@ -802,7 +817,7 @@ const styles = {
 		backdropFilter: "blur(18px)",
 		boxShadow: "0 20px 60px rgba(0,0,0,0.42)",
 		cursor: "pointer",
-		fontWeight: 600,
+		fontWeight: 550,
 		fontSize: 14,
 		lineHeight: 1,
 		minHeight: 44,
@@ -867,7 +882,25 @@ const styles = {
 		background: palette.graphite100,
 		color: palette.graphite900,
 		fontSize: 12,
-		fontWeight: 650,
+		fontWeight: 560,
+	},
+	servicesLauncher: {
+		display: "inline-flex",
+		minHeight: 44,
+		padding: "11px 16px",
+		border: "1px solid rgba(242,241,239,0.3)",
+		borderRadius: 999,
+		background: "rgba(30,28,30,0.9)",
+		color: palette.text,
+		boxShadow: "0 14px 34px rgba(0,0,0,0.3)",
+		backdropFilter: "blur(16px)",
+		font: "inherit",
+		fontSize: 13,
+		fontWeight: 540,
+		lineHeight: 1,
+		alignItems: "center",
+		justifyContent: "center",
+		cursor: "pointer",
 	},
 	controlButton: {
 		border: 0,
@@ -884,7 +917,7 @@ const styles = {
 	activeControl: {
 		background: palette.graphite100,
 		color: palette.graphite900,
-		fontWeight: 600,
+		fontWeight: 550,
 	},
 	glassPanel: {
 		position: "fixed",
@@ -1102,7 +1135,7 @@ const styles = {
 	coachGymLine: {
 		fontSize: 13.5,
 		color: palette.graphite100,
-		fontWeight: 620,
+		fontWeight: 550,
 		lineHeight: 1.35,
 		marginBottom: 5,
 	},
@@ -1126,7 +1159,7 @@ const styles = {
 	coachRating: {
 		fontSize: 13.5,
 		color: palette.graphite100,
-		fontWeight: 650,
+		fontWeight: 560,
 		marginBottom: 2,
 		marginLeft: 1,
 	},
@@ -1416,6 +1449,27 @@ const styles = {
 		gap: 6,
 		minWidth: 0,
 	},
+	mobileCoachApplyRow: {
+		display: "flex",
+		width: "100%",
+		maxWidth: 520,
+		margin: "3px auto 0",
+		paddingRight: 3,
+		justifyContent: "flex-end",
+		pointerEvents: "auto",
+	},
+	mobileCoachApplyButton: {
+		minHeight: 32,
+		padding: "6px 5px",
+		border: 0,
+		background: "transparent",
+		color: "rgba(198,197,195,0.72)",
+		font: "inherit",
+		fontSize: 11.5,
+		fontWeight: 500,
+		lineHeight: 1,
+		cursor: "pointer",
+	},
 	mobileSearchLauncher: {
 		minWidth: 0,
 		flex: "1 1 auto",
@@ -1427,7 +1481,7 @@ const styles = {
 		color: palette.graphite100,
 		font: "inherit",
 		fontSize: 13,
-		fontWeight: 720,
+		fontWeight: 550,
 		cursor: "pointer",
 		display: "inline-flex",
 		alignItems: "center",
@@ -1455,7 +1509,7 @@ const styles = {
 		color: palette.text,
 		font: "inherit",
 		fontSize: 11.5,
-		fontWeight: 720,
+		fontWeight: 540,
 		cursor: "pointer",
 		display: "inline-flex",
 		alignItems: "center",
@@ -1535,7 +1589,7 @@ const styles = {
 		background: palette.graphite100,
 		color: palette.graphite900,
 		fontSize: 10,
-		fontWeight: 850,
+		fontWeight: 600,
 		display: "inline-flex",
 		alignItems: "center",
 		justifyContent: "center",
@@ -1551,7 +1605,7 @@ const styles = {
 		color: palette.text,
 		font: "inherit",
 		fontSize: 13,
-		fontWeight: 680,
+		fontWeight: 540,
 		cursor: "pointer",
 		display: "inline-flex",
 		alignItems: "center",
@@ -1581,7 +1635,7 @@ const styles = {
 		background: "rgba(198,197,195,0.12)",
 		color: palette.graphite100,
 		fontSize: 12,
-		fontWeight: 680,
+		fontWeight: 540,
 		display: "inline-flex",
 		alignItems: "center",
 		gap: 7,
@@ -1669,7 +1723,7 @@ const styles = {
 	mobileSectionLabel: {
 		margin: "18px 0 8px",
 		fontSize: 11,
-		fontWeight: 750,
+		fontWeight: 540,
 		letterSpacing: "0.16em",
 		textTransform: "uppercase",
 		color: palette.muted,
@@ -1684,7 +1738,7 @@ const styles = {
 		color: palette.text,
 		font: "inherit",
 		fontSize: 14,
-		fontWeight: 620,
+		fontWeight: 500,
 		textAlign: "left",
 		cursor: "pointer",
 		display: "flex",
@@ -1989,17 +2043,35 @@ function CoachProfile({
 	);
 }
 
-function ContactPanel({ coach, onBack, isDesktop }) {
+function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const messageInputRef = useRef(null);
+	const messageListRef = useRef(null);
 	const [message, setMessage] = useState(
 		`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 	);
-	const [sentMessage, setSentMessage] = useState("");
+	const [messages, setMessages] = useState(
+		() => loadDirectMessageThread(coach.id)?.messages || [],
+	);
+	const {
+		attachments: draftAttachments,
+		error: mediaError,
+		addFiles: handleMediaFiles,
+		removeAttachment: removeDraftAttachment,
+		detachAttachments,
+	} = useLocalMediaDrafts();
 
 	const primarySpecialty = coach.specialties?.[0] || coach.title || "Coach";
 	const specialtyLabel = coach.specialties?.length
 		? coach.specialties.slice(1, 3).join(" • ")
 		: coach.title;
+	const canSend = Boolean(message.trim() || draftAttachments.length);
+
+	useEffect(() => {
+		setMessages(loadDirectMessageThread(coach.id)?.messages || []);
+		setMessage(
+			`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
+		);
+	}, [coach.id, coach.name]);
 
 	function resizeMessageInput(textarea) {
 		if (!textarea) return;
@@ -2015,10 +2087,37 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 		resizeMessageInput(messageInputRef.current);
 	}, [message]);
 
+	useEffect(() => {
+		if (!messages.length) return;
+		messageListRef.current?.scrollTo?.({
+			top: messageListRef.current.scrollHeight,
+			behavior: "smooth",
+		});
+	}, [messages]);
+
 	function handleSend() {
 		const trimmed = message.trim();
-		if (!trimmed) return;
-		setSentMessage(trimmed);
+		if (!trimmed && !draftAttachments.length) return;
+		const sentAttachments = detachAttachments();
+		const sentMessage = {
+			id: `message-${Date.now()}-${messages.length}`,
+			sender: "client",
+			text: trimmed,
+			attachments: sentAttachments.map(({ id, kind, name, size, mimeType, status }) => ({
+				id,
+				kind,
+				name,
+				size,
+				mimeType,
+				status,
+			})),
+			createdAt: new Date().toISOString(),
+		};
+		setMessages((current) => [
+			...current,
+			{ ...sentMessage, attachments: sentAttachments },
+		]);
+		appendDirectMessage(coach, sentMessage);
 		setMessage("");
 	}
 
@@ -2062,7 +2161,13 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 				</span>
 			</div>
 
-			<div style={styles.contactHeader}>
+			<button
+				type="button"
+				className="contact-profile-link"
+				style={styles.contactHeader}
+				onClick={onViewProfile}
+				aria-label={`View ${coach.name}’s profile on the map`}
+			>
 				<img
 					src={coach.headshot}
 					alt={coach.name}
@@ -2078,28 +2183,63 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 							: ""}
 					</div>
 				</div>
-			</div>
+				<span className="contact-profile-action">View profile →</span>
+			</button>
 
 			<div
 				style={{
 					...styles.messageArea,
+					justifyContent: "stretch",
 					...(isDesktop ? {} : { paddingTop: 14 }),
 				}}
 			>
-				{sentMessage ? (
-					<div style={styles.messageSentBubble} aria-live="polite">
-						{sentMessage}
+				<div
+					ref={messageListRef}
+					style={{
+						flex: 1,
+						minHeight: 0,
+						overflowY: "auto",
+						display: "flex",
+						flexDirection: "column",
+						gap: 12,
+						padding: "0 2px 14px",
+					}}
+				>
+					{messages.length ? (
+						messages.map((sentMessage) => (
+							<div key={sentMessage.id} style={styles.messageSentBubble}>
+								<MessageMediaGallery attachments={sentMessage.attachments?.filter((attachment) => attachment.url)} />
+								{sentMessage.attachments?.some((attachment) => !attachment.url) ? (
+									<div style={{ color: palette.muted, fontSize: 12, marginBottom: sentMessage.text ? 6 : 0 }}>
+										{sentMessage.attachments.length} saved media {sentMessage.attachments.length === 1 ? "item" : "items"}
+									</div>
+								) : null}
+								{sentMessage.text ? <div>{sentMessage.text}</div> : null}
+							</div>
+						))
+					) : (
+						<div style={styles.messageHint}>
+							Send your coach a lifting video or photo with your goal and what you
+							want reviewed.
+						</div>
+					)}
+				</div>
+
+				<MediaDraftTray
+					attachments={draftAttachments}
+					onRemove={removeDraftAttachment}
+				/>
+				{mediaError ? (
+					<div role="alert" style={{ color: "#F0B4AD", fontSize: 11.5, paddingBottom: 8 }}>
+						{mediaError}
 					</div>
-				) : (
-					<div style={styles.messageHint}>
-						Start with your goal, timeline, and whether you want in-person or
-						online coaching.
-					</div>
-				)}
+				) : null}
 
 				<div style={styles.messageInputWrap}>
+					<MediaPickerButton onFiles={handleMediaFiles} />
 					<textarea
 						ref={messageInputRef}
+						className="coach-scroll-panel"
 						style={styles.messageInput}
 						placeholder="Type your message..."
 						aria-label={`Message to ${coach.name}`}
@@ -2113,16 +2253,77 @@ function ContactPanel({ coach, onBack, isDesktop }) {
 						type="button"
 						style={{
 							...styles.sendButton,
-							...(!message.trim() ? styles.sendButtonDisabled : {}),
+							...(!canSend ? styles.sendButtonDisabled : {}),
 						}}
 						onClick={handleSend}
-						disabled={!message.trim()}
+						disabled={!canSend}
 						aria-label="Send message"
 					>
 						➤
 					</button>
 				</div>
 			</div>
+		</div>
+	);
+}
+
+function DirectMessagesPanel({ coaches, onBack, onOpenThread }) {
+	const [threads, setThreads] = useState(() => loadDirectMessageThreads());
+
+	useEffect(() => {
+		const refresh = () => setThreads(loadDirectMessageThreads());
+		window.addEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refresh);
+		window.addEventListener("storage", refresh);
+		return () => {
+			window.removeEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refresh);
+			window.removeEventListener("storage", refresh);
+		};
+	}, []);
+
+	function formatThreadDate(value) {
+		const date = new Date(value);
+		if (Number.isNaN(date.getTime())) return "";
+		return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" }).format(date);
+	}
+
+	return (
+		<div className="coach-scroll-panel direct-messages-panel" style={styles.coachListPanelInner}>
+			<div style={styles.coachListHeader}>
+				<button style={styles.backArrow} aria-label="Back to map" onClick={onBack}>←</button>
+				<div>
+					<div style={{ fontSize: 12, color: palette.muted, textTransform: "uppercase", letterSpacing: "0.18em" }}>Conversations</div>
+					<div style={{ fontWeight: 650, fontSize: 21, color: palette.text, letterSpacing: -0.3 }}>Messages</div>
+				</div>
+			</div>
+			{threads.length ? (
+				<div className="direct-message-list">
+					{threads.map((thread) => {
+						const coach = coaches.find((item) => item.id === thread.coachId);
+						const lastMessage = thread.messages?.[thread.messages.length - 1];
+						return (
+							<button
+								key={thread.id}
+								type="button"
+								className="direct-message-card"
+								onClick={() => coach && onOpenThread(coach)}
+								disabled={!coach}
+							>
+								<img src={coach?.headshot || thread.coachHeadshot} alt="" />
+								<div>
+									<strong>{coach?.name || thread.coachName}</strong>
+									<span>{lastMessage?.text || (lastMessage?.attachments?.length ? "Media attached" : "Conversation started")}</span>
+								</div>
+								<small>{formatThreadDate(thread.updatedAt)}</small>
+							</button>
+						);
+					})}
+				</div>
+			) : (
+				<div className="direct-messages-empty">
+					<strong>No messages yet</strong>
+					<span>Coaches you contact will stay here so you can return to the conversation.</span>
+				</div>
+			)}
 		</div>
 	);
 }
@@ -2369,10 +2570,6 @@ function CoachListPanel({
 	restoreResultsScrollTop = 0,
 }) {
 	const scrollPanelRef = useRef(null);
-	const filtered = rankCoachesBySemanticSearchTerms(coaches, [
-		...searchTags,
-		search,
-	]);
 	const isCompact = !isDesktop;
 
 	useEffect(() => {
@@ -2389,6 +2586,7 @@ function CoachListPanel({
 			<ContactPanel
 				coach={contactCoach}
 				onBack={() => setContactCoach(null)}
+				onViewProfile={() => setContactCoach(null)}
 				isDesktop={isDesktop}
 			/>
 		);
@@ -2507,10 +2705,10 @@ function CoachListPanel({
 				</div>
 			)}
 			<div>
-				{filtered.length === 0 ? (
+				{coaches.length === 0 ? (
 					<div style={styles.emptyState}>{emptyMessage}</div>
 				) : null}
-				{filtered.map((coach) => (
+				{coaches.map((coach) => (
 					<CoachCard
 						key={coach.id}
 						coach={coach}
@@ -2671,12 +2869,8 @@ function addGlobalMapStyles() {
       box-shadow: 0 0 0 1px rgba(198,197,195,0.42), 0 12px 26px rgba(0,0,0,0.46);
       display: flex; align-items: center; justify-content: center;
       color: ${palette.graphite900};
-      font-weight: 800;
+	  font-weight: 650;
       transition: width 220ms ease, height 220ms ease, font-size 220ms ease;
-    }
-    .coach-map-marker.active {
-      background: #F2F1EF;
-      box-shadow: 0 0 0 1px rgba(198,197,195,0.66), 0 18px 40px rgba(0,0,0,0.56);
     }
     .coach-map-marker.cluster {
       background: ${palette.graphite800};
@@ -2684,10 +2878,17 @@ function addGlobalMapStyles() {
       color: ${palette.text};
       box-shadow: 0 0 0 2px rgba(198,197,195,0.28), 0 14px 32px rgba(0,0,0,0.52);
     }
+    .coach-map-marker.active,
+    .coach-map-marker.cluster.active {
+      background: #7DB1E1;
+      border-color: #405A72;
+      color: ${palette.graphite900};
+      box-shadow: 0 0 0 2px rgba(151,197,238,0.72), 0 18px 40px rgba(0,0,0,0.56);
+    }
 
-    .state-block-label { color: rgba(242,241,239,0.32); font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,0.62); pointer-events: none; user-select: none; white-space: nowrap; line-height: 1; transform: translate(-50%, -50%); transition: opacity 160ms ease, font-size 160ms ease; }
+	.state-block-label { color: rgba(242,241,239,0.32); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,0.62); pointer-events: none; user-select: none; white-space: nowrap; line-height: 1; transform: translate(-50%, -50%); transition: opacity 160ms ease, font-size 160ms ease; }
     .state-block-label.has-coaches { color: rgba(242,241,239,0.42); }
-    .graphite-popup-title { margin: 0 0 5px; font-size: 15px; font-weight: 700; color: ${palette.text}; }
+	.graphite-popup-title { margin: 0 0 5px; font-size: 15px; font-weight: 580; color: ${palette.text}; }
     .graphite-popup-meta { margin: 0; color: ${palette.muted}; font-size: 13px; line-height: 1.4; }
 
     .coach-tooltip-wrapper { background: transparent !important; border: none !important; box-shadow: none !important; padding: 0 !important; }
@@ -2705,17 +2906,17 @@ function addGlobalMapStyles() {
     }
     @keyframes tooltipFadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
     .sgp-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-    .sgp-kicker { color: #A8A6A2; font-size: 10px; font-weight: 750; letter-spacing: 0.16em; text-transform: uppercase; }
-    .sgp-count { color: #C6C5C3; font-size: 11px; font-weight: 650; white-space: nowrap; }
+	.sgp-kicker { color: #A8A6A2; font-size: 10px; font-weight: 540; letter-spacing: 0.16em; text-transform: uppercase; }
+	.sgp-count { color: #C6C5C3; font-size: 11px; font-weight: 540; white-space: nowrap; }
     .sgp-gym { color: #F2F1EF; font-size: 17px; font-weight: 760; letter-spacing: -0.02em; line-height: 1.22; }
     .sgp-location { display: flex; align-items: center; gap: 6px; color: #A8A6A2; font-size: 12px; margin-top: 4px; }
     .sgp-location-dot { width: 5px; height: 5px; border-radius: 50%; background: #C6C5C3; opacity: 0.72; flex: 0 0 auto; }
     .sgp-coach { display: flex; align-items: center; gap: 10px; border-top: 1px solid rgba(198,197,195,0.11); margin-top: 12px; padding-top: 12px; }
-    .sgp-initials { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; background: rgba(198,197,195,0.1); border: 1px solid rgba(198,197,195,0.15); color: #F2F1EF; font-size: 11px; font-weight: 760; letter-spacing: 0.04em; }
+	.sgp-initials { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; background: rgba(198,197,195,0.1); border: 1px solid rgba(198,197,195,0.15); color: #F2F1EF; font-size: 11px; font-weight: 560; letter-spacing: 0.04em; }
     .sgp-coach-copy { flex: 1; min-width: 0; }
-    .sgp-coach-name { color: #F2F1EF; font-size: 13px; font-weight: 720; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+	.sgp-coach-name { color: #F2F1EF; font-size: 13px; font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .sgp-coach-title { color: #A8A6A2; font-size: 11px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sgp-tag { flex: 0 0 auto; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border-radius: 999px; background: rgba(198,197,195,0.08); color: #C6C5C3; border: 1px solid rgba(198,197,195,0.13); font-size: 10px; font-weight: 650; text-transform: capitalize; }
+	.sgp-tag { flex: 0 0 auto; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border-radius: 999px; background: rgba(198,197,195,0.08); color: #C6C5C3; border: 1px solid rgba(198,197,195,0.13); font-size: 10px; font-weight: 540; text-transform: capitalize; }
     .sgp-more { color: #A8A6A2; font-size: 10px; margin-top: 8px; padding-left: 44px; }
     .leaflet-popup-content .single-gym-preview { width: 220px; max-width: 100%; padding: 2px; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
 
@@ -2728,27 +2929,8 @@ function addGlobalMapStyles() {
       font-family: Inter, ui-sans-serif, system-ui, sans-serif;
       animation: tooltipFadeIn 140ms ease;
     }
-    .cluster-tooltip-title { font-size: 13px; font-weight: 700; color: #F2F1EF; margin: 0 0 4px; }
+	.cluster-tooltip-title { font-size: 13px; font-weight: 560; color: #F2F1EF; margin: 0 0 4px; }
     .cluster-tooltip-sub { font-size: 11px; color: #A8A6A2; margin: 0; }
-
-    .coach-scroll-panel {
-      scrollbar-width: thin;
-      scrollbar-color: rgba(198,197,195,0.34) transparent;
-    }
-    .coach-scroll-panel::-webkit-scrollbar { width: 6px; }
-    .coach-scroll-panel::-webkit-scrollbar-track { background: transparent; }
-    .coach-scroll-panel::-webkit-scrollbar-thumb {
-      background: rgba(198,197,195,0.34);
-      border-radius: 999px;
-    }
-    .coach-scroll-panel::-webkit-scrollbar-thumb:hover {
-      background: rgba(198,197,195,0.48);
-    }
-    .coach-scroll-panel::-webkit-scrollbar-button {
-      display: none;
-      width: 0;
-      height: 0;
-    }
 
     .coach-placeholder-marquee {
       display: inline-block;
@@ -2811,7 +2993,6 @@ function addGlobalMapStyles() {
       .leaflet-popup-content { max-width: min(240px, calc(100vw - 64px)); }
     }
     @media (max-width: 359px) {
-      .mobile-be-prefix { display: none; }
       .mobile-search-launcher { justify-content: center !important; }
       .mobile-search-launcher-label { display: none; }
     }
@@ -3092,6 +3273,7 @@ function MobileFilterSheet({
 						<strong
 							style={{
 								display: "block",
+								fontWeight: 540,
 								overflow: "hidden",
 								textOverflow: "ellipsis",
 								whiteSpace: "nowrap",
@@ -3130,7 +3312,7 @@ function MobileFilterSheet({
 						}}
 					>
 						<span>
-							<strong style={{ display: "block", fontSize: 14 }}>{choice.label}</strong>
+							<strong style={{ display: "block", fontSize: 14, fontWeight: 540 }}>{choice.label}</strong>
 							<small style={{ color: palette.muted, fontSize: 11.5 }}>{choice.hint}</small>
 						</span>
 						<input
@@ -3165,6 +3347,7 @@ function CoachMapApp({ onOpenApplication }) {
 	const preFavoritesViewRef = useRef(null);
 	const preLocationViewRef = useRef(null);
 	const preProfileViewRef = useRef(null);
+	const preServicesMobileViewRef = useRef(null);
 	const currentPanelViewRef = useRef(null);
 	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
 	const visualViewport = useVisualViewportMetrics();
@@ -3178,6 +3361,8 @@ function CoachMapApp({ onOpenApplication }) {
 	const showOnlineRef = useRef(false);
 	const zipSearchRef = useRef("");
 	const radiusMilesRef = useRef(25);
+	const searchedCoachIdsRef = useRef(null);
+	const selectedProfileCoachIdRef = useRef(null);
 	const renderClustersRef = useRef(null);
 
 	const [selectedState, setSelectedState] = useState(null);
@@ -3196,6 +3381,9 @@ function CoachMapApp({ onOpenApplication }) {
 	const [mobileLocationSheetOpen, setMobileLocationSheetOpen] = useState(false);
 	const [mobileFilterSheetOpen, setMobileFilterSheetOpen] = useState(false);
 	const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
+	const [servicesOpen, setServicesOpen] = useState(false);
+	const [servicesInitialView, setServicesInitialView] = useState("new");
+	const [messagesOpen, setMessagesOpen] = useState(false);
 	const [mobileSheetSnap, setMobileSheetSnap] = useState("half");
 	const [statesPanelOpen, setStatesPanelOpen] = useState(false);
 	const [gymPanel, setGymPanel] = useState(null);
@@ -3217,6 +3405,7 @@ function CoachMapApp({ onOpenApplication }) {
 		statesPanelOpen,
 		favoritesOpen,
 		semanticSearchOpen,
+		messagesOpen,
 		trainingType,
 		profileCoach,
 		contactCoach,
@@ -3296,8 +3485,14 @@ function CoachMapApp({ onOpenApplication }) {
 		zipFilterActive ||
 		Boolean(gymPanel) ||
 		Boolean(clusterPanel) ||
-		Boolean(contactCoach);
-	const state = selectedState ? getStateByAbbr(selectedState) : null;
+		Boolean(profileCoach) ||
+		Boolean(contactCoach) ||
+		messagesOpen ||
+		servicesOpen;
+	const state = useMemo(
+		() => (selectedState ? getStateByAbbr(selectedState) : null),
+		[selectedState],
+	);
 
 	useEffect(() => {
 		if (!showIntroModal) return undefined;
@@ -3342,6 +3537,10 @@ function CoachMapApp({ onOpenApplication }) {
 		showOnlineRef.current = showOnline;
 		renderClustersRef.current?.();
 	}, [showOnline]);
+	useEffect(() => {
+		selectedProfileCoachIdRef.current = profileCoach?.id || null;
+		renderClustersRef.current?.();
+	}, [profileCoach?.id]);
 	useEffect(() => {
 		zipSearchRef.current = zipSearch;
 		radiusMilesRef.current = radiusMiles;
@@ -3403,11 +3602,16 @@ function CoachMapApp({ onOpenApplication }) {
 			layersRef.current.clusterMarkers = [];
 
 			const zoom = map.getZoom();
-			const visibleGyms = showOnlineRef.current
+			const searchedCoachIds = searchedCoachIdsRef.current;
+			const shouldFilterCoaches =
+				showOnlineRef.current || searchedCoachIds instanceof Set;
+			const visibleGyms = shouldFilterCoaches
 				? gyms
 						.map((gym) => {
 							const coachesAtGym = gym.coachesAtGym.filter(
-								(coach) => coach.onlineTraining,
+								(coach) =>
+									(!showOnlineRef.current || coach.onlineTraining) &&
+									(!searchedCoachIds || searchedCoachIds.has(coach.id)),
 							);
 							return {
 								...gym,
@@ -3498,7 +3702,15 @@ function CoachMapApp({ onOpenApplication }) {
 				const singleGymPlacement = isMulti
 					? null
 					: getSingleGymTooltipPlacement(map, lat, lng, markerSize);
-				const marker = L.marker([lat, lng], { icon: createClusterIcon(count) });
+				const containsSelectedCoach = Boolean(
+					selectedProfileCoachIdRef.current &&
+						clusterCoaches.some(
+							(coach) => coach.id === selectedProfileCoachIdRef.current,
+						),
+				);
+				const marker = L.marker([lat, lng], {
+					icon: createClusterIcon(count, containsSelectedCoach),
+				});
 
 				if (!isMulti) {
 					marker.on("mouseover focus", () => {
@@ -3799,6 +4011,61 @@ function CoachMapApp({ onOpenApplication }) {
 		mobileSearchResultsScrollTopRef.current = 0;
 	}
 
+	function prepareCommunicationPanel() {
+		if (!isDesktop) {
+			preServicesMobileViewRef.current = {
+				mobileSheetSnap,
+				mobileHeaderCollapsed,
+				mobileSearchExpanded,
+			};
+			mobileSearchInputRef.current?.blur();
+			setMobileSearchExpanded(false);
+			setMobileHeaderCollapsed(true);
+			setMobileSheetSnap("full");
+		}
+		setMobileLocationSheetOpen(false);
+		setMobileFilterSheetOpen(false);
+	}
+
+	function openServices(view = "new") {
+		prepareCommunicationPanel();
+		setMessagesOpen(false);
+		setContactCoach(null);
+		setServicesInitialView(view === "requests" ? "requests" : "new");
+		setServicesOpen(true);
+	}
+
+	function closeServices() {
+		const previousView = preServicesMobileViewRef.current;
+		setServicesOpen(false);
+		if (!isDesktop && previousView) {
+			setMobileSheetSnap(previousView.mobileSheetSnap);
+			setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
+			setMobileSearchExpanded(previousView.mobileSearchExpanded);
+		}
+		preServicesMobileViewRef.current = null;
+	}
+
+	function openMessages() {
+		prepareCommunicationPanel();
+		setServicesOpen(false);
+		setMessagesOpen(true);
+		setProfileCoach(null);
+		setContactCoach(null);
+	}
+
+	function closeMessages() {
+		const previousView = preServicesMobileViewRef.current;
+		setMessagesOpen(false);
+		setContactCoach(null);
+		if (!isDesktop && previousView) {
+			setMobileSheetSnap(previousView.mobileSheetSnap);
+			setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
+			setMobileSearchExpanded(previousView.mobileSearchExpanded);
+		}
+		preServicesMobileViewRef.current = null;
+	}
+
 	function toggleMobileSearchControls() {
 		if (mobileSearchExpanded) {
 			closeMobileSearchMode();
@@ -3816,8 +4083,9 @@ function CoachMapApp({ onOpenApplication }) {
 
 	function openCoachProfile(coach, resultsScrollTop = 0) {
 		preProfileViewRef.current = isDesktop
-			? null
+			? { source: "directory" }
 			: {
+				source: "directory",
 				mobileSearchExpanded,
 				search,
 				searchTags: [...searchTags],
@@ -3830,8 +4098,62 @@ function CoachMapApp({ onOpenApplication }) {
 		setProfileCoach(coach);
 	}
 
+	function openCoachProfileFromMessage(coach) {
+		const map = mapRef.current;
+		const primaryGym = coach.primaryGym || coach.gyms?.[0];
+		preProfileViewRef.current = {
+			source: "messages",
+			contactCoach: coach,
+			filter,
+			trainingType,
+			search,
+			searchTags: [...searchTags],
+			mapView: map
+				? {
+						center: map.getCenter(),
+						zoom: map.getZoom(),
+					}
+				: null,
+		};
+
+		searchedCoachIdsRef.current = null;
+		setMessagesOpen(false);
+		setContactCoach(null);
+		setFilter("all");
+		setTrainingType("either");
+		setSearch("");
+		setSearchTags([]);
+		setProfileCoach(coach);
+
+		if (primaryGym && map) {
+			map.flyTo([primaryGym.latitude, primaryGym.longitude], 10, {
+				duration: 0.65,
+			});
+		}
+	}
+
 	function handleCoachProfileBack() {
 		const previousView = preProfileViewRef.current;
+		if (previousView?.source === "messages") {
+			flushSync(() => {
+				setProfileCoach(null);
+				setFilter(previousView.filter);
+				setTrainingType(previousView.trainingType);
+				setSearch(previousView.search);
+				setSearchTags(previousView.searchTags);
+				setContactCoach(previousView.contactCoach);
+				setMessagesOpen(true);
+			});
+			if (previousView.mapView && mapRef.current) {
+				mapRef.current.setView(
+					previousView.mapView.center,
+					previousView.mapView.zoom,
+					{ animate: false },
+				);
+			}
+			preProfileViewRef.current = null;
+			return;
+		}
 		const shouldRestoreMobileSearch =
 			!isDesktop && previousView?.mobileSearchExpanded;
 
@@ -4319,28 +4641,61 @@ function CoachMapApp({ onOpenApplication }) {
 		);
 	}
 
-	const locationScopedCoaches = selectedState
-		? state?.coaches || []
-		: allCoaches;
-	const locationAndTrainingCoaches = showOnline
-		? locationScopedCoaches.filter((coach) => coach.onlineTraining)
-		: inPersonOnly
-			? locationScopedCoaches.filter((coach) => coach.gyms?.length)
-			: locationScopedCoaches;
-	const activePanelCoaches = clusterPanel
-		? clusterPanel.coaches
-		: semanticSearchOpen
-			? allCoaches
-		: favoritesOpen
-			? favoriteCoaches
-			: selectedState || showOnline || inPersonOnly || filter === "all"
-				? locationAndTrainingCoaches
-				: [];
-	const filteredActivePanelCoaches = rankCoachesBySemanticSearchTerms(
-		activePanelCoaches,
-		[...searchTags, search],
+	const locationScopedCoaches = useMemo(
+		() => (selectedState ? state?.coaches || [] : allCoaches),
+		[allCoaches, selectedState, state],
+	);
+	const locationAndTrainingCoaches = useMemo(
+		() =>
+			showOnline
+				? locationScopedCoaches.filter((coach) => coach.onlineTraining)
+				: inPersonOnly
+					? locationScopedCoaches.filter((coach) => coach.gyms?.length)
+					: locationScopedCoaches,
+		[inPersonOnly, locationScopedCoaches, showOnline],
+	);
+	const activePanelCoaches = useMemo(
+		() =>
+			clusterPanel
+				? clusterPanel.coaches
+				: semanticSearchOpen
+					? allCoaches
+					: favoritesOpen
+						? favoriteCoaches
+						: selectedState || showOnline || inPersonOnly || filter === "all"
+							? locationAndTrainingCoaches
+							: [],
+		[
+			allCoaches,
+			clusterPanel,
+			favoriteCoaches,
+			favoritesOpen,
+			filter,
+			inPersonOnly,
+			locationAndTrainingCoaches,
+			selectedState,
+			semanticSearchOpen,
+			showOnline,
+		],
+	);
+	const filteredActivePanelCoaches = useMemo(
+		() =>
+			rankCoachesBySemanticSearchTerms(activePanelCoaches, [
+				...searchTags,
+				search,
+			]),
+		[activePanelCoaches, search, searchTags],
 	);
 	const hasActiveSearch = Boolean(search.trim() || searchTags.length);
+	const shouldFilterMapByCoachSearch =
+		hasActiveSearch && !statesPanelOpen && !gymPanel;
+
+	useEffect(() => {
+		searchedCoachIdsRef.current = shouldFilterMapByCoachSearch
+			? new Set(filteredActivePanelCoaches.map((coach) => coach.id))
+			: null;
+		renderClustersRef.current?.();
+	}, [filteredActivePanelCoaches, shouldFilterMapByCoachSearch]);
 	const activePanelTitle = clusterPanel
 		? clusterPanel.title
 		: semanticSearchOpen
@@ -4408,7 +4763,9 @@ function CoachMapApp({ onOpenApplication }) {
 			visualViewport.offsetTop + visualViewport.height - mobileSearchResultsTop,
 		),
 	);
-	const effectiveMobileSheetSnap = isMobileSearchMode
+	const effectiveMobileSheetSnap = isMobile && (servicesOpen || messagesOpen)
+		? "full"
+		: isMobileSearchMode
 		? "half"
 		: profileCoach || contactCoach
 			? "full"
@@ -4429,7 +4786,16 @@ function CoachMapApp({ onOpenApplication }) {
 	const hideFloatingControls =
 		isMobileSearchMode ||
 		(isShortMobile && panelVisible) ||
-		(isMobile && Boolean(profileCoach || contactCoach));
+		(isMobile && Boolean(servicesOpen || messagesOpen || profileCoach || contactCoach));
+	const hideCommunicationLaunchers =
+		isMobile && (
+			servicesOpen ||
+			messagesOpen ||
+			isMobileSearchMode ||
+			mobileLocationSheetOpen ||
+			mobileFilterSheetOpen ||
+			Boolean(profileCoach || contactCoach)
+		);
 	const mobileActionBottom = panelVisible
 		? `calc(${mobilePanelHeight} + 14px + env(safe-area-inset-bottom))`
 		: "calc(18px + env(safe-area-inset-bottom))";
@@ -4450,7 +4816,9 @@ function CoachMapApp({ onOpenApplication }) {
 		Boolean(profileCoach || contactCoach) ||
 		effectiveMobileSheetSnap === "full" ||
 		mobileLocationSheetOpen ||
-		mobileFilterSheetOpen;
+		mobileFilterSheetOpen ||
+		servicesOpen ||
+		messagesOpen;
 	const mobileDialogOpen = mobileLocationSheetOpen || mobileFilterSheetOpen;
 
 	return (
@@ -4539,7 +4907,7 @@ function CoachMapApp({ onOpenApplication }) {
 						}
 						: {}),
 				}}
-				inert={isMobile && (mobileDialogOpen || isMobileSearchMode) ? "" : undefined}
+				inert={mobileDialogOpen || isMobileSearchMode ? "" : undefined}
 			/>
 
 			{isMobile && !hideMobileDirectoryHeader ? (
@@ -4603,7 +4971,7 @@ function CoachMapApp({ onOpenApplication }) {
 									</form>
 									<button
 										type="button"
-										style={{ ...styles.mobileToolbarButton, height: 44, padding: "0 12px", fontWeight: 600 }}
+									style={{ ...styles.mobileToolbarButton, height: 44, padding: "0 12px", fontWeight: 540 }}
 										onClick={closeMobileSearchMode}
 										aria-label="Close search"
 									>
@@ -4661,18 +5029,14 @@ function CoachMapApp({ onOpenApplication }) {
 								<span>Filters</span>
 								{activeMobileFilterCount ? <span style={styles.mobileBadge}>{activeMobileFilterCount}</span> : null}
 							</button>
-							{onOpenApplication ? (
-								<button
-									type="button"
-									style={styles.mobileToolbarButton}
-									onClick={() => {
-										setMobileSearchExpanded(false);
-										onOpenApplication();
-									}}
-								>
-									<span className="mobile-be-prefix">Be a </span>Coach
-								</button>
-							) : null}
+							<button
+								type="button"
+								style={styles.mobileToolbarButton}
+								onClick={() => openServices("new")}
+								aria-label="Open Quick Services"
+							>
+								Services
+							</button>
 							<button
 								type="button"
 								style={{ ...styles.mobileIconButton, width: 40, height: 40, fontSize: 20 }}
@@ -4688,6 +5052,17 @@ function CoachMapApp({ onOpenApplication }) {
 							</div>
 						)}
 					</div>
+					{!isMobileSearchMode && onOpenApplication ? (
+						<div style={styles.mobileCoachApplyRow}>
+							<button
+								type="button"
+								style={styles.mobileCoachApplyButton}
+								onClick={onOpenApplication}
+							>
+								Be a Coach
+							</button>
+						</div>
+					) : null}
 				</header>
 			) : null}
 
@@ -4729,6 +5104,41 @@ function CoachMapApp({ onOpenApplication }) {
 					}}
 					onClose={() => setMobileFilterSheetOpen(false)}
 				/>
+			) : null}
+
+			{isMobile ? (
+				<nav
+					className="mobile-communications-launchers communications-segmented-control"
+					aria-label="Conversations"
+					style={{
+						position: "absolute",
+						zIndex: 905,
+						right: isTablet ? "calc(50% - 250px)" : 14,
+						bottom: `calc(${mobilePanelHeight} + 12px)`,
+						display: hideCommunicationLaunchers ? "none" : "grid",
+					}}
+				>
+					<button type="button" onClick={openMessages}>Messages</button>
+					<button type="button" onClick={() => openServices("requests")}>Services</button>
+				</nav>
+			) : null}
+
+			{isDesktop ? (
+				<nav
+					className="communications-segmented-control desktop-communications-launcher"
+					aria-label="Conversations"
+					style={{
+						position: "absolute",
+						zIndex: 905,
+						right: panelVisible ? 454 : 24,
+						bottom: 24,
+						display: hideCommunicationLaunchers ? "none" : "grid",
+						transition: "right 0.42s cubic-bezier(.66,.09,.28,1)",
+					}}
+				>
+					<button type="button" onClick={openMessages}>Messages</button>
+					<button type="button" onClick={() => openServices("requests")}>Services</button>
+				</nav>
 			) : null}
 
 			<button
@@ -5039,6 +5449,9 @@ function CoachMapApp({ onOpenApplication }) {
 					>
 						🌐 Online Training
 					</button>
+					{isDesktop ? (
+						<button type="button" onClick={() => openServices("new")} style={{ ...styles.servicesLauncher, minWidth: 184 }}>Quick Services</button>
+					) : null}
 					{onOpenApplication ? (
 						<button
 							type="button"
@@ -5104,7 +5517,9 @@ function CoachMapApp({ onOpenApplication }) {
 						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
 					borderTopRightRadius:
 						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
-					padding: isDesktop
+					padding: servicesOpen
+						? 0
+						: isDesktop
 						? "34px 34px 22px"
 						: isMobileSearchMode
 							? "10px 14px 8px"
@@ -5131,10 +5546,13 @@ function CoachMapApp({ onOpenApplication }) {
 										: "translateY(104%)",
 							}),
 				}}
-				aria-hidden={!effectivePanelVisible || (isMobile && mobileDialogOpen)}
+				aria-hidden={!effectivePanelVisible || mobileDialogOpen}
 				inert={effectivePanelVisible && !mobileDialogOpen ? undefined : ""}
 			>
-				{isMobile && effectivePanelVisible && !isMobileSearchMode ? (
+				{servicesOpen ? (
+					<ServicesFlow open embedded initialView={servicesInitialView} onClose={closeServices} />
+				) : null}
+				{isMobile && effectivePanelVisible && !isMobileSearchMode && !servicesOpen && !messagesOpen ? (
 					<button
 						type="button"
 						style={{ ...styles.mobileSheetHandle, border: 0, padding: 0, cursor: "grab", touchAction: "none" }}
@@ -5151,7 +5569,7 @@ function CoachMapApp({ onOpenApplication }) {
 						/>
 					</button>
 				) : null}
-				{isMobile && effectiveMobileSheetSnap === "collapsed" ? (
+				{isMobile && effectiveMobileSheetSnap === "collapsed" && !servicesOpen && !messagesOpen ? (
 					<button
 						type="button"
 						style={{ border: 0, background: "transparent", color: palette.text, font: "inherit", textAlign: "left", padding: "2px 2px 8px", cursor: "pointer" }}
@@ -5165,7 +5583,9 @@ function CoachMapApp({ onOpenApplication }) {
 				) : null}
 				<div
 					key={
-						statesPanelOpen
+						messagesOpen
+							? "messages"
+							: statesPanelOpen
 							? "states"
 							: gymPanel
 								? `gyms-${gymPanel.id}`
@@ -5175,11 +5595,25 @@ function CoachMapApp({ onOpenApplication }) {
 					style={{
 						flex: 1,
 						minHeight: 0,
-						display:
-							isMobile && effectiveMobileSheetSnap === "collapsed" ? "none" : "block",
+						display: servicesOpen
+							? "none"
+							: isMobile && effectiveMobileSheetSnap === "collapsed"
+								? "none"
+								: "block",
 					}}
 				>
-					{statesPanelOpen ? (
+					{messagesOpen ? (
+						contactCoach ? (
+							<ContactPanel
+								coach={contactCoach}
+								onBack={() => setContactCoach(null)}
+								onViewProfile={() => openCoachProfileFromMessage(contactCoach)}
+								isDesktop={isDesktop}
+							/>
+						) : (
+							<DirectMessagesPanel coaches={allCoaches} onBack={closeMessages} onOpenThread={setContactCoach} />
+						)
+					) : statesPanelOpen ? (
 						<StateListPanel
 							states={MOCK_STATES}
 							onBack={resetToMap}
@@ -5209,7 +5643,7 @@ function CoachMapApp({ onOpenApplication }) {
 						<CoachListPanel
 							title={activePanelTitle}
 							eyebrow={activePanelEyebrow}
-							coaches={activePanelCoaches}
+							coaches={filteredActivePanelCoaches}
 							onBack={handlePanelBack}
 							profileCoach={profileCoach}
 							setProfileCoach={setProfileCoach}

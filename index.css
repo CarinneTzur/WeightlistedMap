@@ -6,6 +6,213 @@ html {
 	scroll-behavior: smooth;
 	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
+	background: #080807;
+}
+
+.coach-scroll-panel {
+	scrollbar-width: thin;
+	scrollbar-color: rgba(198, 197, 195, 0.34) transparent;
+}
+
+.coach-scroll-panel::-webkit-scrollbar {
+	width: 6px;
+}
+
+.coach-scroll-panel::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.coach-scroll-panel::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.34);
+}
+
+.coach-scroll-panel::-webkit-scrollbar-thumb:hover {
+	background: rgba(198, 197, 195, 0.48);
+}
+
+.coach-scroll-panel::-webkit-scrollbar-button {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+.direct-message-list {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.direct-message-card {
+	display: grid;
+	width: 100%;
+	min-height: 88px;
+	padding: 14px 15px;
+	border: 1px solid rgba(198, 197, 195, 0.14);
+	border-radius: 18px;
+	background: linear-gradient(90deg, rgba(55, 53, 55, 0.72), rgba(78, 76, 78, 0.42));
+	color: #f2f1ef;
+	font: inherit;
+	text-align: left;
+	grid-template-columns: 52px minmax(0, 1fr) auto;
+	align-items: center;
+	gap: 13px;
+	cursor: pointer;
+	transition: border-color 150ms ease, transform 150ms ease, background 150ms ease;
+}
+
+.direct-message-card:hover {
+	border-color: rgba(198, 197, 195, 0.34);
+	background: linear-gradient(90deg, rgba(62, 60, 62, 0.78), rgba(84, 82, 84, 0.48));
+	transform: translateY(-1px);
+}
+
+.direct-message-card:disabled {
+	opacity: 0.55;
+	cursor: default;
+}
+
+.direct-message-card img {
+	width: 52px;
+	height: 52px;
+	border: 2px solid rgba(198, 197, 195, 0.36);
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.direct-message-card > div {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+}
+
+.direct-message-card strong {
+	font-size: 15.5px;
+	font-weight: 560;
+}
+
+.direct-message-card span {
+	margin-top: 5px;
+	overflow: hidden;
+	color: rgba(198, 197, 195, 0.68);
+	font-size: 13px;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.direct-message-card small {
+	color: rgba(198, 197, 195, 0.48);
+	font-size: 11.5px;
+}
+
+.direct-messages-empty {
+	display: flex;
+	min-height: 300px;
+	padding: 30px;
+	border: 1px solid rgba(198, 197, 195, 0.12);
+	border-radius: 20px;
+	background: rgba(198, 197, 195, 0.04);
+	text-align: center;
+	align-items: center;
+	justify-content: center;
+	flex-direction: column;
+}
+
+.direct-messages-empty strong {
+	font-size: 19px;
+	font-weight: 560;
+}
+
+.direct-messages-empty span {
+	max-width: 300px;
+	margin-top: 7px;
+	color: rgba(198, 197, 195, 0.66);
+	font-size: 14px;
+	line-height: 1.5;
+}
+
+.contact-profile-link {
+	width: 100%;
+	padding: 0 0 18px;
+	border: 0;
+	border-bottom: 1px solid rgba(198, 197, 195, 0.12);
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	text-align: left;
+	cursor: pointer;
+	transition: background 150ms ease, border-color 150ms ease;
+}
+
+.contact-profile-link:hover {
+	border-color: rgba(125, 177, 225, 0.42);
+	background: rgba(72, 116, 158, 0.08);
+}
+
+.contact-profile-link:focus-visible {
+	outline: 2px solid rgba(151, 197, 238, 0.82);
+	outline-offset: 4px;
+}
+
+.contact-profile-action {
+	margin-left: auto;
+	color: rgba(151, 197, 238, 0.92);
+	font-size: 12.5px;
+	font-weight: 540;
+	white-space: nowrap;
+}
+
+.communications-segmented-control {
+	width: 184px;
+	min-height: 48px;
+	padding: 3px;
+	border: 1px solid rgba(242, 241, 239, 0.3);
+	border-radius: 999px;
+	background: rgba(30, 28, 30, 0.9);
+	box-shadow: 0 14px 34px rgba(0, 0, 0, 0.3);
+	backdrop-filter: blur(16px);
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	overflow: hidden;
+}
+
+.communications-segmented-control button {
+	position: relative;
+	min-width: 0;
+	min-height: 40px;
+	padding: 8px 11px;
+	border: 0;
+	border-radius: 999px 0 0 999px;
+	background: transparent;
+	color: #f2f1ef;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 540;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.communications-segmented-control button + button {
+	border-left: 1px solid rgba(198, 197, 195, 0.2);
+	border-radius: 0 999px 999px 0;
+}
+
+.communications-segmented-control button:hover {
+	background: rgba(198, 197, 195, 0.09);
+}
+
+@media (max-width: 1023px) {
+	.mobile-communications-launchers {
+		width: min(190px, calc(52vw - 14px));
+	}
+
+	.mobile-communications-launchers button {
+		padding: 8px 7px;
+		font-size: 12.5px;
+	}
+
+	.direct-messages-panel {
+		padding-top: calc(8px + env(safe-area-inset-top)) !important;
+	}
 }
 
 html,
