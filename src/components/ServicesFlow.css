@@ -41,7 +41,11 @@
 }
 
 .services-modal.is-embedded .services-modal-header {
-	padding-right: 24px;
+	padding: 24px 20px 14px;
+}
+
+.services-modal.is-embedded .services-section-tabs {
+	margin: 0 20px 16px;
 }
 
 .services-section-tabs {
@@ -135,14 +139,14 @@
 	font-size: 21px;
 	font-weight: 650;
 	letter-spacing: -0.3px;
-	line-height: 1.16;
+	line-height: 1.5;
 }
 
 .services-modal-header span {
 	color: rgba(198, 197, 195, 0.68);
-	font-size: 13px;
+	font-size: 12px;
 	letter-spacing: 0.18em;
-	line-height: 1.35;
+	line-height: 1.5;
 	text-transform: uppercase;
 }
 
@@ -182,7 +186,7 @@
 }
 
 .services-modal.is-embedded .services-step-content {
-	padding: 0 24px 22px 34px;
+	padding: 0 20px 18px;
 }
 
 .services-question-heading {

@@ -1,0 +1,289 @@
+.account-panel {
+	--panel-text: #f2f1ef;
+	--panel-muted: rgba(198, 197, 195, 0.68);
+	--panel-border: rgba(198, 197, 195, 0.2);
+	display: flex;
+	min-height: 100%;
+	color: var(--panel-text);
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+	flex-direction: column;
+}
+
+.account-panel__header {
+	display: flex;
+	flex: 0 0 auto;
+	min-height: 58px;
+	padding: 34px 34px 14px;
+	gap: 13px;
+	align-items: center;
+}
+
+.account-panel__back {
+	display: inline-flex;
+	flex: 0 0 auto;
+	width: 44px;
+	height: 44px;
+	padding: 0;
+	border: 1px solid var(--panel-border);
+	border-radius: 999px;
+	outline: 0;
+	background: rgba(198, 197, 195, 0.06);
+	color: var(--panel-text);
+	font: inherit;
+	font-size: 22px;
+	font-weight: 700;
+	line-height: 1;
+	align-items: center;
+	justify-content: center;
+	cursor: pointer;
+	transition: background 160ms ease, transform 160ms ease;
+}
+
+.account-panel__back:hover { background: rgba(198, 197, 195, 0.11); transform: translateY(-1px); }
+
+.account-panel__header p,
+.account-panel__header h1,
+.account-panel__section h2,
+.account-panel__actions h2 { margin: 0; }
+
+.account-panel__header p,
+.account-panel__section h2,
+.account-panel__actions h2 {
+	color: var(--panel-muted);
+	font-size: 12px;
+	font-weight: 500;
+	letter-spacing: 0.18em;
+	line-height: 1.5;
+	text-transform: uppercase;
+}
+
+.account-panel__header h1 {
+	color: var(--panel-text);
+	font-size: 21px;
+	font-weight: 720;
+	letter-spacing: -0.3px;
+	line-height: 1.5;
+}
+
+.account-panel__scroll {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 0 34px 22px;
+	scrollbar-gutter: stable;
+}
+
+.account-panel__section { margin: 0 0 24px; }
+.account-panel__section-heading { margin: 0 0 14px; }
+.account-panel__section-heading p {
+	margin: 4px 0 0;
+	color: var(--panel-muted);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.account-panel__identity {
+	display: flex;
+	gap: 14px;
+	margin-bottom: 18px;
+	align-items: center;
+}
+
+.account-panel__avatar {
+	position: relative;
+	display: grid;
+	flex: 0 0 auto;
+	width: 64px;
+	height: 64px;
+	padding: 0;
+	overflow: visible;
+	border: 2px solid rgba(198, 197, 195, 0.3);
+	border-radius: 50%;
+	background: linear-gradient(145deg, #3d3a3d, #242124);
+	color: var(--panel-text);
+	font: inherit;
+	font-size: 18px;
+	font-weight: 560;
+	place-items: center;
+	cursor: pointer;
+}
+
+.account-panel__avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
+.account-panel__avatar i {
+	position: absolute;
+	right: -3px;
+	bottom: -2px;
+	display: grid;
+	width: 22px;
+	height: 22px;
+	border: 2px solid #2b292b;
+	border-radius: 50%;
+	background: var(--panel-text);
+	color: #1e1c1e;
+	font-size: 16px;
+	font-style: normal;
+	line-height: 1;
+	place-items: center;
+}
+
+.account-panel__identity > div { display: grid; min-width: 0; gap: 2px; }
+.account-panel__identity strong { font-size: 15px; font-weight: 650; line-height: 1.35; }
+.account-panel__identity span { overflow: hidden; color: var(--panel-muted); font-size: 13px; line-height: 1.35; text-overflow: ellipsis; white-space: nowrap; }
+
+.account-panel__photo-link,
+.account-panel__delete-link {
+	justify-self: start;
+	padding: 2px 0;
+	border: 0;
+	background: transparent;
+	color: rgba(242, 241, 239, 0.88);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 540;
+	cursor: pointer;
+}
+
+.account-panel__photo-link:hover { color: var(--panel-text); text-decoration: underline; text-underline-offset: 3px; }
+
+.account-panel__admin-badge {
+	justify-self: start;
+	margin-top: 2px;
+	padding: 3px 7px;
+	border: 1px solid rgba(198, 197, 195, 0.22);
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.07);
+	color: var(--panel-text);
+	font-size: 10.5px;
+	font-weight: 550;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+}
+
+.account-panel__field { display: grid; gap: 7px; margin-top: 15px; }
+.account-panel__field > span,
+.account-panel__delete-confirm label > span {
+	color: rgba(242, 241, 239, 0.88);
+	font-size: 12.5px;
+	font-weight: 540;
+	line-height: 1.35;
+}
+.account-panel__field em { color: var(--panel-muted); font-size: 11.5px; font-style: normal; font-weight: 440; }
+
+.account-panel__field input,
+.account-panel__field textarea,
+.account-panel__delete-confirm input {
+	width: 100%;
+	border: 1px solid var(--panel-border);
+	border-radius: 13px;
+	outline: none;
+	background: rgba(30, 28, 30, 0.72);
+	box-shadow: 0 1.5px 8px rgba(0, 0, 0, 0.22) inset;
+	color: var(--panel-text);
+	font: inherit;
+	font-size: 15px;
+	line-height: 1.35;
+}
+
+.account-panel__field input::placeholder,
+.account-panel__field textarea::placeholder,
+.account-panel__delete-confirm input::placeholder { color: rgba(198, 197, 195, 0.58); }
+.account-panel__field input,
+.account-panel__delete-confirm input { height: 46px; min-height: 46px; padding: 0 16px; }
+.account-panel__field textarea { min-height: 100px; padding: 12px 16px; resize: vertical; }
+.account-panel__field input:focus,
+.account-panel__field textarea:focus,
+.account-panel__delete-confirm input:focus { border-color: rgba(242, 241, 239, 0.52); box-shadow: 0 0 0 2px rgba(198, 197, 195, 0.12), 0 1.5px 8px rgba(0, 0, 0, 0.22) inset; }
+
+.account-panel__choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-panel__choices button {
+	min-height: 32px;
+	padding: 6px 11px;
+	border: 1px solid rgba(198, 197, 195, 0.18);
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.06);
+	color: rgba(242, 241, 239, 0.78);
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 540;
+	line-height: 1;
+	cursor: pointer;
+}
+.account-panel__choices button.is-selected {
+	border-color: rgba(125, 177, 225, 0.88);
+	background: linear-gradient(135deg, rgba(72, 116, 158, 0.28), rgba(67, 87, 112, 0.2));
+	box-shadow:
+		inset 0 0 0 1px rgba(151, 197, 238, 0.38),
+		0 12px 32px rgba(0, 0, 0, 0.28);
+	color: #f6faff;
+}
+
+.account-panel__visibility { display: flex; gap: 10px; margin-top: 17px; cursor: pointer; }
+.account-panel__visibility input {
+	position: relative;
+	width: 34px;
+	height: 20px;
+	margin: 1px 0 0;
+	border: 1px solid rgba(198, 197, 195, 0.26);
+	border-radius: 999px;
+	outline: none;
+	appearance: none;
+	background: rgba(198, 197, 195, 0.1);
+	cursor: pointer;
+	transition: background 160ms ease, border-color 160ms ease;
+}
+.account-panel__visibility input::after { position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: rgba(242, 241, 239, 0.72); content: ""; transition: transform 160ms ease; }
+.account-panel__visibility input:checked {
+	border-color: rgba(125, 177, 225, 0.88);
+	background: rgba(72, 116, 158, 0.5);
+	box-shadow: inset 0 0 0 1px rgba(151, 197, 238, 0.32);
+}
+.account-panel__visibility input:checked::after { transform: translateX(14px); background: #f6faff; }
+.account-panel__visibility span { display: grid; gap: 2px; }
+.account-panel__visibility strong { font-size: 12.5px; font-weight: 540; line-height: 1.35; }
+.account-panel__visibility small { color: var(--panel-muted); font-size: 12px; line-height: 1.4; }
+
+.account-panel__save {
+	width: 100%;
+	min-height: 46px;
+	margin: 0 0 24px;
+	border: 0;
+	border-radius: 13px;
+	background: var(--panel-text);
+	color: #1e1c1e;
+	font: inherit;
+	font-size: 14px;
+	font-weight: 650;
+	cursor: pointer;
+}
+.account-panel__save:disabled { opacity: 0.5; cursor: not-allowed; }
+.account-panel__error,
+.account-panel__notice { margin: 16px 0; padding: 11px 13px; border-radius: 13px; font-size: 13px; line-height: 1.4; }
+.account-panel__error { border: 1px solid rgba(255, 132, 132, 0.34); background: rgba(255, 132, 132, 0.1); color: #ffd4d4; }
+.account-panel__notice { border: 1px solid rgba(198, 197, 195, 0.24); background: rgba(198, 197, 195, 0.1); color: var(--panel-text); }
+
+.account-panel__actions { margin: 0 0 3px; padding: 18px 0 5px; border-top: 1px solid rgba(198, 197, 195, 0.13); }
+.account-panel__actions > button { width: 100%; min-height: 44px; margin-top: 13px; border: 1px solid var(--panel-border); border-radius: 13px; background: rgba(198, 197, 195, 0.05); color: var(--panel-text); font: inherit; font-size: 13px; font-weight: 540; cursor: pointer; }
+.account-panel__actions > .account-panel__delete-link {
+	width: 100%;
+	min-height: 44px;
+	margin-top: 13px;
+	padding: 0 16px;
+	border: 1px solid rgba(232, 154, 154, 0.28);
+	background: rgba(168, 61, 61, 0.08);
+	color: #e8c0c0;
+	font-size: 13px;
+	font-weight: 540;
+}
+.account-panel__actions > .account-panel__delete-link:hover { border-color: rgba(232, 154, 154, 0.46); background: rgba(168, 61, 61, 0.14); }
+.account-panel__delete-confirm { display: grid; gap: 12px; margin-top: 15px; padding: 15px; border: 1px solid rgba(235, 139, 139, 0.24); border-radius: 15px; background: rgba(168, 61, 61, 0.08); }
+.account-panel__delete-confirm p { margin: 0; color: #e8c0c0; font-size: 13px; line-height: 1.45; }
+.account-panel__delete-confirm label { display: grid; gap: 7px; }
+.account-panel__delete-confirm > div { display: flex; justify-content: flex-end; gap: 8px; }
+.account-panel__delete-confirm button { min-height: 39px; padding: 0 12px; border: 1px solid var(--panel-border); border-radius: 10px; background: rgba(198, 197, 195, 0.07); color: var(--panel-text); font: inherit; font-size: 13px; cursor: pointer; }
+.account-panel__delete-confirm .account-panel__delete { border: 0; background: #c76666; color: #241516; font-weight: 600; }
+
+@media (max-width: 1023px) {
+	.account-panel__header { padding: calc(14px + env(safe-area-inset-top)) 16px 16px; }
+	.account-panel__scroll { padding: 0 16px calc(22px + env(safe-area-inset-bottom)); scrollbar-gutter: auto; }
+}

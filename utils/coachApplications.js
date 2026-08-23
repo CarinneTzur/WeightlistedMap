@@ -178,11 +178,13 @@ function safeFileName(fileName) {
 	return `${baseName || "coach-photo"}.${extension.toLowerCase()}`;
 }
 
-export async function uploadCoachProfilePhoto(file) {
+export async function uploadCoachProfilePhoto(file, userId) {
 	if (!file) return { profilePhotoUrl: "", profilePhotoFileName: "" };
+	if (!userId) throw new Error("Sign in before uploading an application photo.");
 
 	const supabase = requireSupabase();
-	const filePath = `applications/${Date.now()}-${safeFileName(file.name)}`;
+	const uploadId = globalThis.crypto?.randomUUID?.() || `${Date.now()}`;
+	const filePath = `applications/${userId}/${uploadId}-${safeFileName(file.name)}`;
 	const { error: uploadError } = await supabase.storage
 		.from(COACH_PHOTOS_BUCKET)
 		.upload(filePath, file, {
@@ -210,7 +212,7 @@ function getWebsiteFromSocialLinks(socialLinks = []) {
 	return compactString(website?.value);
 }
 
-function buildInsertRow(input) {
+function buildInsertRow(input, userId) {
 	const firstName = compactString(input.firstName);
 	const lastName = compactString(input.lastName);
 	const fullName = buildFullName(firstName, lastName, input.fullName);
@@ -224,6 +226,7 @@ function buildInsertRow(input) {
 		: [];
 
 	return {
+		user_id: userId,
 		status: COACH_APPLICATION_STATUSES.PENDING,
 		first_name: firstName || splitFullName(fullName).firstName,
 		last_name: lastName || splitFullName(fullName).lastName,
@@ -234,6 +237,8 @@ function buildInsertRow(input) {
 		gym_name: compactString(input.gymName),
 		gym_city: compactString(input.gymCity),
 		gym_state: normalizeStateAbbr(input.gymState),
+		gym_place_id: compactString(input.gymPlaceId),
+		gym_address: compactString(input.gymAddress),
 		coach_title: compactString(input.coachTitle),
 		specialties: splitList(input.specialties),
 		bio: compactString(input.bio),
@@ -254,8 +259,8 @@ function buildInsertRow(input) {
 		interview_date_time: compactString(input.interviewDateTime) || null,
 		interview_required: normalizeBoolean(input.interviewRequired),
 		interview_acknowledged: normalizeBoolean(input.interviewAcknowledged),
-		latitude: normalizeNullableNumber(input.latitude),
-		longitude: normalizeNullableNumber(input.longitude),
+		latitude: normalizeNullableNumber(input.gymLatitude ?? input.latitude),
+		longitude: normalizeNullableNumber(input.gymLongitude ?? input.longitude),
 	};
 }
 
@@ -268,6 +273,7 @@ export function mapSupabaseApplication(row) {
 
 	return {
 		id: row.id,
+		userId: row.user_id,
 		submittedAt: row.created_at,
 		updatedAt: row.updated_at,
 		reviewedAt: row.reviewed_at,
@@ -282,6 +288,8 @@ export function mapSupabaseApplication(row) {
 		gymName: row.gym_name,
 		gymCity: row.gym_city,
 		gymState: row.gym_state,
+		gymPlaceId: row.gym_place_id || "",
+		gymAddress: row.gym_address || "",
 		coachTitle: row.coach_title,
 		specialties: row.specialties || [],
 		bio: row.bio,
@@ -311,6 +319,12 @@ export function mapSupabaseApplication(row) {
 
 export async function submitCoachApplication(input) {
 	const supabase = requireSupabase();
+	const { data: userData, error: userError } = await supabase.auth.getUser();
+	if (userError) throw userError;
+	if (!userData.user) {
+		throw new Error("Sign in before submitting a coach application.");
+	}
+	const userId = userData.user.id;
 	const { profilePhotoFile, ...applicationInput } = input;
 	let photoFields = {
 		profilePhotoUrl: compactString(input.profilePhotoUrl),
@@ -318,13 +332,13 @@ export async function submitCoachApplication(input) {
 	};
 
 	if (profilePhotoFile) {
-		photoFields = await uploadCoachProfilePhoto(profilePhotoFile);
+		photoFields = await uploadCoachProfilePhoto(profilePhotoFile, userId);
 	}
 
 	const insertRow = buildInsertRow({
 		...applicationInput,
 		...photoFields,
-	});
+	}, userId);
 	const { data, error } = await supabase
 		.from(COACH_APPLICATION_TABLE)
 		.insert(insertRow)
@@ -456,12 +470,15 @@ export async function reviewCoachApplication(
 function buildGymFromApplication(application) {
 	const state = normalizeStateAbbr(application.gymState);
 	const stateCenter = STATE_CENTERS[state]?.center || US_CENTER;
-	const baseId = `gym_${slugify(`${application.gymName}_${application.gymCity}_${state}`)}`;
+	const placeId = compactString(application.gymPlaceId);
+	const baseId = placeId
+		? `gym_google_${slugify(placeId)}`
+		: `gym_${slugify(`${application.gymName}_${application.gymCity}_${state}`)}`;
 
 	return {
-		id: `${baseId}_${slugify(application.id).slice(0, 8)}`,
+		id: placeId ? baseId : `${baseId}_${slugify(application.id).slice(0, 8)}`,
 		name: application.gymName,
-		address: "Address pending",
+		address: application.gymAddress || "Address pending",
 		city: application.gymCity,
 		state,
 		zip: "",
@@ -474,6 +491,7 @@ function buildGymFromApplication(application) {
 		image: "",
 		description: `${application.gymName} was added through an approved coach application.`,
 		sourceApplicationId: application.id,
+		googlePlaceId: placeId,
 	};
 }
 
@@ -507,20 +525,23 @@ export function buildCoachFromApplication(application, gymId) {
 }
 
 function findStaticGymForApplication(application) {
+	const gymPlaceId = compactString(application.gymPlaceId);
 	const gymName = compactString(application.gymName).toLowerCase();
 	const gymCity = compactString(application.gymCity).toLowerCase();
 	const gymState = normalizeStateAbbr(application.gymState);
 
 	return staticGyms.find(
 		(gym) =>
-			compactString(gym.name).toLowerCase() === gymName &&
-			compactString(gym.city).toLowerCase() === gymCity &&
-			normalizeStateAbbr(gym.state) === gymState,
+			(Boolean(gymPlaceId) && compactString(gym.googlePlaceId) === gymPlaceId) ||
+			(compactString(gym.name).toLowerCase() === gymName &&
+				compactString(gym.city).toLowerCase() === gymCity &&
+				normalizeStateAbbr(gym.state) === gymState),
 	);
 }
 
 function buildApprovedData(applications) {
 	const createdGyms = [];
+	const createdGymsByLocation = new Map();
 	const coaches = applications.map((application) => {
 		const isOnlineOnly =
 			Boolean(application.onlineTraining) && !Boolean(application.inPersonCoaching);
@@ -530,8 +551,17 @@ function buildApprovedData(applications) {
 		}
 
 		const existingGym = findStaticGymForApplication(application);
-		const gym = existingGym || buildGymFromApplication(application);
-		if (!existingGym) createdGyms.push(gym);
+		const manualLocationKey = [application.gymName, application.gymCity, normalizeStateAbbr(application.gymState)]
+			.map((part) => compactString(part).toLowerCase())
+			.join(":");
+		const locationKey = application.gymPlaceId
+			? `google:${application.gymPlaceId}`
+			: `manual:${manualLocationKey}`;
+		const gym = existingGym || createdGymsByLocation.get(locationKey) || buildGymFromApplication(application);
+		if (!existingGym && !createdGymsByLocation.has(locationKey)) {
+			createdGymsByLocation.set(locationKey, gym);
+			createdGyms.push(gym);
+		}
 		return buildCoachFromApplication(application, gym.id);
 	});
 
@@ -546,9 +576,13 @@ export async function refreshApprovedCoachCache() {
 		return getApprovedCache();
 	}
 
-	const applications = await getCoachApplications(
-		COACH_APPLICATION_STATUSES.ACCEPTED,
-	);
+	const supabase = requireSupabase();
+	const { data, error } = await supabase
+		.from("coach_directory")
+		.select("*")
+		.order("created_at", { ascending: false });
+	if (error) throw error;
+	const applications = (data || []).map(mapSupabaseApplication);
 	const approvedData = buildApprovedData(applications);
 	writeJson(APPROVED_CACHE_KEY, approvedData);
 	return approvedData;

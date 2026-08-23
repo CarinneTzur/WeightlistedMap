@@ -19,6 +19,11 @@ import {
 	useLocalMediaDrafts,
 } from "./src/components/ChatMedia";
 import ServicesFlow from "./src/components/ServicesFlow";
+import AccountPanel from "./src/components/AccountPanel";
+import AccountMenu from "./src/components/AccountMenu";
+import ClientOnboarding from "./src/components/ClientOnboarding";
+import ProfileCompletionPrompt from "./src/components/ProfileCompletionPrompt";
+import { CLIENT_ONBOARDING_ENABLED, useAuth } from "./src/auth/AuthContext";
 import {
 	appendDirectMessage,
 	DIRECT_MESSAGES_CHANGED_EVENT,
@@ -1454,8 +1459,9 @@ const styles = {
 		width: "100%",
 		maxWidth: 520,
 		margin: "3px auto 0",
-		paddingRight: 3,
-		justifyContent: "flex-end",
+		padding: "0 3px",
+		justifyContent: "space-between",
+		alignItems: "center",
 		pointerEvents: "auto",
 	},
 	mobileCoachApplyButton: {
@@ -2267,7 +2273,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	);
 }
 
-function DirectMessagesPanel({ coaches, onBack, onOpenThread }) {
+function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) {
 	const [threads, setThreads] = useState(() => loadDirectMessageThreads());
 
 	useEffect(() => {
@@ -2287,14 +2293,23 @@ function DirectMessagesPanel({ coaches, onBack, onOpenThread }) {
 	}
 
 	return (
-		<div className="coach-scroll-panel direct-messages-panel" style={styles.coachListPanelInner}>
-			<div style={styles.coachListHeader}>
+		<div
+			className="coach-scroll-panel direct-messages-panel"
+			style={{ ...styles.coachListPanelInner, marginRight: 10, padding: 0 }}
+		>
+			<div className="direct-messages-header" style={styles.coachListHeader}>
 				<button style={styles.backArrow} aria-label="Back to map" onClick={onBack}>←</button>
-				<div>
-					<div style={{ fontSize: 12, color: palette.muted, textTransform: "uppercase", letterSpacing: "0.18em" }}>Conversations</div>
-					<div style={{ fontWeight: 650, fontSize: 21, color: palette.text, letterSpacing: -0.3 }}>Messages</div>
+				<div className="direct-messages-header__copy">
+					<div className="direct-messages-header__eyebrow" style={{ fontSize: 12, color: palette.muted, textTransform: "uppercase", letterSpacing: "0.18em" }}>Conversations</div>
+					<div className="direct-messages-header__title" style={{ fontWeight: 650, fontSize: 21, color: palette.text, letterSpacing: -0.3 }}>Messages</div>
 				</div>
 			</div>
+			{onOpenServices ? (
+				<nav className="communication-panel-tabs" aria-label="Communication type">
+					<button type="button" className="is-active" aria-current="page">Messages</button>
+					<button type="button" onClick={onOpenServices}>Services</button>
+				</nav>
+			) : null}
 			{threads.length ? (
 				<div className="direct-message-list">
 					{threads.map((thread) => {
@@ -2568,6 +2583,7 @@ function CoachListPanel({
 	onOpenProfile,
 	onProfileBack,
 	restoreResultsScrollTop = 0,
+	profileCompletionPrompt = null,
 }) {
 	const scrollPanelRef = useRef(null);
 	const isCompact = !isDesktop;
@@ -2704,6 +2720,7 @@ function CoachListPanel({
 					) : null}
 				</div>
 			)}
+			{profileCompletionPrompt}
 			<div>
 				{coaches.length === 0 ? (
 					<div style={styles.emptyState}>{emptyMessage}</div>
@@ -3329,7 +3346,8 @@ function MobileFilterSheet({
 	);
 }
 
-function CoachMapApp({ onOpenApplication }) {
+function CoachMapApp({ onOpenApplication, onRequireAuth }) {
+	const { user, profile, signOut, clientOnboardingOpen, openClientOnboarding } = useAuth();
 	const MOCK_STATES = useMemo(() => getStatesWithCoaches(), []);
 	const mapNodeRef = useRef(null);
 	const mapRef = useRef(null);
@@ -3348,6 +3366,7 @@ function CoachMapApp({ onOpenApplication }) {
 	const preLocationViewRef = useRef(null);
 	const preProfileViewRef = useRef(null);
 	const preServicesMobileViewRef = useRef(null);
+	const preAccountMobileViewRef = useRef(null);
 	const currentPanelViewRef = useRef(null);
 	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
 	const visualViewport = useVisualViewportMetrics();
@@ -3383,7 +3402,9 @@ function CoachMapApp({ onOpenApplication }) {
 	const [mobileSearchExpanded, setMobileSearchExpanded] = useState(false);
 	const [servicesOpen, setServicesOpen] = useState(false);
 	const [servicesInitialView, setServicesInitialView] = useState("new");
+	const [servicesReturnToMessages, setServicesReturnToMessages] = useState(false);
 	const [messagesOpen, setMessagesOpen] = useState(false);
+	const [accountOpen, setAccountOpen] = useState(false);
 	const [mobileSheetSnap, setMobileSheetSnap] = useState("half");
 	const [statesPanelOpen, setStatesPanelOpen] = useState(false);
 	const [gymPanel, setGymPanel] = useState(null);
@@ -3406,6 +3427,7 @@ function CoachMapApp({ onOpenApplication }) {
 		favoritesOpen,
 		semanticSearchOpen,
 		messagesOpen,
+		accountOpen,
 		trainingType,
 		profileCoach,
 		contactCoach,
@@ -3488,7 +3510,14 @@ function CoachMapApp({ onOpenApplication }) {
 		Boolean(profileCoach) ||
 		Boolean(contactCoach) ||
 		messagesOpen ||
-		servicesOpen;
+		servicesOpen ||
+		accountOpen ||
+		clientOnboardingOpen;
+	const showProfileCompletionPrompt =
+		CLIENT_ONBOARDING_ENABLED &&
+		Boolean(user) &&
+		!profile?.onboarding_completed_at &&
+		!clientOnboardingOpen;
 	const state = useMemo(
 		() => (selectedState ? getStateByAbbr(selectedState) : null),
 		[selectedState],
@@ -4027,17 +4056,36 @@ function CoachMapApp({ onOpenApplication }) {
 		setMobileFilterSheetOpen(false);
 	}
 
-	function openServices(view = "new") {
-		prepareCommunicationPanel();
+	function showServices(view = "new", { returnToMessages = false } = {}) {
+		if (!returnToMessages) prepareCommunicationPanel();
+		setServicesReturnToMessages(returnToMessages);
 		setMessagesOpen(false);
+		setAccountOpen(false);
 		setContactCoach(null);
 		setServicesInitialView(view === "requests" ? "requests" : "new");
 		setServicesOpen(true);
 	}
 
+	function openServices(view = "new", options = {}) {
+		if (view === "requests") {
+			onRequireAuth?.({
+				reason: "service_history",
+				onAuthenticated: () => showServices(view, options),
+			});
+			return;
+		}
+		showServices(view, options);
+	}
+
 	function closeServices() {
 		const previousView = preServicesMobileViewRef.current;
+		const returnToMessages = servicesReturnToMessages;
 		setServicesOpen(false);
+		setServicesReturnToMessages(false);
+		if (returnToMessages) {
+			setMessagesOpen(true);
+			return;
+		}
 		if (!isDesktop && previousView) {
 			setMobileSheetSnap(previousView.mobileSheetSnap);
 			setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
@@ -4046,12 +4094,67 @@ function CoachMapApp({ onOpenApplication }) {
 		preServicesMobileViewRef.current = null;
 	}
 
-	function openMessages() {
+	function showMessages() {
 		prepareCommunicationPanel();
 		setServicesOpen(false);
+		setAccountOpen(false);
 		setMessagesOpen(true);
 		setProfileCoach(null);
 		setContactCoach(null);
+	}
+
+	function openMessages() {
+		onRequireAuth?.({
+			reason: "messages",
+			onAuthenticated: showMessages,
+		});
+	}
+
+	function openContactCoach(coach) {
+		onRequireAuth?.({
+			reason: "contact",
+			onAuthenticated: () => setContactCoach(coach),
+		});
+	}
+
+	function showAccount() {
+		if (!isDesktop) {
+			preAccountMobileViewRef.current = {
+				mobileSheetSnap,
+				mobileHeaderCollapsed,
+				mobileSearchExpanded,
+			};
+			mobileSearchInputRef.current?.blur();
+			setMobileSearchExpanded(false);
+			setMobileHeaderCollapsed(true);
+			setMobileSheetSnap("full");
+		}
+		setMobileLocationSheetOpen(false);
+		setMobileFilterSheetOpen(false);
+		setServicesOpen(false);
+		setMessagesOpen(false);
+		setContactCoach(null);
+		setAccountOpen(true);
+	}
+
+	function openAccount() {
+		onRequireAuth?.({ reason: "account", onAuthenticated: showAccount });
+	}
+
+	function closeAccount() {
+		const previousView = preAccountMobileViewRef.current;
+		setAccountOpen(false);
+		if (!isDesktop && previousView) {
+			setMobileSheetSnap(previousView.mobileSheetSnap);
+			setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
+			setMobileSearchExpanded(previousView.mobileSearchExpanded);
+		}
+		preAccountMobileViewRef.current = null;
+	}
+
+	async function signOutFromMenu() {
+		await signOut();
+		closeAccount();
 	}
 
 	function closeMessages() {
@@ -4071,6 +4174,8 @@ function CoachMapApp({ onOpenApplication }) {
 			closeMobileSearchMode();
 			return;
 		}
+
+		prepareMobileCoachSearch();
 
 		// Keep the render and focus inside the original tap so iOS opens the keyboard.
 		mobileSearchResultsScrollTopRef.current = 0;
@@ -4178,10 +4283,26 @@ function CoachMapApp({ onOpenApplication }) {
 	}
 
 	function prepareMobileCoachSearch() {
+		preFavoritesViewRef.current = null;
+		preProfileViewRef.current = null;
+		preServicesMobileViewRef.current = null;
+		preAccountMobileViewRef.current = null;
 		setAllPanelDismissed(false);
 		setStatesPanelOpen(false);
+		setFavoritesOpen(false);
+		setSemanticSearchOpen(false);
+		setProfileCoach(null);
+		setContactCoach(null);
+		setServicesOpen(false);
+		setServicesReturnToMessages(false);
+		setMessagesOpen(false);
+		setAccountOpen(false);
 		setGymPanel(null);
 		setFilter("all");
+		setLocationDropdownOpen(false);
+		setMobileLocationSheetOpen(false);
+		setMobileFilterSheetOpen(false);
+		setMobileHeaderCollapsed(false);
 		setMobileSheetSnap("half");
 	}
 
@@ -4291,6 +4412,7 @@ function CoachMapApp({ onOpenApplication }) {
 		setSemanticSearchOpen(false);
 		setProfileCoach(null);
 		setContactCoach(null);
+		setAccountOpen(false);
 		setSearch("");
 		setSearchTags([]);
 		setTrainingType("either");
@@ -4402,6 +4524,10 @@ function CoachMapApp({ onOpenApplication }) {
 	}
 
 	function openSemanticSearchPanel() {
+		preFavoritesViewRef.current = null;
+		preProfileViewRef.current = null;
+		preServicesMobileViewRef.current = null;
+		preAccountMobileViewRef.current = null;
 		setSelectedState(null);
 		setAllPanelDismissed(true);
 		setStatesPanelOpen(false);
@@ -4409,10 +4535,19 @@ function CoachMapApp({ onOpenApplication }) {
 		setSemanticSearchOpen(true);
 		setProfileCoach(null);
 		setContactCoach(null);
+		setServicesOpen(false);
+		setServicesReturnToMessages(false);
+		setMessagesOpen(false);
+		setAccountOpen(false);
+		setFilter("all");
 		setTrainingType("either");
 		setGymPanel(null);
 		setClusterPanel(null);
 		setLocationDropdownOpen(false);
+		setMobileLocationSheetOpen(false);
+		setMobileFilterSheetOpen(false);
+		setMobileSearchExpanded(false);
+		setMobileHeaderCollapsed(false);
 		setMobileSheetSnap("half");
 	}
 
@@ -4763,7 +4898,7 @@ function CoachMapApp({ onOpenApplication }) {
 			visualViewport.offsetTop + visualViewport.height - mobileSearchResultsTop,
 		),
 	);
-	const effectiveMobileSheetSnap = isMobile && (servicesOpen || messagesOpen)
+	const effectiveMobileSheetSnap = isMobile && (servicesOpen || messagesOpen || accountOpen || clientOnboardingOpen)
 		? "full"
 		: isMobileSearchMode
 		? "half"
@@ -4783,14 +4918,28 @@ function CoachMapApp({ onOpenApplication }) {
 						? "54dvh"
 						: "52dvh";
 	const effectivePanelVisible = isMobile ? true : panelVisible;
+	const isCoachSearchPanelActive =
+		semanticSearchOpen &&
+		!servicesOpen &&
+		!messagesOpen &&
+		!accountOpen &&
+		!clientOnboardingOpen &&
+		!profileCoach &&
+		!contactCoach &&
+		!statesPanelOpen &&
+		!gymPanel &&
+		!clusterPanel &&
+		!favoritesOpen;
 	const hideFloatingControls =
 		isMobileSearchMode ||
 		(isShortMobile && panelVisible) ||
-		(isMobile && Boolean(servicesOpen || messagesOpen || profileCoach || contactCoach));
+		(isMobile && Boolean(servicesOpen || messagesOpen || accountOpen || clientOnboardingOpen || profileCoach || contactCoach));
 	const hideCommunicationLaunchers =
 		isMobile && (
 			servicesOpen ||
 			messagesOpen ||
+			accountOpen ||
+			clientOnboardingOpen ||
 			isMobileSearchMode ||
 			mobileLocationSheetOpen ||
 			mobileFilterSheetOpen ||
@@ -4818,7 +4967,8 @@ function CoachMapApp({ onOpenApplication }) {
 		mobileLocationSheetOpen ||
 		mobileFilterSheetOpen ||
 		servicesOpen ||
-		messagesOpen;
+		messagesOpen ||
+		accountOpen;
 	const mobileDialogOpen = mobileLocationSheetOpen || mobileFilterSheetOpen;
 
 	return (
@@ -5031,14 +5181,6 @@ function CoachMapApp({ onOpenApplication }) {
 							</button>
 							<button
 								type="button"
-								style={styles.mobileToolbarButton}
-								onClick={() => openServices("new")}
-								aria-label="Open Quick Services"
-							>
-								Services
-							</button>
-							<button
-								type="button"
 								style={{ ...styles.mobileIconButton, width: 40, height: 40, fontSize: 20 }}
 								onClick={() => {
 									setMobileSearchExpanded(false);
@@ -5052,15 +5194,20 @@ function CoachMapApp({ onOpenApplication }) {
 							</div>
 						)}
 					</div>
-					{!isMobileSearchMode && onOpenApplication ? (
+					{!isMobileSearchMode && (onOpenApplication || onRequireAuth) ? (
 						<div style={styles.mobileCoachApplyRow}>
-							<button
-								type="button"
-								style={styles.mobileCoachApplyButton}
-								onClick={onOpenApplication}
-							>
-								Be a Coach
-							</button>
+							<AccountMenu
+								compact
+								user={user}
+								profile={profile}
+								onOpenAccount={openAccount}
+								onSignOut={signOutFromMenu}
+							/>
+							{onOpenApplication ? (
+								<button type="button" style={styles.mobileCoachApplyButton} onClick={onOpenApplication}>
+									Be a Coach
+								</button>
+							) : null}
 						</div>
 					) : null}
 				</header>
@@ -5108,7 +5255,7 @@ function CoachMapApp({ onOpenApplication }) {
 
 			{isMobile ? (
 				<nav
-					className="mobile-communications-launchers communications-segmented-control"
+					className="mobile-communications-launchers mobile-communications-launchers--single communications-segmented-control"
 					aria-label="Conversations"
 					style={{
 						position: "absolute",
@@ -5119,26 +5266,32 @@ function CoachMapApp({ onOpenApplication }) {
 					}}
 				>
 					<button type="button" onClick={openMessages}>Messages</button>
-					<button type="button" onClick={() => openServices("requests")}>Services</button>
 				</nav>
 			) : null}
 
 			{isDesktop ? (
-				<nav
-					className="communications-segmented-control desktop-communications-launcher"
-					aria-label="Conversations"
+				<div
+					className="desktop-communications-cluster"
 					style={{
 						position: "absolute",
 						zIndex: 905,
 						right: panelVisible ? 454 : 24,
 						bottom: 24,
-						display: hideCommunicationLaunchers ? "none" : "grid",
+						display: hideCommunicationLaunchers ? "none" : "flex",
 						transition: "right 0.42s cubic-bezier(.66,.09,.28,1)",
 					}}
 				>
-					<button type="button" onClick={openMessages}>Messages</button>
-					<button type="button" onClick={() => openServices("requests")}>Services</button>
-				</nav>
+					<AccountMenu
+						user={user}
+						profile={profile}
+						onOpenAccount={openAccount}
+						onSignOut={signOutFromMenu}
+					/>
+					<nav className="communications-segmented-control desktop-communications-launcher" aria-label="Conversations">
+						<button type="button" onClick={openMessages}>Messages</button>
+						<button type="button" onClick={() => openServices("requests")}>Services</button>
+					</nav>
+				</div>
 			) : null}
 
 			<button
@@ -5157,11 +5310,12 @@ function CoachMapApp({ onOpenApplication }) {
 							}
 						: {}),
 					...(hideFloatingControls ? { display: "none" } : {}),
-					...(semanticSearchOpen ? styles.semanticSearchButtonActive : {}),
+					...(isCoachSearchPanelActive ? styles.semanticSearchButtonActive : {}),
 					...(isMobile ? { display: "none" } : {}),
 				}}
 				onClick={openSemanticSearchPanel}
 				aria-label="Open semantic coach search"
+				aria-pressed={isCoachSearchPanelActive}
 			>
 				<span style={styles.semanticSearchIcon}>⌕</span>
 				<span>Search coaches</span>
@@ -5517,7 +5671,7 @@ function CoachMapApp({ onOpenApplication }) {
 						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
 					borderTopRightRadius:
 						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
-					padding: servicesOpen
+					padding: servicesOpen || messagesOpen || accountOpen || clientOnboardingOpen
 						? 0
 						: isDesktop
 						? "34px 34px 22px"
@@ -5549,10 +5703,29 @@ function CoachMapApp({ onOpenApplication }) {
 				aria-hidden={!effectivePanelVisible || mobileDialogOpen}
 				inert={effectivePanelVisible && !mobileDialogOpen ? undefined : ""}
 			>
-				{servicesOpen ? (
-					<ServicesFlow open embedded initialView={servicesInitialView} onClose={closeServices} />
+				{CLIENT_ONBOARDING_ENABLED && clientOnboardingOpen ? <ClientOnboarding open /> : null}
+				{accountOpen ? (
+					<AccountPanel
+						open
+						embedded
+						onClose={closeAccount}
+						onOpenMatchingPreferences={CLIENT_ONBOARDING_ENABLED ? () => {
+							setAccountOpen(false);
+							openClientOnboarding();
+						} : undefined}
+					/>
 				) : null}
-				{isMobile && effectivePanelVisible && !isMobileSearchMode && !servicesOpen && !messagesOpen ? (
+				{servicesOpen ? (
+					<ServicesFlow
+						open
+						embedded
+						initialView={servicesInitialView}
+						onClose={closeServices}
+						backLabel={servicesReturnToMessages ? "Back to messages" : "Back to coaches"}
+						onRequireAuth={onRequireAuth}
+					/>
+				) : null}
+				{isMobile && effectivePanelVisible && !isMobileSearchMode && !servicesOpen && !messagesOpen && !accountOpen ? (
 					<button
 						type="button"
 						style={{ ...styles.mobileSheetHandle, border: 0, padding: 0, cursor: "grab", touchAction: "none" }}
@@ -5569,7 +5742,7 @@ function CoachMapApp({ onOpenApplication }) {
 						/>
 					</button>
 				) : null}
-				{isMobile && effectiveMobileSheetSnap === "collapsed" && !servicesOpen && !messagesOpen ? (
+				{isMobile && effectiveMobileSheetSnap === "collapsed" && !servicesOpen && !messagesOpen && !accountOpen ? (
 					<button
 						type="button"
 						style={{ border: 0, background: "transparent", color: palette.text, font: "inherit", textAlign: "left", padding: "2px 2px 8px", cursor: "pointer" }}
@@ -5583,7 +5756,9 @@ function CoachMapApp({ onOpenApplication }) {
 				) : null}
 				<div
 					key={
-						messagesOpen
+						accountOpen
+							? "account"
+							: messagesOpen
 							? "messages"
 							: statesPanelOpen
 							? "states"
@@ -5595,7 +5770,7 @@ function CoachMapApp({ onOpenApplication }) {
 					style={{
 						flex: 1,
 						minHeight: 0,
-						display: servicesOpen
+						display: servicesOpen || accountOpen || clientOnboardingOpen
 							? "none"
 							: isMobile && effectiveMobileSheetSnap === "collapsed"
 								? "none"
@@ -5611,7 +5786,12 @@ function CoachMapApp({ onOpenApplication }) {
 								isDesktop={isDesktop}
 							/>
 						) : (
-							<DirectMessagesPanel coaches={allCoaches} onBack={closeMessages} onOpenThread={setContactCoach} />
+							<DirectMessagesPanel
+								coaches={allCoaches}
+								onBack={closeMessages}
+								onOpenThread={setContactCoach}
+								onOpenServices={() => showServices("requests", { returnToMessages: true })}
+							/>
 						)
 					) : statesPanelOpen ? (
 						<StateListPanel
@@ -5655,14 +5835,22 @@ function CoachMapApp({ onOpenApplication }) {
 							searchTagScrollerRef={desktopSearchTagsRef}
 							focusedSearchMode={isMobileSearchMode}
 							onOpenProfile={openCoachProfile}
-							onProfileBack={handleCoachProfileBack}
-							restoreResultsScrollTop={mobileSearchResultsScrollTopRef.current}
+								onProfileBack={handleCoachProfileBack}
+								restoreResultsScrollTop={mobileSearchResultsScrollTopRef.current}
+								profileCompletionPrompt={
+									showProfileCompletionPrompt ? (
+										<ProfileCompletionPrompt
+											compact={isMobile}
+											onComplete={openClientOnboarding}
+										/>
+									) : null
+								}
 							hoveredCoachId={hoveredCoachId}
 							setHoveredCoachId={setHoveredCoachId}
 							favoriteCoachIds={favoriteCoachIds}
 							onToggleFavorite={toggleFavoriteCoach}
 							contactCoach={contactCoach}
-							setContactCoach={setContactCoach}
+							setContactCoach={openContactCoach}
 							isDesktop={isDesktop}
 							emptyMessage={activePanelEmptyMessage}
 							searchAutoFocus={isDesktop}
@@ -5689,6 +5877,15 @@ function CoachMapApp({ onOpenApplication }) {
 export default function App() {
 	const [route, setRoute] = useState(() => getCurrentAppRoute());
 	const [dataVersion, setDataVersion] = useState(0);
+	const protectedRoutePromptedRef = useRef("");
+	const {
+		user,
+		profile,
+		loading: authLoading,
+		profileLoading,
+		isAdmin,
+		requireAuth,
+	} = useAuth();
 
 	useEffect(() => {
 		function syncRoute() {
@@ -5703,6 +5900,27 @@ export default function App() {
 			window.removeEventListener("popstate", syncRoute);
 		};
 	}, []);
+
+	useEffect(() => {
+		const protectedReason =
+			route.path === "/coach-apply"
+				? "coach_application"
+				: route.path === "/admin/coach-applications"
+					? "account"
+					: "";
+		const profileCanAct = profile?.profile_visible !== false;
+		const routeIsAvailable = user && (protectedReason === "account" || profileCanAct);
+		if (!protectedReason || routeIsAvailable) {
+			protectedRoutePromptedRef.current = "";
+			return;
+		}
+		if (authLoading || profileLoading || protectedRoutePromptedRef.current === route.path) return;
+		protectedRoutePromptedRef.current = route.path;
+		requireAuth({
+			reason: protectedReason,
+			onCancel: () => navigateToAppRoute("/"),
+		});
+	}, [authLoading, profile?.profile_visible, profileLoading, requireAuth, route.path, user]);
 
 	useEffect(() => {
 		function handleApplicationChange() {
@@ -5740,20 +5958,43 @@ export default function App() {
 	}, []);
 
 	const goHome = () => navigateToAppRoute("/");
-	const goToApplication = () => navigateToAppRoute("/coach-apply");
+	const goToApplication = () =>
+		requireAuth({
+			reason: "coach_application",
+			onAuthenticated: () => navigateToAppRoute("/coach-apply"),
+		});
 
 	if (SHOW_COACH_APPLICATION_CTA && route.path === "/coach-apply") {
+		if (authLoading || profileLoading || !user || profile?.profile_visible === false) {
+			return <RouteLoading label="Account required" />;
+		}
 		return (
 			<React.Suspense fallback={<RouteLoading label="Coach application" />}>
 				<CoachApplicationForm
 					onBackToMap={goHome}
-					adminHref="#/admin/coach-applications"
+					accountEmail={user.email || ""}
 				/>
 			</React.Suspense>
 		);
 	}
 
 	if (route.path === "/admin/coach-applications") {
+		if (authLoading || !user || profileLoading) {
+			return <RouteLoading label="Checking access" />;
+		}
+		if (!isAdmin) {
+			return (
+				<main style={{ ...styles.shell, display: "grid", placeItems: "center", padding: 24 }}>
+					<section style={{ maxWidth: 520, textAlign: "center", color: palette.text }}>
+						<h1 style={{ margin: 0, fontSize: 32 }}>Admin access only</h1>
+						<p style={{ color: palette.muted, lineHeight: 1.55 }}>
+							Coach applications are private. Only an approved Weightlisted administrator can open this review area.
+						</p>
+						<button type="button" style={styles.primaryButton} onClick={goHome}>Back to map</button>
+					</section>
+				</main>
+			);
+		}
 		return (
 			<React.Suspense fallback={<RouteLoading label="Admin review" />}>
 				<CoachApplicationAdmin
@@ -5768,6 +6009,7 @@ export default function App() {
 	return (
 		<CoachMapApp
 			key={`coach-map-${dataVersion}`}
+			onRequireAuth={requireAuth}
 			onOpenApplication={
 				SHOW_COACH_APPLICATION_CTA ? goToApplication : undefined
 			}

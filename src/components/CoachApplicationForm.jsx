@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
 	COACH_APPLICATION_ADMIN_EMAIL,
 	normalizeStateAbbr,
@@ -8,6 +8,7 @@ import {
 import coachApplicationBackground from "../../assets/coach-application-bg-optimized.jpg";
 import { gyms as knownGyms } from "../../data/gyms";
 import { STATE_CENTERS } from "../../data/usStates";
+import GymPlaceAutocomplete from "./GymPlaceAutocomplete";
 
 const CAL_INTERVIEW_LINK = "https://cal.com/carinne-tzurdecker-rwwlw0/30min";
 const CAL_INTERVIEW_EVENT_SLUG = "30min";
@@ -36,6 +37,10 @@ const blankForm = {
 	gymName: "",
 	gymCity: "",
 	gymState: "",
+	gymPlaceId: "",
+	gymAddress: "",
+	gymLatitude: null,
+	gymLongitude: null,
 	coachTitle: "",
 	specialties: [],
 	bio: "",
@@ -776,15 +781,6 @@ const styles = {
 	},
 };
 
-function buildReviewUrl(applicationId) {
-	if (typeof window === "undefined") return "#/admin/coach-applications";
-
-	const baseUrl = `${window.location.origin}${window.location.pathname}`;
-	return `${baseUrl}#/admin/coach-applications?application=${encodeURIComponent(
-		applicationId,
-	)}`;
-}
-
 function formatStateInput(value) {
 	const trimmedStart = String(value ?? "").replace(/^\s+/, "");
 	if (trimmedStart.length <= 2) return trimmedStart.toUpperCase();
@@ -807,7 +803,7 @@ function getSubmitErrorMessage(error) {
 		message.toLowerCase().includes("violates row-level security policy");
 
 	if (isRowLevelSecurityError) {
-		return "The form is working, but Supabase is blocking public application submissions. Add the coach_applications insert policy in Supabase, then try again.";
+		return "This account is not allowed to submit that application. Confirm you are signed in and that the private coach-application policies have been installed.";
 	}
 
 	return message || "Something went wrong while saving the application.";
@@ -1340,7 +1336,7 @@ function CoachingFormatPicker({ value, onChange }) {
 	);
 }
 
-export default function CoachApplicationForm({ onBackToMap, adminHref }) {
+export default function CoachApplicationForm({ onBackToMap, accountEmail = "" }) {
 	const [form, setForm] = useState(blankForm);
 	const [photoFile, setPhotoFile] = useState(null);
 	const [specialtyChoice, setSpecialtyChoice] = useState("");
@@ -1353,13 +1349,11 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 	const [error, setError] = useState("");
 	const [submittedApplication, setSubmittedApplication] = useState(null);
 
-	const reviewUrl = useMemo(
-		() =>
-			submittedApplication
-				? buildReviewUrl(submittedApplication.id)
-				: adminHref,
-		[adminHref, submittedApplication],
-	);
+
+	useEffect(() => {
+		if (!accountEmail) return;
+		setForm((current) => current.email ? current : { ...current, email: accountEmail });
+	}, [accountEmail]);
 
 	useEffect(() => {
 		function handleCalEmbedMessage(event) {
@@ -1404,6 +1398,30 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 			...current,
 			[cityName]: city,
 			[stateName]: state,
+		}));
+	}
+
+	function chooseGymPlace(gym) {
+		setForm((current) => ({
+			...current,
+			gymName: gym.name,
+			gymPlaceId: gym.placeId,
+			gymAddress: gym.address,
+			gymCity: gym.city || current.gymCity,
+			gymState: normalizeStateAbbr(gym.state) || current.gymState,
+			gymLatitude: gym.latitude,
+			gymLongitude: gym.longitude,
+		}));
+	}
+
+	function updateGymName(gymName) {
+		setForm((current) => ({
+			...current,
+			gymName,
+			gymPlaceId: "",
+			gymAddress: "",
+			gymLatitude: null,
+			gymLongitude: null,
 		}));
 	}
 
@@ -1475,6 +1493,10 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 			gymName: checked ? "" : current.gymName,
 			gymCity: checked ? "" : current.gymCity,
 			gymState: checked ? "" : current.gymState,
+			gymPlaceId: checked ? "" : current.gymPlaceId,
+			gymAddress: checked ? "" : current.gymAddress,
+			gymLatitude: checked ? null : current.gymLatitude,
+			gymLongitude: checked ? null : current.gymLongitude,
 			coachingFormats: checked
 				? ["Online coaching"]
 				: current.coachingFormats,
@@ -1482,7 +1504,7 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 	}
 
 	function resetForm() {
-		setForm(blankForm);
+		setForm({ ...blankForm, email: accountEmail });
 		setPhotoFile(null);
 		setSpecialtyChoice("");
 		setCustomSpecialty("");
@@ -1553,6 +1575,10 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 				gymName: form.onlineOnly ? "" : form.gymName,
 				gymCity: form.onlineOnly ? "" : form.gymCity,
 				gymState: form.onlineOnly ? "" : normalizeStateAbbr(form.gymState),
+				gymPlaceId: form.onlineOnly ? "" : form.gymPlaceId,
+				gymAddress: form.onlineOnly ? "" : form.gymAddress,
+				latitude: form.onlineOnly ? null : form.gymLatitude,
+				longitude: form.onlineOnly ? null : form.gymLongitude,
 				coachingFormats: form.onlineOnly
 					? ["Online coaching"]
 					: form.coachingFormats,
@@ -1583,9 +1609,7 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 					<button type="button" style={styles.backLink} onClick={onBackToMap}>
 						Back to map
 					</button>
-					<a style={styles.adminLink} href={adminHref}>
-						Admin will review
-					</a>
+					<span style={styles.adminLink}>Admin will review</span>
 				</div>
 
 				<header style={styles.header}>
@@ -1610,14 +1634,9 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 						<strong>Application submitted.</strong>
 						<br />
 						Status: {submittedApplication.status}
-						<br />
-						Review link:{" "}
-						<a style={styles.link} href={reviewUrl}>
-							open application
-						</a>
 						<p style={{ marginTop: 12 }}>
-							Your application was saved. If email automation is enabled in
-							Supabase, confirmation emails will be sent automatically.
+							This application is private to your account. We’ll email you when
+							its status changes.
 						</p>
 						<div style={{ ...styles.actions, marginTop: 16 }}>
 							<button type="button" style={styles.backLink} onClick={resetForm}>
@@ -1691,17 +1710,6 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 								</span>
 							</label>
 							<div style={styles.gridThree}>
-								<Field
-									label="Gym name"
-									name="gymName"
-									value={form.gymName}
-									onChange={updateField}
-									required={!form.onlineOnly}
-									disabled={form.onlineOnly}
-									placeholder={
-										form.onlineOnly ? "Not needed for online-only coaches" : ""
-									}
-								/>
 								<LocationField
 									label="Gym city and state"
 									cityName="gymCity"
@@ -1712,6 +1720,18 @@ export default function CoachApplicationForm({ onBackToMap, adminHref }) {
 									placeholder="Start typing the gym city"
 									required={!form.onlineOnly}
 									disabled={form.onlineOnly}
+								/>
+								<GymPlaceAutocomplete
+									label="Gym name and exact location"
+									helper="Choose the exact branch from Google Maps."
+									value={form.gymName}
+									placeId={form.gymPlaceId}
+									locationHint={[form.gymCity, form.gymState].filter(Boolean).join(", ")}
+									required={!form.onlineOnly}
+									disabled={form.onlineOnly}
+									placeholder={form.onlineOnly ? "Not needed for online-only coaches" : "Start typing the gym name"}
+									onChange={updateGymName}
+									onSelect={chooseGymPlace}
 								/>
 							</div>
 						</section>

@@ -1,0 +1,87 @@
+.gym-place-field {
+	position: relative;
+	display: grid;
+	gap: 7px;
+	min-width: 0;
+	color: #f2f1ef;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.gym-place-field > span {
+	color: rgba(242, 241, 239, 0.9);
+	font-size: 14.5px;
+	font-weight: 460;
+	line-height: 1.35;
+}
+
+.gym-place-field > span em {
+	margin-left: 5px;
+	color: rgba(198, 197, 195, 0.68);
+	font-size: 13px;
+	font-style: normal;
+	font-weight: 400;
+}
+
+.gym-place-field input {
+	box-sizing: border-box;
+	width: 100%;
+	height: 46px;
+	min-height: 46px;
+	padding: 0 16px;
+	border: 1px solid rgba(198, 197, 195, 0.2);
+	border-radius: 13px;
+	outline: none;
+	background: rgba(30, 28, 30, 0.72);
+	box-shadow: 0 1.5px 8px rgba(0, 0, 0, 0.22) inset;
+	color: #f2f1ef;
+	font: inherit;
+	font-size: 16px;
+	line-height: 1.35;
+}
+
+.gym-place-field input::placeholder { color: rgba(198, 197, 195, 0.58); }
+.gym-place-field input:focus { border-color: rgba(242, 241, 239, 0.52); box-shadow: 0 0 0 2px rgba(198, 197, 195, 0.12), 0 1.5px 8px rgba(0, 0, 0, 0.22) inset; }
+.gym-place-field input:disabled { opacity: 0.58; cursor: not-allowed; }
+
+.gym-place-field__selected { color: rgba(198, 197, 195, 0.68); font-size: 12.5px; font-weight: 400; }
+.gym-place-field__results {
+	position: absolute;
+	z-index: 8;
+	top: calc(100% - 1px);
+	left: 0;
+	right: 0;
+	display: grid;
+	overflow: hidden;
+	border: 1px solid rgba(198, 197, 195, 0.22);
+	border-radius: 0 0 13px 13px;
+	background: rgba(31, 29, 31, 0.99);
+	box-shadow: 0 16px 34px rgba(0, 0, 0, 0.32);
+}
+
+.gym-place-field__results button,
+.gym-place-field__empty,
+.gym-place-field__attribution {
+	border: 0;
+	border-bottom: 1px solid rgba(198, 197, 195, 0.11);
+	background: transparent;
+	font: inherit;
+	text-align: left;
+}
+
+.gym-place-field__results button {
+	display: grid;
+	gap: 2px;
+	padding: 10px 12px;
+	color: #f2f1ef;
+	cursor: pointer;
+}
+.gym-place-field__results button:hover { background: rgba(198, 197, 195, 0.09); }
+.gym-place-field__results button:disabled { opacity: 0.62; cursor: wait; }
+.gym-place-field__results strong { font-size: 13.5px; font-weight: 560; line-height: 1.3; }
+.gym-place-field__results span,
+.gym-place-field__empty { color: rgba(198, 197, 195, 0.7); font-size: 13px; font-weight: 400; line-height: 1.3; }
+.gym-place-field__manual { color: rgba(242, 241, 239, 0.9) !important; }
+.gym-place-field__empty { padding: 10px 12px; }
+.gym-place-field__attribution { padding: 7px 12px; color: rgba(198, 197, 195, 0.56); font-size: 10.5px; }
+.gym-place-field__attribution:last-child,
+.gym-place-field__results > :last-child { border-bottom: 0; }

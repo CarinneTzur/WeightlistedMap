@@ -169,7 +169,14 @@ function getDescriptionCopy(draft) {
 	};
 }
 
-export default function ServicesFlow({ open, onClose, embedded = false, initialView = "new" }) {
+export default function ServicesFlow({
+	open,
+	onClose,
+	embedded = false,
+	initialView = "new",
+	backLabel = "Back to coaches",
+	onRequireAuth,
+}) {
 	const navigationButtonRef = useRef(null);
 	const contentRef = useRef(null);
 	const requestMessagesRef = useRef(null);
@@ -297,13 +304,7 @@ export default function ServicesFlow({ open, onClose, embedded = false, initialV
 		goTo("review");
 	}
 
-	function submitRequest() {
-		const nextErrors = validateServiceRequest(draft, attachments.length);
-		if (Object.keys(nextErrors).length) {
-			setErrors(nextErrors);
-			setStep("details");
-			return;
-		}
+	function saveAndOpenRequest() {
 		const request = buildServiceRequest(draft, attachments);
 		setSubmittedRequest(request);
 		try {
@@ -312,6 +313,20 @@ export default function ServicesFlow({ open, onClose, embedded = false, initialV
 			// The confirmation still works when private browsing blocks local storage.
 		}
 		goTo("sent");
+	}
+
+	function submitRequest() {
+		const nextErrors = validateServiceRequest(draft, attachments.length);
+		if (Object.keys(nextErrors).length) {
+			setErrors(nextErrors);
+			setStep("details");
+			return;
+		}
+		if (onRequireAuth) {
+			onRequireAuth({ reason: "service", onAuthenticated: saveAndOpenRequest });
+			return;
+		}
+		saveAndOpenRequest();
 	}
 
 	function openRequest(requestId) {
@@ -631,7 +646,7 @@ export default function ServicesFlow({ open, onClose, embedded = false, initialV
 						type="button"
 						className="services-back-button"
 						onClick={handleHeaderBack}
-						aria-label={section === "requests" && activeRequestId || canGoBackInFlow ? "Go back" : "Back to coaches"}
+						aria-label={section === "requests" && activeRequestId || canGoBackInFlow ? "Go back" : backLabel}
 					>
 						←
 					</button>

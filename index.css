@@ -200,9 +200,88 @@ html {
 	background: rgba(198, 197, 195, 0.09);
 }
 
+.desktop-communications-cluster {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.desktop-communications-cluster .communications-segmented-control {
+	width: fit-content;
+	flex: 0 0 auto;
+}
+
+.desktop-communications-cluster .account-menu {
+	flex: 0 0 auto;
+}
+
+.communication-panel-tabs {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 4px;
+	margin: 0 20px 16px;
+	padding: 4px;
+	border: 1px solid rgba(198, 197, 195, 0.16);
+	border-radius: 14px;
+	background: rgba(30, 28, 30, 0.5);
+}
+
+.communication-panel-tabs button {
+	min-height: 38px;
+	border: 0;
+	border-radius: 10px;
+	background: transparent;
+	color: rgba(242, 241, 239, 0.68);
+	font: inherit;
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.communication-panel-tabs button.is-active {
+	background: rgba(242, 241, 239, 0.12);
+	color: #f2f1ef;
+}
+
+.communication-panel-tabs button:focus-visible {
+	outline: 2px solid #9cccf0;
+	outline-offset: 2px;
+}
+
+.direct-messages-header {
+	padding: 24px 20px 14px;
+	margin-bottom: 0 !important;
+}
+
+.direct-messages-header__copy {
+	display: flex;
+	min-width: 0;
+	flex-direction: column;
+}
+
+.direct-messages-header__eyebrow,
+.direct-messages-header__title {
+	line-height: 1.5;
+}
+
+.direct-messages-panel .direct-message-list,
+.direct-messages-panel .direct-messages-empty {
+	margin: 0 20px 18px;
+}
+
 @media (max-width: 1023px) {
 	.mobile-communications-launchers {
 		width: min(190px, calc(52vw - 14px));
+	}
+
+	.mobile-communications-launchers--single {
+		width: min(124px, calc(38vw - 14px));
+		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.mobile-communications-launchers--single button,
+	.mobile-communications-launchers--single button + button {
+		border-radius: 999px;
 	}
 
 	.mobile-communications-launchers button {
@@ -210,8 +289,17 @@ html {
 		font-size: 12.5px;
 	}
 
-	.direct-messages-panel {
-		padding-top: calc(8px + env(safe-area-inset-top)) !important;
+	.direct-messages-header {
+		padding: calc(14px + env(safe-area-inset-top)) 16px 16px;
+	}
+
+	.communication-panel-tabs {
+		margin: 0 16px 18px;
+	}
+
+	.direct-messages-panel .direct-message-list,
+	.direct-messages-panel .direct-messages-empty {
+		margin: 0 16px calc(22px + env(safe-area-inset-bottom));
 	}
 }
 

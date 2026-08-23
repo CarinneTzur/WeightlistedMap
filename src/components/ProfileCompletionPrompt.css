@@ -1,0 +1,84 @@
+.profile-completion-prompt {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 12px 0 14px;
+	padding: 11px 12px;
+	border: 1px solid rgba(198, 197, 195, 0.24);
+	border-radius: 15px;
+	background: linear-gradient(135deg, rgba(67, 63, 65, 0.72), rgba(30, 28, 30, 0.82));
+	box-shadow: 0 9px 24px rgba(0, 0, 0, 0.16);
+	color: #f2f1ef;
+	font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.profile-completion-prompt__copy {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 9px;
+}
+
+.profile-completion-prompt__copy > div { min-width: 0; }
+
+.profile-completion-prompt__icon {
+	display: grid;
+	width: 28px;
+	height: 28px;
+	flex: 0 0 auto;
+	place-items: center;
+	border: 1px solid rgba(242, 241, 239, 0.24);
+	border-radius: 50%;
+	background: rgba(242, 241, 239, 0.09);
+	font-size: 14px;
+}
+
+.profile-completion-prompt strong,
+.profile-completion-prompt p {
+	display: block;
+	margin: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.profile-completion-prompt strong {
+	font-size: 12.5px;
+	font-weight: 650;
+	line-height: 1.25;
+}
+
+.profile-completion-prompt p {
+	margin-top: 2px;
+	color: rgba(198, 197, 195, 0.72);
+	font-size: 12.5px;
+	font-weight: 400;
+	line-height: 1.25;
+}
+
+.profile-completion-prompt button {
+	min-height: 34px;
+	flex: 0 0 auto;
+	padding: 0 11px;
+	border: 1px solid rgba(242, 241, 239, 0.24);
+	border-radius: 10px;
+	background: #f2f1ef;
+	color: #242123;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 680;
+	cursor: pointer;
+	transition: transform 160ms ease, background 160ms ease;
+}
+
+.profile-completion-prompt button:hover { background: #fff; transform: translateY(-1px); }
+.profile-completion-prompt button:focus-visible { outline: 2px solid #9cccf0; outline-offset: 3px; }
+
+.profile-completion-prompt--compact { margin: 10px 0 12px; }
+
+@media (max-width: 420px) {
+	.profile-completion-prompt { padding: 10px; }
+	.profile-completion-prompt p { display: none; }
+}

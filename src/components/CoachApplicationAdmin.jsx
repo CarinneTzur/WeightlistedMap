@@ -337,10 +337,6 @@ const styles = {
 	},
 };
 
-function getAdminPin() {
-	return import.meta.env?.VITE_COACH_ADMIN_PIN || "";
-}
-
 function formatDate(value) {
 	if (!value) return "Unknown";
 
@@ -389,60 +385,6 @@ function PreviewSection({ title, children }) {
 			<h3 style={styles.previewSectionTitle}>{title}</h3>
 			{children}
 		</section>
-	);
-}
-
-function AdminLock({ onUnlock, onBackToMap }) {
-	const [pin, setPin] = useState("");
-	const [error, setError] = useState("");
-
-	function handleSubmit(event) {
-		event.preventDefault();
-
-		if (pin === getAdminPin()) {
-			sessionStorage.setItem("weightlisted.adminUnlocked", "true");
-			onUnlock();
-			return;
-		}
-
-		setError("That passcode did not match.");
-	}
-
-	return (
-		<main style={styles.page}>
-			<section style={styles.lockPanel}>
-				<button type="button" style={styles.buttonSoft} onClick={onBackToMap}>
-					Back to map
-				</button>
-				<h1 style={{ ...styles.title, fontSize: 34, marginTop: 20 }}>
-					Admin review
-				</h1>
-				<p style={styles.subtitle}>Enter the coach review passcode.</p>
-				<form onSubmit={handleSubmit}>
-					<label>
-						<span style={styles.label}>Review passcode</span>
-						<input
-							style={styles.input}
-							type="password"
-							value={pin}
-							onChange={(event) => setPin(event.target.value)}
-							autoComplete="current-password"
-							aria-invalid={Boolean(error)}
-							aria-describedby={error ? "admin-passcode-error" : undefined}
-							autoFocus
-						/>
-					</label>
-					<button type="submit" style={{ ...styles.buttonSoft, width: "100%" }}>
-						Unlock
-					</button>
-				</form>
-				{error ? (
-					<p id="admin-passcode-error" style={styles.error} role="alert">
-						{error}
-					</p>
-				) : null}
-			</section>
-		</main>
 	);
 }
 
@@ -648,12 +590,6 @@ export default function CoachApplicationAdmin({
 	applicationHref,
 	highlightedApplicationId,
 }) {
-	const adminPin = getAdminPin();
-	const [authenticated, setAuthenticated] = useState(
-		!adminPin ||
-			(typeof sessionStorage !== "undefined" &&
-				sessionStorage.getItem("weightlisted.adminUnlocked") === "true"),
-	);
 	const [applications, setApplications] = useState([]);
 	const [tab, setTab] = useState(COACH_APPLICATION_STATUSES.PENDING);
 	const [message, setMessage] = useState("");
@@ -753,15 +689,6 @@ export default function CoachApplicationAdmin({
 		}
 	}
 
-	if (!authenticated) {
-		return (
-			<AdminLock
-				onBackToMap={onBackToMap}
-				onUnlock={() => setAuthenticated(true)}
-			/>
-		);
-	}
-
 	return (
 		<main style={styles.page}>
 			<div style={styles.wrap}>
@@ -805,12 +732,6 @@ export default function CoachApplicationAdmin({
 						</button>
 					))}
 				</div>
-
-				{!adminPin ? (
-					<div style={{ ...styles.empty, marginBottom: 14 }}>
-						Set VITE_COACH_ADMIN_PIN to enable the admin passcode gate.
-					</div>
-				) : null}
 
 				{message ? (
 					<div
