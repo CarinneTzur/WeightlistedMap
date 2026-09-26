@@ -20,9 +20,11 @@ import {
 import {
 	appendServiceRequestMessage,
 	loadServiceRequests,
+	markServiceRequestRead,
 	saveServiceRequest,
 	SERVICE_REQUESTS_CHANGED_EVENT,
 } from "../services/conversationStore";
+import { useAuth } from "../auth/AuthContext";
 import "./ServicesFlow.css";
 
 const INITIAL_DRAFT = {
@@ -177,6 +179,7 @@ export default function ServicesFlow({
 	backLabel = "Back to coaches",
 	onRequireAuth,
 }) {
+	const { user, profile } = useAuth();
 	const navigationButtonRef = useRef(null);
 	const contentRef = useRef(null);
 	const requestMessagesRef = useRef(null);
@@ -187,7 +190,10 @@ export default function ServicesFlow({
 	const [draft, setDraft] = useState(INITIAL_DRAFT);
 	const [errors, setErrors] = useState({});
 	const [submittedRequest, setSubmittedRequest] = useState(null);
-	const [requests, setRequests] = useState(() => loadServiceRequests());
+	const [requests, setRequests] = useState(() => loadServiceRequests({
+		view: "user",
+		userId: user?.id || "",
+	}));
 	const [activeRequestId, setActiveRequestId] = useState(null);
 	const [requestMessage, setRequestMessage] = useState("");
 	const {
@@ -217,7 +223,7 @@ export default function ServicesFlow({
 
 		wasOpenRef.current = true;
 		setSection(initialView === "requests" ? "requests" : "new");
-		setRequests(loadServiceRequests());
+		setRequests(loadServiceRequests({ view: "user", userId: user?.id || "" }));
 		const previousOverflow = document.body.style.overflow;
 		if (!embedded) document.body.style.overflow = "hidden";
 		navigationButtonRef.current?.focus();
@@ -229,17 +235,20 @@ export default function ServicesFlow({
 			if (!embedded) document.body.style.overflow = previousOverflow;
 			window.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [embedded, initialView, open, onClose]);
+	}, [embedded, initialView, open, onClose, user?.id]);
 
 	useEffect(() => {
-		const refreshRequests = () => setRequests(loadServiceRequests());
+		const refreshRequests = () => setRequests(loadServiceRequests({
+			view: "user",
+			userId: user?.id || "",
+		}));
 		window.addEventListener(SERVICE_REQUESTS_CHANGED_EVENT, refreshRequests);
 		window.addEventListener("storage", refreshRequests);
 		return () => {
 			window.removeEventListener(SERVICE_REQUESTS_CHANGED_EVENT, refreshRequests);
 			window.removeEventListener("storage", refreshRequests);
 		};
-	}, []);
+	}, [user?.id]);
 
 	useEffect(() => {
 		contentRef.current?.scrollTo?.({ top: 0, behavior: "smooth" });
@@ -247,6 +256,8 @@ export default function ServicesFlow({
 
 	useEffect(() => {
 		if (!activeRequestId || !requestMessagesRef.current) return;
+		const request = requests.find((item) => item.id === activeRequestId);
+		if (request?.unreadForClient) markServiceRequestRead(activeRequestId, "client");
 		requestMessagesRef.current.scrollTop = requestMessagesRef.current.scrollHeight;
 	}, [activeRequestId, requests]);
 
@@ -304,8 +315,20 @@ export default function ServicesFlow({
 		goTo("review");
 	}
 
-	function saveAndOpenRequest() {
-		const request = buildServiceRequest(draft, attachments);
+	function saveAndOpenRequest(authenticatedUser = user) {
+		const request = {
+			...buildServiceRequest(draft, attachments),
+			client: {
+				id: authenticatedUser?.id || "",
+				fullName: profile?.full_name || profile?.display_name || authenticatedUser?.user_metadata?.full_name || authenticatedUser?.email?.split("@")[0] || "Weightlisted client",
+				avatarUrl: profile?.avatar_url || "",
+				city: profile?.city || "",
+				gymName: profile?.gym_name || "",
+				trainingFocus: profile?.training_focus || [],
+				trainingNote: profile?.training_note || "",
+				profileVisible: profile?.profile_visible ?? true,
+			},
+		};
 		setSubmittedRequest(request);
 		try {
 			saveServiceRequest(request);
@@ -597,7 +620,11 @@ export default function ServicesFlow({
 					</details>
 					<div ref={requestMessagesRef} className="services-thread-messages coach-scroll-panel" aria-live="polite">
 						{activeRequest.messages?.length ? activeRequest.messages.map((message) => (
-							<div key={message.id} className="services-thread-message"><span>You</span><p>{message.text}</p></div>
+							<div key={message.id} className={`services-thread-message${message.sender === "coach" ? " is-coach" : ""}`}>
+								<span>{message.sender === "coach" ? activeRequest.claimedBy?.name || "Coach" : "You"}</span>
+								{message.attachments?.some((attachment) => attachment.url) ? <MessageMediaGallery attachments={message.attachments.filter((attachment) => attachment.url)} /> : null}
+								<p>{message.text}</p>
+							</div>
 						)) : <p className="services-thread-empty">This conversation will keep the request, coach response, receipt, and follow-up messages together.</p>}
 					</div>
 					<form className="services-thread-composer" onSubmit={addRequestMessage}>

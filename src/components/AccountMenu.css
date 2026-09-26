@@ -179,6 +179,26 @@
 	background: rgba(198, 197, 195, 0.1);
 }
 
+.account-menu__item--coach {
+	border: 1px solid rgba(125, 177, 225, 0.24);
+	background: rgba(72, 116, 158, 0.13);
+	color: #e9f5ff;
+}
+
+.account-menu__item--coach:hover {
+	background: rgba(72, 116, 158, 0.24);
+}
+
+.account-menu__item--admin {
+	border: 1px solid rgba(217, 189, 125, 0.24);
+	background: rgba(217, 189, 125, 0.1);
+	color: #f0d78f;
+}
+
+.account-menu__item--admin:hover {
+	background: rgba(217, 189, 125, 0.18);
+}
+
 .account-menu__item:disabled {
 	opacity: 0.55;
 	cursor: wait;

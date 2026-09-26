@@ -38,8 +38,26 @@ function profileValues(profile, user) {
 	};
 }
 
-export default function AccountPanel({ open, onClose, embedded = false, onOpenMatchingPreferences }) {
-	const { user, profile, profileLoading, isAdmin, updateProfile, signOut, deleteAccount } =
+export default function AccountPanel({
+	open,
+	onClose,
+	embedded = false,
+	onOpenMatchingPreferences,
+	onOpenCoachWorkspace,
+}) {
+	const {
+		user,
+		profile,
+		profileLoading,
+		isAdmin,
+		coachApplication,
+		coachApplicationStatus,
+		coachStatusLoading,
+		isCoachApproved,
+		updateProfile,
+		signOut,
+		deleteAccount,
+	} =
 		useAuth();
 	const fileInputRef = useRef(null);
 	const [form, setForm] = useState(() => profileValues(profile, user));
@@ -162,6 +180,22 @@ export default function AccountPanel({ open, onClose, embedded = false, onOpenMa
 			</header>
 
 			<div className="account-panel__scroll coach-scroll-panel">
+				{coachApplicationStatus !== "not_applied" || coachStatusLoading ? (
+					<section className={`account-panel__coach-status account-panel__coach-status--${coachApplicationStatus}`}>
+						<div>
+							<span>Coach application</span>
+							<strong>{coachStatusLoading ? "Checking status…" : isCoachApproved ? "Approved" : coachApplicationStatus === "needs_edits" ? "Needs edits" : coachApplicationStatus.charAt(0).toUpperCase() + coachApplicationStatus.slice(1)}</strong>
+							<small>
+								{isCoachApproved
+									? "Your coach tools and public-profile controls are ready."
+									: coachApplicationStatus === "pending"
+										? "Your client account stays active while Weightlisted reviews your application."
+										: coachApplication?.declineReason || coachApplication?.adminNotes || "Your client account remains available."}
+							</small>
+						</div>
+						{isCoachApproved ? <button type="button" onClick={onOpenCoachWorkspace}>Open coach workspace</button> : null}
+					</section>
+				) : null}
 				<form onSubmit={handleSave}>
 					<section className="account-panel__section">
 						<div className="account-panel__section-heading">

@@ -1,0 +1,88 @@
+.role-view-switcher {
+	position: fixed;
+	top: calc(12px + env(safe-area-inset-top));
+	left: 50%;
+	transform: translateX(-50%);
+	z-index: 5000;
+	display: grid;
+	grid-template-columns: auto auto;
+	align-items: center;
+	gap: 4px 10px;
+	padding: 7px 9px;
+	border: 1px solid rgba(128, 190, 238, 0.48);
+	border-radius: 16px;
+	background: rgba(24, 23, 25, 0.96);
+	box-shadow: 0 14px 42px rgba(0, 0, 0, 0.42);
+	color: #f2f1ef;
+	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	backdrop-filter: blur(18px);
+}
+
+.role-view-switcher__label {
+	padding-left: 5px;
+	font-size: 11px;
+	font-weight: 650;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: #a8a6a2;
+}
+
+.role-view-switcher > div {
+	display: flex;
+	gap: 3px;
+	padding: 3px;
+	border-radius: 12px;
+	background: rgba(255, 255, 255, 0.045);
+}
+
+.role-view-switcher button {
+	min-height: 34px;
+	padding: 7px 11px;
+	border: 1px solid transparent;
+	border-radius: 9px;
+	background: transparent;
+	color: #bdbbb8;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.role-view-switcher button.is-active {
+	border-color: rgba(128, 190, 238, 0.62);
+	background: rgba(72, 116, 158, 0.42);
+	color: #f5f9fc;
+}
+
+.role-view-switcher small {
+	grid-column: 1 / -1;
+	text-align: right;
+	font-size: 10px;
+	font-weight: 430;
+	color: #8f8d8b;
+}
+
+@media (max-width: 620px) {
+	.role-view-switcher {
+		top: calc(7px + env(safe-area-inset-top));
+		width: calc(100vw - 20px);
+		grid-template-columns: 1fr;
+		gap: 4px;
+		padding: 6px;
+	}
+
+	.role-view-switcher__label,
+	.role-view-switcher small {
+		display: none;
+	}
+
+	.role-view-switcher > div,
+	.role-view-switcher button {
+		width: 100%;
+	}
+
+	.role-view-switcher button {
+		flex: 1;
+		padding-inline: 5px;
+	}
+}

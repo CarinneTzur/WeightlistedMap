@@ -8,6 +8,12 @@ import {
 	useState,
 } from "react";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
+import {
+	COACH_APPLICATION_CHANGED_EVENT,
+	COACH_APPLICATION_STATUSES,
+	getMyCoachApplication,
+} from "../../utils/coachApplications";
+import { buildRoleAccess } from "./roles";
 import "./AuthDialog.css";
 
 const AuthContext = createContext(null);
@@ -49,6 +55,12 @@ const PROFILE_FIELDS = "*";
 // Temporarily pause the questionnaire while the gym-matching flow is being refined.
 // Flip this back to true to restore post-signup onboarding and completion prompts.
 export const CLIENT_ONBOARDING_ENABLED = false;
+
+const COACH_APPROVAL_SEEN_PREFIX = "weightlisted:coach-approval-seen:";
+
+function coachStorageKey(prefix, user) {
+	return `${prefix}${user?.id || String(user?.email || "").trim().toLowerCase() || "unknown"}`;
+}
 
 const ONBOARDING_EMAIL_STORAGE_PREFIX = "weightlisted:client-onboarding:email:";
 const ONBOARDING_USER_STORAGE_PREFIX = "weightlisted:client-onboarding:user:";
@@ -117,11 +129,12 @@ function PasswordVisibilityIcon({ visible }) {
 	);
 }
 
-function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
+function AuthDialog({ prompt, recoveryMode = false, onClose, onAuthenticated, onPasswordUpdated, onEnableProfile }) {
 	const [mode, setMode] = useState("signup");
 	const [fullName, setFullName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
+	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
@@ -130,9 +143,11 @@ function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
 
 	useEffect(() => {
 		if (!prompt) return undefined;
-		setMode("signup");
+		setMode(recoveryMode ? "new_password" : "signup");
 		setError("");
 		setNotice("");
+		setPassword("");
+		setConfirmPassword("");
 		setShowPassword(false);
 		const frame = window.requestAnimationFrame(() => emailRef.current?.focus());
 		const onKeyDown = (event) => {
@@ -143,11 +158,13 @@ function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
 			window.cancelAnimationFrame(frame);
 			window.removeEventListener("keydown", onKeyDown);
 		};
-	}, [onClose, prompt]);
+	}, [onClose, prompt, recoveryMode]);
 
-	if (!prompt) return null;
-	const copy = AUTH_COPY[prompt.reason] || AUTH_COPY.account;
-	const isProfileHiddenPrompt = prompt.reason === "profile_hidden";
+	if (!prompt && !recoveryMode) return null;
+	const copy = AUTH_COPY[prompt?.reason] || AUTH_COPY.account;
+	const isProfileHiddenPrompt = prompt?.reason === "profile_hidden";
+	const isPasswordReset = mode === "reset";
+	const isNewPassword = recoveryMode || mode === "new_password";
 
 	async function handleEnableProfile() {
 		setBusy(true);
@@ -169,14 +186,28 @@ function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
 			setError("Account access is not configured yet. Add the Supabase project URL and anonymous key first.");
 			return;
 		}
-		if (password.length < 8) {
+		if (!isPasswordReset && password.length < 8) {
 			setError("Use at least 8 characters for your password.");
+			return;
+		}
+		if (isNewPassword && password !== confirmPassword) {
+			setError("Your new passwords don’t match.");
 			return;
 		}
 
 		setBusy(true);
 		try {
-			if (mode === "signup") {
+			if (isPasswordReset) {
+				const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+					redirectTo: window.location.origin,
+				});
+				if (resetError) throw resetError;
+				setNotice("If that email has a Weightlisted account, we sent a reset link. Check your inbox and spam or junk folder.");
+			} else if (isNewPassword) {
+				const { data, error: updateError } = await supabase.auth.updateUser({ password });
+				if (updateError) throw updateError;
+				onPasswordUpdated?.(data.user);
+			} else if (mode === "signup") {
 				const { data, error: signUpError } = await supabase.auth.signUp({
 					email: email.trim(),
 					password,
@@ -220,8 +251,8 @@ function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
 			<section className="auth-dialog" role="dialog" aria-modal="true" aria-labelledby="auth-dialog-title">
 				<button type="button" className="auth-close" onClick={onClose} aria-label="Close account dialog">×</button>
 				<p className="auth-eyebrow">Weightlisted account</p>
-				<h2 id="auth-dialog-title">{copy.title}</h2>
-				<p className="auth-description">{copy.description}</p>
+				<h2 id="auth-dialog-title">{isNewPassword ? "Choose a new password" : isPasswordReset ? "Reset your password" : copy.title}</h2>
+				<p className="auth-description">{isNewPassword ? "Set a new password for your Weightlisted account." : isPasswordReset ? "Enter your email and we’ll send you a secure reset link." : copy.description}</p>
 
 				{isProfileHiddenPrompt ? (
 					<div className="auth-profile-actions">
@@ -232,26 +263,26 @@ function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
 						</button>
 					</div>
 				) : <>
-				<div className="auth-tabs" role="tablist" aria-label="Account action">
+				{!isPasswordReset && !isNewPassword ? <div className="auth-tabs" role="tablist" aria-label="Account action">
 					<button type="button" role="tab" aria-selected={mode === "signup"} onClick={() => { setMode("signup"); setError(""); }}>Create account</button>
 					<button type="button" role="tab" aria-selected={mode === "signin"} onClick={() => { setMode("signin"); setError(""); }}>Sign in</button>
-				</div>
+				</div> : null}
 
 				<form onSubmit={handleSubmit}>
+					{!isNewPassword ? <label>
+						<span>Email</span>
+						<input ref={emailRef} id="weightlisted-email" name="email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="username" required />
+					</label> : null}
 					{mode === "signup" ? (
 						<label>
 							<span>Full name</span>
-							<input value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required />
+							<input id="weightlisted-full-name" name="name" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required />
 						</label>
 					) : null}
-					<label>
-						<span>Email</span>
-						<input ref={emailRef} type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
-					</label>
-					<label>
+					{!isPasswordReset ? <label>
 						<span>Password</span>
 						<div className="auth-password-field">
-							<input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signup" ? "new-password" : "current-password"} minLength={8} required />
+							<input id="weightlisted-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signup" || isNewPassword ? "new-password" : "current-password"} minLength={8} required />
 							<button
 								type="button"
 								className="auth-password-visibility"
@@ -262,14 +293,20 @@ function AuthDialog({ prompt, onClose, onAuthenticated, onEnableProfile }) {
 								<PasswordVisibilityIcon visible={showPassword} />
 							</button>
 						</div>
-					</label>
+					</label> : null}
+					{isNewPassword ? <label>
+						<span>Confirm new password</span>
+						<input id="weightlisted-password-confirmation" name="password_confirmation" type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
+					</label> : null}
+					{mode === "signin" ? <button type="button" className="auth-forgot-password auth-forgot-inline" onClick={() => { setMode("reset"); setError(""); setNotice(""); }}>Forgot password?</button> : null}
 					{error ? <p className="auth-error" role="alert">{error}</p> : null}
 					{notice ? <p className="auth-notice" role="status">{notice}</p> : null}
 					<button className="auth-submit" type="submit" disabled={busy}>
-						{busy ? "Please wait…" : mode === "signup" ? "Create account" : "Sign in"}
+						{busy ? "Please wait…" : isNewPassword ? "Save new password" : isPasswordReset ? "Send reset link" : mode === "signup" ? "Create account" : "Sign in"}
 					</button>
 				</form>
-				<p className="auth-footnote">One account can be used as a client and, after approval, as a coach.</p>
+				{isPasswordReset ? <button type="button" className="auth-forgot-password auth-recovery-back" onClick={() => { setMode("signin"); setError(""); setNotice(""); }}>← Back to sign in</button> : null}
+				{!isNewPassword ? <p className="auth-footnote">One account can be used as a client and, after approval, as a coach.</p> : null}
 				</>}
 			</section>
 		</div>
@@ -282,9 +319,14 @@ export function AuthProvider({ children }) {
 	const [loading, setLoading] = useState(true);
 	const [profileLoading, setProfileLoading] = useState(false);
 	const [prompt, setPrompt] = useState(null);
+	const [passwordRecoveryOpen, setPasswordRecoveryOpen] = useState(false);
 	const [clientOnboardingOpen, setClientOnboardingOpen] = useState(false);
+	const [coachApplication, setCoachApplication] = useState(null);
+	const [coachStatusLoading, setCoachStatusLoading] = useState(false);
+	const [approvalCelebrationOpen, setApprovalCelebrationOpen] = useState(false);
 	const pendingActionRef = useRef(null);
 	const pendingOnboardingActionRef = useRef(null);
+	const previousCoachStatusRef = useRef("");
 	const refreshProfile = useCallback(async () => {
 		const userId = session?.user?.id;
 		if (!supabase || !userId) {
@@ -301,6 +343,29 @@ export function AuthProvider({ children }) {
 		return data || null;
 	}, [session?.user?.id]);
 
+	const refreshCoachApplication = useCallback(async () => {
+		const currentUser = session?.user;
+		if (!currentUser) {
+			setCoachApplication(null);
+			setCoachStatusLoading(false);
+			return null;
+		}
+
+		setCoachStatusLoading(true);
+		let application = null;
+		if (supabase) {
+			try {
+				application = await getMyCoachApplication();
+			} catch (error) {
+				console.warn("Coach application status could not be loaded.", error);
+			}
+		}
+
+		setCoachApplication(application);
+		setCoachStatusLoading(false);
+		return application;
+	}, [session?.user]);
+
 	useEffect(() => {
 		if (!supabase) {
 			setLoading(false);
@@ -313,9 +378,10 @@ export function AuthProvider({ children }) {
 			setSession(data.session || null);
 			setLoading(false);
 		});
-		const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+		const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
 			setSession(nextSession);
 			setLoading(false);
+			if (event === "PASSWORD_RECOVERY") setPasswordRecoveryOpen(true);
 		});
 		return () => {
 			active = false;
@@ -337,6 +403,77 @@ export function AuthProvider({ children }) {
 			.finally(() => { if (active) setProfileLoading(false); });
 		return () => { active = false; };
 	}, [refreshProfile, session?.user?.id]);
+
+	useEffect(() => {
+		const currentUser = session?.user;
+		if (!currentUser) {
+			setCoachApplication(null);
+			setApprovalCelebrationOpen(false);
+			previousCoachStatusRef.current = "";
+			return undefined;
+		}
+
+		let active = true;
+		refreshCoachApplication().catch(() => {
+			if (active) setCoachStatusLoading(false);
+		});
+
+		const refresh = () => refreshCoachApplication();
+		window.addEventListener(COACH_APPLICATION_CHANGED_EVENT, refresh);
+		window.addEventListener("focus", refresh);
+		const interval = window.setInterval(refresh, 30000);
+
+		let channel = null;
+		if (supabase) {
+			channel = supabase
+				.channel(`coach-application-${currentUser.id}`)
+				.on(
+					"postgres_changes",
+					{
+						event: "*",
+						schema: "public",
+						table: "coach_applications",
+						filter: `user_id=eq.${currentUser.id}`,
+					},
+					refresh,
+				)
+				.subscribe();
+		}
+
+		return () => {
+			active = false;
+			window.removeEventListener(COACH_APPLICATION_CHANGED_EVENT, refresh);
+			window.removeEventListener("focus", refresh);
+			window.clearInterval(interval);
+			if (channel && supabase) supabase.removeChannel(channel);
+		};
+	}, [refreshCoachApplication, session?.user]);
+
+	const coachApplicationStatus = coachApplication?.status || "not_applied";
+	const isCoachApproved = coachApplicationStatus === COACH_APPLICATION_STATUSES.ACCEPTED;
+	const roleAccess = useMemo(
+		() => buildRoleAccess({ user: session?.user, profile, coachApplicationStatus }),
+		[coachApplicationStatus, profile, session?.user],
+	);
+
+	useEffect(() => {
+		const currentUser = session?.user;
+		if (!currentUser) return;
+		const previousStatus = previousCoachStatusRef.current;
+		previousCoachStatusRef.current = coachApplicationStatus;
+
+		if (!isCoachApproved) {
+			setApprovalCelebrationOpen(false);
+			return;
+		}
+
+		const approvalSeen = getOnboardingStorage(
+			coachStorageKey(COACH_APPROVAL_SEEN_PREFIX, currentUser),
+		);
+		if (!approvalSeen && previousStatus !== COACH_APPLICATION_STATUSES.ACCEPTED) {
+			setApprovalCelebrationOpen(true);
+		}
+	}, [coachApplicationStatus, isCoachApproved, session?.user]);
 
 	useEffect(() => {
 		if (!CLIENT_ONBOARDING_ENABLED) return;
@@ -547,13 +684,39 @@ export function AuthProvider({ children }) {
 		if (error) throw error;
 	}, []);
 
+	const acknowledgeCoachApproval = useCallback(() => {
+		if (!session?.user) return false;
+		setApprovalCelebrationOpen(false);
+		setOnboardingStorage(coachStorageKey(COACH_APPROVAL_SEEN_PREFIX, session.user), new Date().toISOString());
+		return true;
+	}, [session?.user]);
+
+	const dismissCoachApproval = useCallback(() => {
+		setApprovalCelebrationOpen(false);
+		if (session?.user) {
+			setOnboardingStorage(
+				coachStorageKey(COACH_APPROVAL_SEEN_PREFIX, session.user),
+				new Date().toISOString(),
+			);
+		}
+	}, [session?.user]);
+
 	const value = useMemo(() => ({
 		session,
 		user: session?.user || null,
 		profile,
 		loading,
 		profileLoading,
-		isAdmin: Boolean(profile?.is_admin),
+		roleAccess,
+		isAdmin: roleAccess.actual.admin,
+		coachApplication,
+		coachApplicationStatus,
+		coachStatusLoading,
+		isCoachApproved,
+		canUseCoachView: roleAccess.canViewCoach,
+		canUseAdminView: roleAccess.canViewAdmin,
+		canPreviewAllViews: roleAccess.canPreviewAllViews,
+		approvalCelebrationOpen,
 		clientOnboardingOpen: CLIENT_ONBOARDING_ENABLED && clientOnboardingOpen,
 		requireAuth,
 		refreshProfile,
@@ -563,15 +726,20 @@ export function AuthProvider({ children }) {
 		dismissClientOnboarding,
 		deleteAccount,
 		signOut,
-	}), [clientOnboardingOpen, completeClientOnboarding, deleteAccount, dismissClientOnboarding, loading, openClientOnboarding, profile, profileLoading, refreshProfile, requireAuth, session, signOut, updateProfile]);
+		refreshCoachApplication,
+		acknowledgeCoachApproval,
+		dismissCoachApproval,
+	}), [acknowledgeCoachApproval, approvalCelebrationOpen, clientOnboardingOpen, coachApplication, coachApplicationStatus, coachStatusLoading, completeClientOnboarding, deleteAccount, dismissClientOnboarding, dismissCoachApproval, isCoachApproved, loading, openClientOnboarding, profile, profileLoading, refreshCoachApplication, refreshProfile, requireAuth, roleAccess, session, signOut, updateProfile]);
 
 	return (
 		<AuthContext.Provider value={value}>
 			{children}
 			<AuthDialog
 				prompt={prompt}
-				onClose={closePrompt}
+				recoveryMode={passwordRecoveryOpen}
+				onClose={() => { setPasswordRecoveryOpen(false); closePrompt(); }}
 				onAuthenticated={completePendingAction}
+				onPasswordUpdated={(user) => { setPasswordRecoveryOpen(false); completePendingAction(user); }}
 				onEnableProfile={enableProfileAndContinue}
 			/>
 		</AuthContext.Provider>

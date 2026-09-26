@@ -335,7 +335,78 @@ const styles = {
 		color: "#ffd4d4",
 		fontSize: 14,
 	},
+	previewBanner: {
+		marginBottom: 18,
+		padding: "11px 14px",
+		border: "1px solid rgba(128,190,238,.42)",
+		borderRadius: 10,
+		background: "rgba(72,116,158,.16)",
+		color: "#dceffc",
+		fontSize: 13,
+		lineHeight: 1.45,
+	},
 };
+
+const PREVIEW_APPLICATIONS = [
+	{
+		id: "admin-preview-pending",
+		status: COACH_APPLICATION_STATUSES.PENDING,
+		fullName: "Taylor Morgan",
+		firstName: "Taylor",
+		lastName: "Morgan",
+		email: "taylor@example.com",
+		phone: "(555) 014-2290",
+		coachTitle: "Powerlifting Coach",
+		city: "Austin",
+		state: "TX",
+		gymName: "Eastside Barbell",
+		gymCity: "Austin",
+		gymState: "TX",
+		inPersonCoaching: true,
+		onlineTraining: true,
+		yearsOfExperience: 5,
+		currentRosterSize: 8,
+		bio: "Technique-first strength coaching for newer and intermediate lifters.",
+		reviewStatement: "I want to help athletes build confidence and train sustainably.",
+		liftingExperience: "Seven years of powerlifting with local meet experience.",
+		coachingExperience: "Five years coaching individual and small-group strength sessions.",
+		specialties: ["Powerlifting", "Technique / form", "General Fitness"],
+		certifications: ["CPT"],
+		socialLinks: [{ type: "Instagram", value: "@taylormorganstrength" }],
+		interviewAcknowledged: true,
+		submittedAt: new Date(Date.now() - 36e5 * 8).toISOString(),
+		adminNotes: "",
+		declineReason: "",
+	},
+	{
+		id: "admin-preview-approved",
+		status: COACH_APPLICATION_STATUSES.ACCEPTED,
+		fullName: "Morgan Reyes",
+		email: "morgan@example.com",
+		phone: "(555) 010-8842",
+		coachTitle: "Bodybuilding Coach",
+		city: "Brooklyn",
+		state: "NY",
+		gymName: "Harbor Strength",
+		gymCity: "Brooklyn",
+		gymState: "NY",
+		inPersonCoaching: false,
+		onlineTraining: true,
+		yearsOfExperience: 7,
+		currentRosterSize: 12,
+		bio: "Online physique and nutrition coaching built around realistic routines.",
+		reviewStatement: "I value clear communication and practical programming.",
+		liftingExperience: "Bodybuilding and recreational strength training.",
+		coachingExperience: "Seven years of online programming and check-ins.",
+		specialties: ["Bodybuilding", "Nutrition"],
+		certifications: ["CPT", "Nutrition Coach"],
+		socialLinks: [],
+		interviewAcknowledged: true,
+		submittedAt: new Date(Date.now() - 864e5 * 4).toISOString(),
+		adminNotes: "Strong interview and references.",
+		declineReason: "",
+	},
+];
 
 function formatDate(value) {
 	if (!value) return "Unknown";
@@ -552,6 +623,16 @@ function ApplicationPreview({
 			<div style={styles.actions}>
 				<button
 					type="button"
+					style={styles.actionButton}
+					onClick={() =>
+						onReview(application.id, COACH_APPLICATION_STATUSES.PENDING)
+					}
+					disabled={actionBusy || application.status === COACH_APPLICATION_STATUSES.PENDING}
+				>
+					Pending
+				</button>
+				<button
+					type="button"
 					style={{ ...styles.actionButton, ...styles.acceptButton }}
 					onClick={() =>
 						onReview(application.id, COACH_APPLICATION_STATUSES.ACCEPTED)
@@ -589,8 +670,10 @@ export default function CoachApplicationAdmin({
 	onBackToMap,
 	applicationHref,
 	highlightedApplicationId,
+	previewMode = false,
 }) {
 	const [applications, setApplications] = useState([]);
+	const [previewApplications, setPreviewApplications] = useState(PREVIEW_APPLICATIONS);
 	const [tab, setTab] = useState(COACH_APPLICATION_STATUSES.PENDING);
 	const [message, setMessage] = useState("");
 	const [loadError, setLoadError] = useState("");
@@ -604,7 +687,7 @@ export default function CoachApplicationAdmin({
 
 	useEffect(() => {
 		loadApplications(tab);
-	}, [tab]);
+	}, [previewApplications, previewMode, tab]);
 
 	useEffect(() => {
 		function refreshApplications() {
@@ -637,7 +720,11 @@ export default function CoachApplicationAdmin({
 		setLoading(true);
 		setLoadError("");
 		try {
-			const nextApplications = await getCoachApplications(status);
+			const nextApplications = previewMode
+				? previewApplications.filter(
+					(application) => status === "all" || application.status === status,
+				)
+				: await getCoachApplications(status);
 			setApplications(nextApplications);
 			if (
 				nextApplications.length &&
@@ -667,6 +754,18 @@ export default function CoachApplicationAdmin({
 	async function handleReview(applicationId, nextStatus) {
 		setActionBusy(true);
 		try {
+			if (previewMode) {
+				const previewApplication = PREVIEW_APPLICATIONS.find(
+					(application) => application.id === applicationId,
+				);
+				setPreviewApplications((current) => current.map((application) => (
+					application.id === applicationId
+						? { ...application, status: nextStatus, adminNotes, declineReason }
+						: application
+				)));
+				setMessage(`${previewApplication?.fullName || "This application"} is now ${nextStatus} in this preview only. No database record changed.`);
+				return;
+			}
 			const result = await reviewCoachApplication(applicationId, nextStatus, {
 				adminNotes,
 				declineReason,
@@ -708,6 +807,11 @@ export default function CoachApplicationAdmin({
 						decline them, or mark them as needing edits.
 					</p>
 				</header>
+				{previewMode ? (
+					<div style={styles.previewBanner} role="status">
+						<strong>Admin View preview.</strong> This uses sample applications. Review actions stay in the browser and never call privileged Supabase operations.
+					</div>
+				) : null}
 
 				<div style={styles.tabs} role="tablist" aria-label="Application status">
 					{[

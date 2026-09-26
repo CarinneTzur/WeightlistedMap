@@ -19,11 +19,11 @@ select
   avatar_url,
   training_focus,
   training_note,
-  coach_enabled,
   city,
   gym_name
 from public.profiles
-where profile_visible = true;
+where profile_visible = true
+  and (public.current_user_is_approved_coach() or public.current_user_is_admin());
 
 revoke all on public.client_directory from public;
 grant select on public.client_directory to authenticated;

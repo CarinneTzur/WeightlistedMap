@@ -235,6 +235,39 @@
 	text-align: center;
 }
 
+.auth-forgot-password {
+	display: block;
+	padding: 4px 2px;
+	border: 0;
+	background: transparent;
+	color: #a9cce8;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+}
+
+.auth-forgot-inline {
+	justify-self: end;
+	margin: -7px 3px -2px 0;
+}
+
+.auth-recovery-back {
+	margin: 13px auto 0;
+}
+
+.auth-forgot-password:hover {
+	color: #f2f1ef;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.auth-forgot-password:focus-visible {
+	outline: 2px solid #9cccf0;
+	outline-offset: 3px;
+	border-radius: 3px;
+}
+
 @media (max-width: 520px) {
 	.auth-overlay {
 		place-items: end center;

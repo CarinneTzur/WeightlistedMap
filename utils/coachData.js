@@ -22,7 +22,7 @@ function getGymSource() {
 
 export function getApprovedCoaches() {
 	return getCoachSource()
-		.filter((coach) => coach.approved)
+		.filter((coach) => coach.approved && coach.directoryVisible !== false)
 		.map(enrichCoachWithGyms);
 }
 

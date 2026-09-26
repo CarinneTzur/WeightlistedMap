@@ -16,6 +16,7 @@ export const COACH_APPLICATION_STATUSES = {
 const COACH_APPLICATION_TABLE = "coach_applications";
 const COACH_PHOTOS_BUCKET = "coach-photos";
 const APPROVED_CACHE_KEY = "weightlisted.supabaseApprovedCoaches";
+const COACH_PUBLIC_PROFILES_KEY = "weightlisted.coachPublicProfiles";
 const US_CENTER = [39.8283, -98.5795];
 
 function emitChange() {
@@ -442,13 +443,16 @@ export async function reviewCoachApplication(
 
 	const updateRow = {
 		status: nextStatus,
-		reviewed_at: new Date().toISOString(),
+		reviewed_at:
+			nextStatus === COACH_APPLICATION_STATUSES.PENDING
+				? null
+				: new Date().toISOString(),
 		admin_notes: compactString(adminNotes),
+		decline_reason:
+			nextStatus === COACH_APPLICATION_STATUSES.DECLINED
+				? compactString(declineReason)
+				: "",
 	};
-
-	if (nextStatus === COACH_APPLICATION_STATUSES.DECLINED) {
-		updateRow.decline_reason = compactString(declineReason);
-	}
 
 	const { data, error } = await supabase
 		.from(COACH_APPLICATION_TABLE)
@@ -459,11 +463,12 @@ export async function reviewCoachApplication(
 
 	if (error) throw error;
 
+	const application = mapSupabaseApplication(data);
 	await refreshApprovedCoachCache();
 	emitChange();
 
 	return {
-		application: mapSupabaseApplication(data),
+		application,
 	};
 }
 
@@ -497,7 +502,9 @@ function buildGymFromApplication(application) {
 
 export function buildCoachFromApplication(application, gymId) {
 	return {
-		id: `coach_${slugify(application.fullName)}_${slugify(application.id).slice(0, 8)}`,
+		// The application UUID is the canonical coach identity everywhere. Using a
+		// second synthetic ID prevented inbox/service ownership from matching.
+		id: application.id,
 		name: application.fullName,
 		title: application.coachTitle,
 		gymIds: gymId ? [gymId] : [],
@@ -537,6 +544,24 @@ function findStaticGymForApplication(application) {
 				compactString(gym.city).toLowerCase() === gymCity &&
 				normalizeStateAbbr(gym.state) === gymState),
 	);
+}
+
+export async function getMyCoachApplication() {
+	const supabase = requireSupabase();
+	const { data: userData, error: userError } = await supabase.auth.getUser();
+	if (userError) throw userError;
+	if (!userData.user) return null;
+
+	const { data, error } = await supabase
+		.from(COACH_APPLICATION_TABLE)
+		.select("*")
+		.eq("user_id", userData.user.id)
+		.order("created_at", { ascending: false })
+		.limit(1)
+		.maybeSingle();
+
+	if (error) throw error;
+	return mapSupabaseApplication(data);
 }
 
 function buildApprovedData(applications) {
@@ -593,7 +618,40 @@ function getApprovedCache() {
 }
 
 export function getApprovedApplicationCoaches() {
-	return getApprovedCache().coaches || [];
+	const publicProfiles = readJson(COACH_PUBLIC_PROFILES_KEY, {});
+	return (getApprovedCache().coaches || []).map((coach) => {
+		const override = publicProfiles[coach.applicationId];
+		if (!override) return coach;
+		return {
+			...coach,
+			name: override.fullName || coach.name,
+			title: override.title || coach.title,
+			bio: override.bio || coach.bio,
+			specialties: override.specialties?.length ? override.specialties : coach.specialties,
+			headshot: override.avatarUrl || coach.headshot,
+			inPersonCoaching: override.formats?.includes("In person") ?? coach.inPersonCoaching,
+			onlineTraining: override.formats?.includes("Online") ?? coach.onlineTraining,
+			remoteAvailable: override.formats?.includes("Online") ?? coach.remoteAvailable,
+			directoryVisible: override.visible ?? true,
+			acceptingRequests: override.acceptingRequests ?? true,
+		};
+	});
+}
+
+export function loadLocalCoachPublicProfile(applicationId) {
+	if (!applicationId) return null;
+	return readJson(COACH_PUBLIC_PROFILES_KEY, {})[applicationId] || null;
+}
+
+export function saveLocalCoachPublicProfile(applicationId, profile) {
+	if (!applicationId) return profile;
+	const profiles = readJson(COACH_PUBLIC_PROFILES_KEY, {});
+	writeJson(COACH_PUBLIC_PROFILES_KEY, {
+		...profiles,
+		[applicationId]: { ...profile, updatedAt: new Date().toISOString() },
+	});
+	emitChange();
+	return profile;
 }
 
 export function getCreatedApplicationGyms() {

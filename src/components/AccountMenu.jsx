@@ -36,6 +36,10 @@ export default function AccountMenu({
 	profile,
 	onOpenAccount,
 	onSignOut,
+	isCoachApproved = false,
+	onOpenCoachWorkspace,
+	isAdmin = false,
+	onOpenAdminWorkspace,
 	compact = false,
 }) {
 	const menuRef = useRef(null);
@@ -135,6 +139,22 @@ export default function AccountMenu({
 					}}>
 						<span aria-hidden="true">◉</span> Manage account
 					</button>
+					{isCoachApproved ? (
+						<button type="button" role="menuitem" className="account-menu__item account-menu__item--coach" onClick={() => {
+							setMenuOpen(false);
+							onOpenCoachWorkspace?.();
+						}}>
+							<span aria-hidden="true">✦</span> Open coach workspace
+						</button>
+					) : null}
+					{isAdmin ? (
+						<button type="button" role="menuitem" className="account-menu__item account-menu__item--admin" onClick={() => {
+							setMenuOpen(false);
+							onOpenAdminWorkspace?.();
+						}}>
+							<span aria-hidden="true">◆</span> Open admin workspace
+						</button>
+					) : null}
 					<button type="button" role="menuitem" className="account-menu__item account-menu__item--signout" onClick={handleSignOut} disabled={busy}>
 						<span aria-hidden="true">↗</span> {busy ? "Signing out…" : "Sign out"}
 					</button>

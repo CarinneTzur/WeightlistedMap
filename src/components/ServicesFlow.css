@@ -665,6 +665,13 @@
 	background: rgba(198, 197, 195, 0.12);
 }
 
+.services-thread-message.is-coach {
+	margin-right: auto;
+	margin-left: 0;
+	border-radius: 14px 14px 14px 3px;
+	background: rgba(72, 116, 158, 0.22);
+}
+
 .services-thread-message span {
 	color: rgba(151, 197, 238, 0.9);
 	font-size: 11px;

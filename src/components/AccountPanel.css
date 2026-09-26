@@ -74,6 +74,53 @@
 	scrollbar-gutter: stable;
 }
 
+.account-panel__coach-status {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 14px;
+	margin-bottom: 22px;
+	padding: 14px 15px;
+	border: 1px solid rgba(198, 197, 195, 0.17);
+	border-radius: 16px;
+	background: rgba(198, 197, 195, 0.055);
+}
+
+.account-panel__coach-status--approved {
+	border-color: rgba(125, 177, 225, 0.38);
+	background: linear-gradient(135deg, rgba(72, 116, 158, 0.19), rgba(67, 87, 112, 0.09));
+}
+
+.account-panel__coach-status > div {
+	display: grid;
+	min-width: 0;
+	gap: 3px;
+}
+
+.account-panel__coach-status span {
+	color: var(--panel-muted);
+	font-size: 10.5px;
+	font-weight: 520;
+	letter-spacing: 0.13em;
+	text-transform: uppercase;
+}
+
+.account-panel__coach-status strong { font-size: 15px; font-weight: 610; }
+.account-panel__coach-status small { color: var(--panel-muted); font-size: 12px; line-height: 1.4; }
+.account-panel__coach-status > button {
+	flex: 0 0 auto;
+	min-height: 38px;
+	padding: 0 13px;
+	border: 0;
+	border-radius: 11px;
+	background: #dbeeff;
+	color: #1d2d3d;
+	font: inherit;
+	font-size: 12px;
+	font-weight: 610;
+	cursor: pointer;
+}
+
 .account-panel__section { margin: 0 0 24px; }
 .account-panel__section-heading { margin: 0 0 14px; }
 .account-panel__section-heading p {

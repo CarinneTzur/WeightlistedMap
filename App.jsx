@@ -21,14 +21,25 @@ import {
 import ServicesFlow from "./src/components/ServicesFlow";
 import AccountPanel from "./src/components/AccountPanel";
 import AccountMenu from "./src/components/AccountMenu";
+import CoachWorkspace, { CoachApprovalCelebration } from "./src/components/CoachWorkspace";
+import RoleViewSwitcher from "./src/components/RoleViewSwitcher";
 import ClientOnboarding from "./src/components/ClientOnboarding";
 import ProfileCompletionPrompt from "./src/components/ProfileCompletionPrompt";
+import CoachReviews from "./src/components/CoachReviews";
 import { CLIENT_ONBOARDING_ENABLED, useAuth } from "./src/auth/AuthContext";
+import {
+	APP_VIEWS,
+	buildFounderCoachPreviewApplication,
+	canAccessAppView,
+	getAppViewForPath,
+	getPathForAppView,
+} from "./src/auth/roles";
 import {
 	appendDirectMessage,
 	DIRECT_MESSAGES_CHANGED_EVENT,
 	loadDirectMessageThread,
 	loadDirectMessageThreads,
+	markDirectMessageThreadRead,
 } from "./src/services/conversationStore";
 
 const CoachApplicationAdmin = React.lazy(
@@ -40,6 +51,13 @@ const CoachApplicationForm = React.lazy(
 
 const SHOW_COACH_APPLICATION_CTA =
 	import.meta.env.VITE_SHOW_COACH_APPLICATION_CTA !== "false";
+
+const KNOWN_APP_PATHS = new Set([
+	"/",
+	"/coach",
+	"/coach-apply",
+	"/admin/coach-applications",
+]);
 
 function getCurrentAppRoute() {
 	if (typeof window === "undefined") {
@@ -1985,6 +2003,13 @@ function CoachProfile({
 	onContact,
 }) {
 	const gymNames = getCoachGymNames(coach);
+	const [reviewsOpen, setReviewsOpen] = useState(false);
+
+	useEffect(() => setReviewsOpen(false), [coach.id]);
+
+	if (reviewsOpen) {
+		return <CoachReviews coach={coach} onBack={() => setReviewsOpen(false)} />;
+	}
 
 	return (
 		<div className="coach-scroll-panel" style={styles.profilePanel}>
@@ -2038,6 +2063,9 @@ function CoachProfile({
 					<span style={styles.profileStat}>Online coaching</span>
 				) : null}
 			</div>
+			<button type="button" className="profile-reviews-button" onClick={() => setReviewsOpen(true)}>
+				<span aria-hidden="true">★</span> Reviews
+			</button>
 			<button
 				type="button"
 				style={styles.primaryButton}
@@ -2050,13 +2078,14 @@ function CoachProfile({
 }
 
 function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
+	const { user, profile } = useAuth();
 	const messageInputRef = useRef(null);
 	const messageListRef = useRef(null);
 	const [message, setMessage] = useState(
 		`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 	);
 	const [messages, setMessages] = useState(
-		() => loadDirectMessageThread(coach.id)?.messages || [],
+		() => loadDirectMessageThread(coach.id, { userId: user?.id || "" })?.messages || [],
 	);
 	const {
 		attachments: draftAttachments,
@@ -2073,11 +2102,27 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const canSend = Boolean(message.trim() || draftAttachments.length);
 
 	useEffect(() => {
-		setMessages(loadDirectMessageThread(coach.id)?.messages || []);
+		const thread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
+		setMessages(thread?.messages || []);
+		if (thread?.id && thread.unreadForClient) markDirectMessageThreadRead(thread.id, "client");
 		setMessage(
 			`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 		);
-	}, [coach.id, coach.name]);
+	}, [coach.id, coach.name, user?.id]);
+
+	useEffect(() => {
+		const refreshThread = () => {
+			const thread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
+			setMessages(thread?.messages || []);
+			if (thread?.id && thread.unreadForClient) markDirectMessageThreadRead(thread.id, "client");
+		};
+		window.addEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refreshThread);
+		window.addEventListener("storage", refreshThread);
+		return () => {
+			window.removeEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refreshThread);
+			window.removeEventListener("storage", refreshThread);
+		};
+	}, [coach.id, user?.id]);
 
 	function resizeMessageInput(textarea) {
 		if (!textarea) return;
@@ -2123,7 +2168,16 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			...current,
 			{ ...sentMessage, attachments: sentAttachments },
 		]);
-		appendDirectMessage(coach, sentMessage);
+		appendDirectMessage(coach, sentMessage, {
+			id: user?.id || "",
+			fullName: profile?.full_name || profile?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Weightlisted client",
+			avatarUrl: profile?.avatar_url || "",
+			city: profile?.city || "",
+			gymName: profile?.gym_name || "",
+			trainingFocus: profile?.training_focus || [],
+			trainingNote: profile?.training_note || "",
+			profileVisible: profile?.profile_visible ?? true,
+		});
 		setMessage("");
 	}
 
@@ -2213,7 +2267,15 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 				>
 					{messages.length ? (
 						messages.map((sentMessage) => (
-							<div key={sentMessage.id} style={styles.messageSentBubble}>
+							<div
+								key={sentMessage.id}
+								style={{
+									...styles.messageSentBubble,
+									...(sentMessage.sender === "coach"
+										? { marginLeft: 0, marginRight: "auto", borderRadius: "14px 14px 14px 3px", background: "rgba(72,116,158,.22)" }
+										: {}),
+								}}
+							>
 								<MessageMediaGallery attachments={sentMessage.attachments?.filter((attachment) => attachment.url)} />
 								{sentMessage.attachments?.some((attachment) => !attachment.url) ? (
 									<div style={{ color: palette.muted, fontSize: 12, marginBottom: sentMessage.text ? 6 : 0 }}>
@@ -2274,17 +2336,24 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 }
 
 function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) {
-	const [threads, setThreads] = useState(() => loadDirectMessageThreads());
+	const { user } = useAuth();
+	const [threads, setThreads] = useState(() => loadDirectMessageThreads({
+		view: "user",
+		userId: user?.id || "",
+	}));
 
 	useEffect(() => {
-		const refresh = () => setThreads(loadDirectMessageThreads());
+		const refresh = () => setThreads(loadDirectMessageThreads({
+			view: "user",
+			userId: user?.id || "",
+		}));
 		window.addEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refresh);
 		window.addEventListener("storage", refresh);
 		return () => {
 			window.removeEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refresh);
 			window.removeEventListener("storage", refresh);
 		};
-	}, []);
+	}, [user?.id]);
 
 	function formatThreadDate(value) {
 		const date = new Date(value);
@@ -2873,6 +2942,7 @@ function addGlobalMapStyles() {
 	const style = document.createElement("style");
 	style.innerHTML = `
     .leaflet-container { background: ${palette.graphite900}; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+    .leaflet-tile-pane { filter: contrast(1.3) brightness(0.88); }
     .leaflet-control-zoom { border: 1px solid ${palette.border} !important; border-radius: 14px !important; overflow: hidden; box-shadow: 0 18px 45px rgba(0,0,0,0.28) !important; }
     .leaflet-control-zoom a { width: 44px !important; height: 44px !important; line-height: 44px !important; background: rgba(30,28,30,0.88) !important; color: ${palette.graphite100} !important; border-bottom: 1px solid ${palette.border} !important; }
     .leaflet-control-zoom a:hover { background: ${palette.graphite700} !important; color: white !important; }
@@ -3346,8 +3416,22 @@ function MobileFilterSheet({
 	);
 }
 
-function CoachMapApp({ onOpenApplication, onRequireAuth }) {
-	const { user, profile, signOut, clientOnboardingOpen, openClientOnboarding } = useAuth();
+function CoachMapApp({
+	onOpenApplication,
+	onRequireAuth,
+	coachCtaLabel = "Be a Coach",
+	canOpenCoachWorkspace = false,
+	onOpenCoachWorkspace,
+	canOpenAdminWorkspace = false,
+	onOpenAdminWorkspace,
+}) {
+	const {
+		user,
+		profile,
+		signOut,
+		clientOnboardingOpen,
+		openClientOnboarding,
+	} = useAuth();
 	const MOCK_STATES = useMemo(() => getStatesWithCoaches(), []);
 	const mapNodeRef = useRef(null);
 	const mapRef = useRef(null);
@@ -3367,6 +3451,7 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 	const preProfileViewRef = useRef(null);
 	const preServicesMobileViewRef = useRef(null);
 	const preAccountMobileViewRef = useRef(null);
+	const preMobileSearchViewRef = useRef(null);
 	const currentPanelViewRef = useRef(null);
 	const { isDesktop, isTablet, isShortMobile } = useViewportLayout();
 	const visualViewport = useVisualViewportMetrics();
@@ -3427,6 +3512,9 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 		favoritesOpen,
 		semanticSearchOpen,
 		messagesOpen,
+		servicesOpen,
+		servicesInitialView,
+		servicesReturnToMessages,
 		accountOpen,
 		trainingType,
 		profileCoach,
@@ -3439,6 +3527,8 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 		mobileSheetSnap,
 		mobileHeaderCollapsed,
 		mobileSearchExpanded,
+		mobileLocationSheetOpen,
+		mobileFilterSheetOpen,
 	};
 
 	useEffect(() => {
@@ -3614,8 +3704,12 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 		}).setView([38.8, -96.5], window.innerWidth >= 1024 ? 4 : 3);
 
 		L.tileLayer(
-			"https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-			{ maxZoom: 20 },
+			"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
+			{ maxZoom: 16 },
+		).addTo(map);
+		L.tileLayer(
+			"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
+			{ maxZoom: 16, opacity: 0.58 },
 		).addTo(map);
 
 		const gyms = getAllGyms();
@@ -3884,11 +3978,11 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 						const hasCoaches = gyms.some((gym) => gym.stateName === stateName);
 						return {
 							color: hasCoaches
-								? "rgba(218,220,215,0.48)"
-								: "rgba(218,220,215,0.24)",
-							weight: hasCoaches ? 0.95 : 0.55,
+								? "rgba(230,232,228,0.62)"
+								: "rgba(218,220,215,0.3)",
+							weight: hasCoaches ? 1.15 : 0.7,
 							fillColor: hasCoaches
-								? "rgba(244,242,238,0.065)"
+								? "rgba(244,242,238,0.08)"
 								: "rgba(244,242,238,0.025)",
 							fillOpacity: 1,
 						};
@@ -4034,9 +4128,48 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 	}
 
 	function closeMobileSearchMode() {
+		const previousView = preMobileSearchViewRef.current;
 		mobileSearchInputRef.current?.blur();
-		setSearchFocused(false);
-		setMobileSearchExpanded(false);
+
+		flushSync(() => {
+			setSearchFocused(false);
+			setMobileSearchExpanded(false);
+
+			if (!previousView) return;
+
+			setSelectedState(previousView.selectedState);
+			setAllPanelDismissed(previousView.allPanelDismissed);
+			setStatesPanelOpen(previousView.statesPanelOpen);
+			setFavoritesOpen(previousView.favoritesOpen);
+			setSemanticSearchOpen(previousView.semanticSearchOpen);
+			setMessagesOpen(previousView.messagesOpen);
+			setServicesOpen(previousView.servicesOpen);
+			setServicesInitialView(previousView.servicesInitialView);
+			setServicesReturnToMessages(previousView.servicesReturnToMessages);
+			setAccountOpen(previousView.accountOpen);
+			setTrainingType(previousView.trainingType);
+			setProfileCoach(previousView.profileCoach);
+			setContactCoach(previousView.contactCoach);
+			setSearch(previousView.search);
+			setSearchTags(previousView.searchTags);
+			setFilter(previousView.filter);
+			setGymPanel(previousView.gymPanel);
+			setClusterPanel(previousView.clusterPanel);
+			setMobileSheetSnap(previousView.mobileSheetSnap);
+			setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
+			setMobileLocationSheetOpen(previousView.mobileLocationSheetOpen);
+			setMobileFilterSheetOpen(previousView.mobileFilterSheetOpen);
+		});
+
+		if (previousView?.mapView && mapRef.current) {
+			mapRef.current.setView(
+				previousView.mapView.center,
+				previousView.mapView.zoom,
+				{ animate: false },
+			);
+		}
+
+		preMobileSearchViewRef.current = null;
 		mobileSearchResultsScrollTopRef.current = 0;
 	}
 
@@ -4152,6 +4285,12 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 		preAccountMobileViewRef.current = null;
 	}
 
+	useEffect(() => {
+		const openRequestedAccount = () => showAccount();
+		window.addEventListener("weightlisted:open-account", openRequestedAccount);
+		return () => window.removeEventListener("weightlisted:open-account", openRequestedAccount);
+	}, [isDesktop]);
+
 	async function signOutFromMenu() {
 		await signOut();
 		closeAccount();
@@ -4175,6 +4314,18 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 			return;
 		}
 
+		const map = mapRef.current;
+		preMobileSearchViewRef.current = {
+			...currentPanelViewRef.current,
+			searchTags: [...searchTags],
+			mapView: map
+				? {
+						center: map.getCenter(),
+						zoom: map.getZoom(),
+					}
+				: null,
+		};
+
 		prepareMobileCoachSearch();
 
 		// Keep the render and focus inside the original tap so iOS opens the keyboard.
@@ -4187,6 +4338,7 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 	}
 
 	function openCoachProfile(coach, resultsScrollTop = 0) {
+		const openedFromMobileSearch = !isDesktop && mobileSearchExpanded;
 		preProfileViewRef.current = isDesktop
 			? { source: "directory" }
 			: {
@@ -4199,6 +4351,11 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 			};
 		if (!isDesktop && mobileSearchExpanded)
 			mobileSearchResultsScrollTopRef.current = resultsScrollTop;
+		if (openedFromMobileSearch) {
+			mobileSearchInputRef.current?.blur();
+			setSearchFocused(false);
+			setMobileSearchExpanded(false);
+		}
 		setContactCoach(null);
 		setProfileCoach(coach);
 	}
@@ -4283,10 +4440,6 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 	}
 
 	function prepareMobileCoachSearch() {
-		preFavoritesViewRef.current = null;
-		preProfileViewRef.current = null;
-		preServicesMobileViewRef.current = null;
-		preAccountMobileViewRef.current = null;
 		setAllPanelDismissed(false);
 		setStatesPanelOpen(false);
 		setFavoritesOpen(false);
@@ -4322,7 +4475,6 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 	function commitMobileSearch(event) {
 		event.preventDefault();
 		if (!saveCurrentSearchAsTag()) return;
-		prepareMobileCoachSearch();
 		window.requestAnimationFrame(() =>
 			mobileSearchInputRef.current?.focus({ preventScroll: true }),
 		);
@@ -4890,8 +5042,7 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 										: "No matching coaches found.";
 
 	const isMobile = !isDesktop;
-	const isMobileSearchMode =
-		isMobile && mobileSearchExpanded && !profileCoach && !contactCoach;
+	const isMobileSearchMode = isMobile && mobileSearchExpanded;
 	const focusedSearchResultsHeight = Math.max(
 		160,
 		Math.floor(
@@ -4972,7 +5123,13 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 	const mobileDialogOpen = mobileLocationSheetOpen || mobileFilterSheetOpen;
 
 	return (
-		<main className={isMobileSearchMode ? "mobile-search-mode" : undefined} style={styles.shell}>
+		<main
+			className={isMobileSearchMode ? "mobile-search-mode" : undefined}
+			style={{
+				...styles.shell,
+				...(isMobileSearchMode ? { background: palette.graphite900 } : {}),
+			}}
+		>
 			{showIntroModal ? (
 				<div
 					style={{
@@ -5049,11 +5206,9 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 					...(isMobile ? { "--mobile-results-height": mobilePanelHeight } : {}),
 					...(isMobileSearchMode
 						? {
-							filter: "grayscale(1) contrast(.9) brightness(.38) blur(5px)",
-							opacity: 0.52,
+							opacity: 0,
 							pointerEvents: "none",
-							transform: "scale(1.025)",
-							transition: "filter 180ms ease, opacity 180ms ease, transform 180ms ease",
+							transition: "opacity 160ms ease",
 						}
 						: {}),
 				}}
@@ -5066,7 +5221,12 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 					style={{
 						...styles.mobileHeader,
 						...(isMobileSearchMode
-							? { top: visualViewport.offsetTop, zIndex: 1020 }
+							? {
+								top: visualViewport.offsetTop,
+								zIndex: 1020,
+								padding: "calc(10px + env(safe-area-inset-top)) 14px 10px",
+								background: palette.graphite900,
+							}
 							: {}),
 					}}
 					aria-label="Coach directory controls"
@@ -5077,6 +5237,14 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 							...styles.mobileHeaderSurface,
 							padding: 8,
 							borderRadius: 18,
+							...(isMobileSearchMode
+								? {
+									maxWidth: "none",
+									borderColor: "rgba(198,197,195,0.18)",
+									background: "rgba(30,28,30,0.98)",
+									boxShadow: "none",
+								}
+								: {}),
 						}}
 					>
 						{isMobileSearchMode ? (
@@ -5094,10 +5262,7 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 											type="search"
 											style={styles.mobileSearchInput}
 											value={search}
-											onChange={(event) => {
-												setSearch(event.target.value);
-												prepareMobileCoachSearch();
-											}}
+											onChange={(event) => setSearch(event.target.value)}
 											onFocus={() => {
 												setSearchFocused(true);
 												if (mobileSheetSnap === "collapsed") setMobileSheetSnap("half");
@@ -5202,10 +5367,14 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 								profile={profile}
 								onOpenAccount={openAccount}
 								onSignOut={signOutFromMenu}
+								isCoachApproved={canOpenCoachWorkspace}
+								onOpenCoachWorkspace={onOpenCoachWorkspace}
+								isAdmin={canOpenAdminWorkspace}
+								onOpenAdminWorkspace={onOpenAdminWorkspace}
 							/>
 							{onOpenApplication ? (
 								<button type="button" style={styles.mobileCoachApplyButton} onClick={onOpenApplication}>
-									Be a Coach
+									{coachCtaLabel}
 								</button>
 							) : null}
 						</div>
@@ -5286,6 +5455,10 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 						profile={profile}
 						onOpenAccount={openAccount}
 						onSignOut={signOutFromMenu}
+						isCoachApproved={canOpenCoachWorkspace}
+						onOpenCoachWorkspace={onOpenCoachWorkspace}
+						isAdmin={canOpenAdminWorkspace}
+						onOpenAdminWorkspace={onOpenAdminWorkspace}
 					/>
 					<nav className="communications-segmented-control desktop-communications-launcher" aria-label="Conversations">
 						<button type="button" onClick={openMessages}>Messages</button>
@@ -5666,11 +5839,15 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 							: "none",
 					borderRight:
 						!isMobileSearchMode && isTablet && !isShortMobile ? `1px solid ${palette.border}` : "none",
-					borderTop: isDesktop ? "none" : `1px solid ${palette.border}`,
+					borderTop: isDesktop
+						? "none"
+						: isMobileSearchMode
+							? `1px solid rgba(198,197,195,0.12)`
+							: `1px solid ${palette.border}`,
 					borderTopLeftRadius:
-						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
+						isDesktop || isMobileSearchMode || effectiveMobileSheetSnap === "full" ? 0 : 24,
 					borderTopRightRadius:
-						isDesktop || effectiveMobileSheetSnap === "full" ? 0 : isMobileSearchMode ? 20 : 24,
+						isDesktop || isMobileSearchMode || effectiveMobileSheetSnap === "full" ? 0 : 24,
 					padding: servicesOpen || messagesOpen || accountOpen || clientOnboardingOpen
 						? 0
 						: isDesktop
@@ -5681,6 +5858,14 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 							? "calc(10px + env(safe-area-inset-top)) 16px calc(18px + env(safe-area-inset-bottom))"
 							: "4px 16px calc(12px + env(safe-area-inset-bottom))",
 					gap: isMobile ? 0 : styles.glassPanel.gap,
+					...(isMobileSearchMode
+						? {
+							background: "linear-gradient(180deg, #1E1C1E 0%, #292729 100%)",
+							boxShadow: "none",
+							backdropFilter: "none",
+							WebkitBackdropFilter: "none",
+						}
+						: {}),
 					...(effectivePanelVisible
 						? {
 								...styles.glassPanelShown,
@@ -5709,6 +5894,7 @@ function CoachMapApp({ onOpenApplication, onRequireAuth }) {
 						open
 						embedded
 						onClose={closeAccount}
+						onOpenCoachWorkspace={onOpenCoachWorkspace}
 						onOpenMatchingPreferences={CLIENT_ONBOARDING_ENABLED ? () => {
 							setAccountOpen(false);
 							openClientOnboarding();
@@ -5883,9 +6069,16 @@ export default function App() {
 		profile,
 		loading: authLoading,
 		profileLoading,
-		isAdmin,
+		roleAccess,
+		coachApplication,
+		isCoachApproved,
+		approvalCelebrationOpen,
+		acknowledgeCoachApproval,
+		dismissCoachApproval,
+		signOut,
 		requireAuth,
 	} = useAuth();
+	const activeView = getAppViewForPath(route.path);
 
 	useEffect(() => {
 		function syncRoute() {
@@ -5902,10 +6095,14 @@ export default function App() {
 	}, []);
 
 	useEffect(() => {
+		if (!KNOWN_APP_PATHS.has(route.path)) navigateToAppRoute("/");
+	}, [route.path]);
+
+	useEffect(() => {
 		const protectedReason =
 			route.path === "/coach-apply"
 				? "coach_application"
-				: route.path === "/admin/coach-applications"
+				: route.path === "/coach" || route.path === "/admin/coach-applications"
 					? "account"
 					: "";
 		const profileCanAct = profile?.profile_visible !== false;
@@ -5958,11 +6155,36 @@ export default function App() {
 	}, []);
 
 	const goHome = () => navigateToAppRoute("/");
+	const goToView = (view) => {
+		if (!canAccessAppView(roleAccess, view)) return false;
+		if (view === APP_VIEWS.COACH) acknowledgeCoachApproval();
+		navigateToAppRoute(getPathForAppView(view));
+		return true;
+	};
 	const goToApplication = () =>
 		requireAuth({
 			reason: "coach_application",
 			onAuthenticated: () => navigateToAppRoute("/coach-apply"),
 		});
+	const withFounderSwitcher = (content) => (
+		<>
+			{content}
+			<RoleViewSwitcher
+				visible={roleAccess.canPreviewAllViews}
+				activeView={activeView}
+				onChange={goToView}
+			/>
+		</>
+	);
+	const accessDenied = (title, description) => withFounderSwitcher(
+		<main style={{ ...styles.shell, display: "grid", placeItems: "center", padding: 24 }}>
+			<section style={{ maxWidth: 520, textAlign: "center", color: palette.text }}>
+				<h1 style={{ margin: 0, fontSize: 32 }}>{title}</h1>
+				<p style={{ color: palette.muted, lineHeight: 1.55 }}>{description}</p>
+				<button type="button" style={styles.primaryButton} onClick={goHome}>Back to User View</button>
+			</section>
+		</main>,
+	);
 
 	if (SHOW_COACH_APPLICATION_CTA && route.path === "/coach-apply") {
 		if (authLoading || profileLoading || !user || profile?.profile_visible === false) {
@@ -5982,37 +6204,82 @@ export default function App() {
 		if (authLoading || !user || profileLoading) {
 			return <RouteLoading label="Checking access" />;
 		}
-		if (!isAdmin) {
-			return (
-				<main style={{ ...styles.shell, display: "grid", placeItems: "center", padding: 24 }}>
-					<section style={{ maxWidth: 520, textAlign: "center", color: palette.text }}>
-						<h1 style={{ margin: 0, fontSize: 32 }}>Admin access only</h1>
-						<p style={{ color: palette.muted, lineHeight: 1.55 }}>
-							Coach applications are private. Only an approved Weightlisted administrator can open this review area.
-						</p>
-						<button type="button" style={styles.primaryButton} onClick={goHome}>Back to map</button>
-					</section>
-				</main>
+		if (!roleAccess.canViewAdmin) {
+			return accessDenied(
+				"Admin access only",
+				"Coach applications are private. Only an approved Weightlisted administrator can open this review area.",
 			);
 		}
-		return (
+		return withFounderSwitcher(
 			<React.Suspense fallback={<RouteLoading label="Admin review" />}>
 				<CoachApplicationAdmin
 					onBackToMap={goHome}
 					applicationHref="#/coach-apply"
 					highlightedApplicationId={route.params.get("application")}
+					previewMode={!roleAccess.actual.admin}
 				/>
-			</React.Suspense>
+			</React.Suspense>,
 		);
 	}
 
-	return (
-		<CoachMapApp
-			key={`coach-map-${dataVersion}`}
-			onRequireAuth={requireAuth}
-			onOpenApplication={
-				SHOW_COACH_APPLICATION_CTA ? goToApplication : undefined
-			}
-		/>
+	if (route.path === "/coach") {
+		if (authLoading || !user || profileLoading) {
+			return <RouteLoading label="Checking coach access" />;
+		}
+		if (!roleAccess.canViewCoach) {
+			return accessDenied(
+				"Coach access only",
+				"Coach tools become available after a coach application is approved.",
+			);
+		}
+		const previewMode = !roleAccess.actual.coach;
+		const workspaceApplication = previewMode
+			? buildFounderCoachPreviewApplication(user, profile)
+			: coachApplication;
+		return withFounderSwitcher(
+			<CoachWorkspace
+				application={workspaceApplication}
+				user={user}
+				userProfile={profile}
+				previewMode={previewMode}
+				onExitCoachMode={goHome}
+				onOpenClientAccount={() => {
+					goHome();
+					window.setTimeout(() => window.dispatchEvent(new CustomEvent("weightlisted:open-account")), 80);
+				}}
+				onSignOut={async () => {
+					await signOut();
+					goHome();
+				}}
+			/>,
+		);
+	}
+
+	return withFounderSwitcher(
+		<>
+			<CoachMapApp
+				key={`coach-map-${dataVersion}`}
+				onRequireAuth={requireAuth}
+				onOpenApplication={
+					roleAccess.canViewCoach
+						? () => goToView(APP_VIEWS.COACH)
+						: SHOW_COACH_APPLICATION_CTA
+							? goToApplication
+							: undefined
+				}
+				coachCtaLabel={roleAccess.canViewCoach ? "Coach workspace" : "Be a Coach"}
+				canOpenCoachWorkspace={roleAccess.actual.coach}
+				onOpenCoachWorkspace={() => goToView(APP_VIEWS.COACH)}
+				canOpenAdminWorkspace={roleAccess.actual.admin}
+				onOpenAdminWorkspace={() => goToView(APP_VIEWS.ADMIN)}
+			/>
+			{approvalCelebrationOpen && isCoachApproved ? (
+				<CoachApprovalCelebration
+					application={coachApplication}
+					onEnter={() => goToView(APP_VIEWS.COACH)}
+					onDismiss={dismissCoachApproval}
+				/>
+			) : null}
+		</>,
 	);
 }

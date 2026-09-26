@@ -1,0 +1,481 @@
+.coach-reviews-panel {
+	display: flex;
+	height: 100%;
+	min-height: 0;
+	padding: 2px 0 24px;
+	overflow-y: auto;
+	color: #f2f1ef;
+	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	flex-direction: column;
+	gap: 18px;
+}
+
+.coach-reviews-header {
+	display: flex;
+	align-items: center;
+	gap: 14px;
+}
+
+.coach-reviews-header > button {
+	width: 44px;
+	height: 44px;
+	border: 1px solid rgba(198, 197, 195, 0.17);
+	border-radius: 50%;
+	background: rgba(198, 197, 195, 0.055);
+	color: #d8d6d2;
+	font: inherit;
+	font-size: 19px;
+	cursor: pointer;
+}
+
+.coach-reviews-header div span,
+.coach-review-manager > header span {
+	display: block;
+	margin-bottom: 3px;
+	color: #aaa7a5;
+	font-size: 10.5px;
+	font-weight: 520;
+	letter-spacing: 0.17em;
+	text-transform: uppercase;
+}
+
+.coach-reviews-header h2,
+.coach-review-manager h2 {
+	margin: 0;
+	font-size: 22px;
+	font-weight: 650;
+	letter-spacing: -0.025em;
+}
+
+.coach-review-summary {
+	display: grid;
+	grid-template-columns: 120px 1fr;
+	align-items: center;
+	gap: 24px;
+	padding: 19px 20px;
+	border: 1px solid rgba(198, 197, 195, 0.16);
+	border-radius: 19px;
+	background: rgba(198, 197, 195, 0.06);
+}
+
+.coach-review-summary-score {
+	display: flex;
+	align-items: center;
+	flex-direction: column;
+}
+
+.coach-review-summary-score > strong {
+	font-size: 35px;
+	font-weight: 610;
+	line-height: 1;
+	letter-spacing: -0.04em;
+}
+
+.coach-review-summary-score > span:not(.coach-review-stars),
+.coach-review-summary-score small {
+	margin-top: 5px;
+	color: #aaa7a5;
+	font-size: 11.5px;
+}
+
+.coach-review-stars {
+	display: inline-flex;
+	color: rgba(198, 197, 195, 0.2);
+	font-size: 14px;
+	letter-spacing: 0.08em;
+}
+
+.coach-review-stars .is-filled {
+	color: #e6c978;
+}
+
+.coach-review-summary-score .coach-review-stars {
+	margin-top: 7px;
+}
+
+.coach-review-distribution {
+	display: grid;
+	gap: 5px;
+}
+
+.coach-review-distribution > div {
+	display: grid;
+	grid-template-columns: 10px 1fr;
+	align-items: center;
+	gap: 8px;
+	color: #aaa7a5;
+	font-size: 10px;
+}
+
+.coach-review-distribution i {
+	height: 4px;
+	overflow: hidden;
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.11);
+}
+
+.coach-review-distribution b {
+	display: block;
+	height: 100%;
+	border-radius: inherit;
+	background: #d6bd76;
+}
+
+.coach-review-write-button {
+	width: 100%;
+	min-height: 50px;
+	border: 0;
+	border-radius: 999px;
+	background: #d8d7d5;
+	color: #1e1c1e;
+	font: inherit;
+	font-weight: 610;
+	cursor: pointer;
+}
+
+.coach-review-form {
+	display: grid;
+	gap: 14px;
+	padding: 17px;
+	border: 1px solid rgba(123, 184, 232, 0.34);
+	border-radius: 19px;
+	background: rgba(70, 104, 133, 0.11);
+}
+
+.coach-review-form > header,
+.coach-review-card > header,
+.coach-review-manager > header,
+.coach-review-manager-list article > header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.coach-review-form > header span {
+	display: block;
+	color: #aaa7a5;
+	font-size: 10.5px;
+	letter-spacing: 0.14em;
+	text-transform: uppercase;
+}
+
+.coach-review-form > header strong {
+	display: block;
+	margin-top: 2px;
+	font-size: 16px;
+	font-weight: 590;
+}
+
+.coach-review-form > header > button {
+	border: 0;
+	background: transparent;
+	color: #c8c6c2;
+	font-size: 24px;
+	cursor: pointer;
+}
+
+.coach-review-rating-input {
+	display: flex;
+	gap: 7px;
+}
+
+.coach-review-rating-input button {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	color: rgba(198, 197, 195, 0.3);
+	font-size: 29px;
+	line-height: 1;
+	cursor: pointer;
+}
+
+.coach-review-rating-input button.is-selected {
+	color: #e6c978;
+}
+
+.coach-review-form label,
+.coach-review-manager-list label {
+	display: grid;
+	gap: 7px;
+}
+
+.coach-review-form label > span,
+.coach-review-manager-list label > span {
+	font-size: 12.5px;
+	font-weight: 560;
+}
+
+.coach-review-form label small {
+	margin-left: 4px;
+	color: #9e9b99;
+	font-weight: 430;
+}
+
+.coach-review-form textarea,
+.coach-review-manager-list textarea {
+	width: 100%;
+	padding: 12px 13px;
+	resize: vertical;
+	border: 1px solid rgba(198, 197, 195, 0.18);
+	border-radius: 13px;
+	outline: none;
+	background: #191719;
+	color: #f2f1ef;
+	font: inherit;
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.coach-review-form textarea:focus,
+.coach-review-manager-list textarea:focus {
+	border-color: #7bb8e8;
+	box-shadow: 0 0 0 2px rgba(80, 154, 214, 0.18);
+}
+
+.coach-review-form > p,
+.coach-review-manager > p {
+	margin: 0;
+	color: #a5a29f;
+	font-size: 11.5px;
+	line-height: 1.45;
+}
+
+.coach-review-form-actions {
+	display: grid;
+	grid-template-columns: 0.8fr 1.25fr;
+	gap: 8px;
+}
+
+.coach-review-form-actions button,
+.coach-review-manager-list article > button {
+	min-height: 42px;
+	border: 1px solid rgba(198, 197, 195, 0.18);
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.07);
+	color: #f2f1ef;
+	font: inherit;
+	font-size: 12.5px;
+	font-weight: 560;
+	cursor: pointer;
+}
+
+.coach-review-form-actions button:last-child,
+.coach-review-manager-list article > button {
+	border: 0;
+	background: #d8d7d5;
+	color: #1e1c1e;
+}
+
+.coach-review-form-actions button:disabled,
+.coach-review-manager-list article > button:disabled {
+	opacity: 0.55;
+	cursor: wait;
+}
+
+.coach-review-error {
+	padding: 10px 12px;
+	border: 1px solid rgba(255, 132, 132, 0.28);
+	border-radius: 12px;
+	background: rgba(255, 132, 132, 0.09);
+	color: #ffd4d4;
+	font-size: 12px;
+	line-height: 1.4;
+}
+
+.coach-review-list,
+.coach-review-manager-list {
+	display: grid;
+	gap: 11px;
+}
+
+.coach-review-card,
+.coach-review-manager-list article {
+	padding: 16px;
+	border: 1px solid rgba(198, 197, 195, 0.14);
+	border-radius: 17px;
+	background: rgba(198, 197, 195, 0.045);
+}
+
+.coach-review-avatar {
+	width: 37px;
+	height: 37px;
+	object-fit: cover;
+	border: 1px solid rgba(198, 197, 195, 0.22);
+	border-radius: 50%;
+}
+
+.coach-review-avatar--fallback {
+	display: grid;
+	place-items: center;
+	background: #454246;
+	color: #f2f1ef;
+	font-size: 11px;
+	font-weight: 620;
+}
+
+.coach-review-card > header {
+	justify-content: flex-start;
+}
+
+.coach-review-card > header > div:nth-child(2) {
+	display: grid;
+	gap: 2px;
+	min-width: 0;
+}
+
+.coach-review-card > header strong,
+.coach-review-manager-list article > header strong {
+	font-size: 13px;
+	font-weight: 590;
+}
+
+.coach-review-card > header span,
+.coach-review-manager-list article > header span {
+	color: #9f9c99;
+	font-size: 10.5px;
+}
+
+.coach-review-card-actions {
+	display: flex !important;
+	margin-left: auto;
+	flex-direction: row !important;
+	gap: 8px !important;
+}
+
+.coach-review-card-actions button {
+	padding: 3px 0;
+	border: 0;
+	background: transparent;
+	color: #adcce4;
+	font: inherit;
+	font-size: 10.5px;
+	cursor: pointer;
+}
+
+.coach-review-card > .coach-review-stars {
+	margin-top: 11px;
+}
+
+.coach-review-card > p,
+.coach-review-manager-list article > p {
+	margin: 8px 0 0;
+	color: #cecbc8;
+	font-size: 12.5px;
+	line-height: 1.55;
+}
+
+.coach-review-response {
+	margin-top: 13px;
+	padding: 11px 12px;
+	border-left: 2px solid rgba(123, 184, 232, 0.5);
+	border-radius: 0 10px 10px 0;
+	background: rgba(123, 184, 232, 0.07);
+}
+
+.coach-review-response strong {
+	font-size: 11px;
+	font-weight: 590;
+}
+
+.coach-review-response p {
+	margin: 5px 0 0;
+	color: #bbb8b5;
+	font-size: 11.5px;
+	line-height: 1.5;
+}
+
+.coach-review-empty {
+	padding: 28px 18px;
+	border: 1px solid rgba(198, 197, 195, 0.12);
+	border-radius: 17px;
+	color: #aaa7a5;
+	text-align: center;
+}
+
+.coach-review-empty strong {
+	display: block;
+	color: #e7e5e2;
+	font-size: 14px;
+	font-weight: 580;
+}
+
+.coach-review-empty p {
+	margin: 5px 0 0;
+	font-size: 11.5px;
+	line-height: 1.45;
+}
+
+.coach-review-manager {
+	margin-top: 24px;
+	padding: 20px;
+	border: 1px solid var(--coach-border, rgba(198, 197, 195, 0.14));
+	border-radius: 21px;
+	background: rgba(36, 33, 36, 0.56);
+}
+
+.coach-review-manager > header small {
+	color: #aaa7a5;
+	font-size: 11.5px;
+}
+
+.coach-review-manager > p {
+	margin: 8px 0 18px;
+}
+
+.coach-review-manager-list article {
+	display: grid;
+	gap: 12px;
+}
+
+.coach-review-manager-list article > header > div {
+	display: grid;
+	gap: 2px;
+}
+
+.coach-review-manager-list article > button {
+	justify-self: end;
+	min-width: 140px;
+	padding: 0 16px;
+}
+
+.profile-reviews-button {
+	display: inline-flex;
+	min-height: 43px;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	padding: 0 16px;
+	border: 1px solid rgba(198, 197, 195, 0.2);
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.07);
+	color: #f2f1ef;
+	font: inherit;
+	font-size: 13px;
+	font-weight: 570;
+	cursor: pointer;
+}
+
+.profile-reviews-button span {
+	color: #e6c978;
+}
+
+@media (max-width: 640px) {
+	.coach-review-summary {
+		grid-template-columns: 98px 1fr;
+		gap: 16px;
+		padding: 16px;
+	}
+
+	.coach-review-summary-score > strong {
+		font-size: 30px;
+	}
+
+	.coach-review-form-actions {
+		grid-template-columns: 1fr;
+	}
+
+	.coach-review-manager {
+		padding: 16px;
+	}
+}
