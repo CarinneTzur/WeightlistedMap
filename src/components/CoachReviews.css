@@ -456,8 +456,18 @@
 	cursor: pointer;
 }
 
-.profile-reviews-button span {
+.profile-reviews-button .profile-reviews-star {
 	color: #e6c978;
+}
+
+.profile-reviews-button strong {
+	color: #fff;
+	font-size: 14px;
+	font-weight: 650;
+}
+
+.profile-reviews-button .profile-reviews-divider {
+	color: rgba(242, 241, 239, 0.42);
 }
 
 @media (max-width: 640px) {

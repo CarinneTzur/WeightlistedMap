@@ -26,6 +26,11 @@ import RoleViewSwitcher from "./src/components/RoleViewSwitcher";
 import ClientOnboarding from "./src/components/ClientOnboarding";
 import ProfileCompletionPrompt from "./src/components/ProfileCompletionPrompt";
 import CoachReviews from "./src/components/CoachReviews";
+import {
+	COACH_REVIEWS_CHANGED_EVENT,
+	loadCoachReviews,
+	summarizeCoachReviews,
+} from "./src/services/coachReviews";
 import { CLIENT_ONBOARDING_ENABLED, useAuth } from "./src/auth/AuthContext";
 import {
 	APP_VIEWS,
@@ -2004,8 +2009,31 @@ function CoachProfile({
 }) {
 	const gymNames = getCoachGymNames(coach);
 	const [reviewsOpen, setReviewsOpen] = useState(false);
+	const [reviewSummary, setReviewSummary] = useState(null);
 
 	useEffect(() => setReviewsOpen(false), [coach.id]);
+	useEffect(() => {
+		let active = true;
+
+		async function refreshReviewSummary() {
+			try {
+				const reviews = await loadCoachReviews(coach.id);
+				if (active) setReviewSummary(summarizeCoachReviews(reviews));
+			} catch {
+				if (active) setReviewSummary(null);
+			}
+		}
+
+		setReviewSummary(null);
+		refreshReviewSummary();
+		window.addEventListener(COACH_REVIEWS_CHANGED_EVENT, refreshReviewSummary);
+		window.addEventListener("storage", refreshReviewSummary);
+		return () => {
+			active = false;
+			window.removeEventListener(COACH_REVIEWS_CHANGED_EVENT, refreshReviewSummary);
+			window.removeEventListener("storage", refreshReviewSummary);
+		};
+	}, [coach.id]);
 
 	if (reviewsOpen) {
 		return <CoachReviews coach={coach} onBack={() => setReviewsOpen(false)} />;
@@ -2063,8 +2091,20 @@ function CoachProfile({
 					<span style={styles.profileStat}>Online coaching</span>
 				) : null}
 			</div>
-			<button type="button" className="profile-reviews-button" onClick={() => setReviewsOpen(true)}>
-				<span aria-hidden="true">★</span> Reviews
+			<button
+				type="button"
+				className="profile-reviews-button"
+				onClick={() => setReviewsOpen(true)}
+				aria-label={reviewSummary?.count ? `${reviewSummary.average.toFixed(1)} out of 5 stars from ${reviewSummary.count} ${reviewSummary.count === 1 ? "review" : "reviews"}` : "Open coach reviews"}
+			>
+				<span className="profile-reviews-star" aria-hidden="true">★</span>
+				{reviewSummary?.count ? (
+					<>
+						<strong>{reviewSummary.average.toFixed(1)}</strong>
+						<span className="profile-reviews-divider" aria-hidden="true">·</span>
+						<span>{reviewSummary.count} {reviewSummary.count === 1 ? "review" : "reviews"}</span>
+					</>
+				) : <span>{reviewSummary ? "No reviews yet" : "Reviews"}</span>}
 			</button>
 			<button
 				type="button"

@@ -26,23 +26,37 @@ import {
 	updateServiceRequest,
 } from "../services/conversationStore";
 import { CoachReviewManager } from "./CoachReviews";
+import coachWorkspaceBackground from "../../assets/coach-workspace-background.jpg";
+import coachWorkspacePortrait from "../../assets/coach-workspace-portrait.jpg";
 import "./CoachWorkspace.css";
 
 const NAV_ITEMS = [
-	{ id: "home", label: "Home", icon: "⌂" },
-	{ id: "inbox", label: "Inbox", icon: "✉" },
-	{ id: "requests", label: "Requests", icon: "✦" },
-	{ id: "clients", label: "Clients", icon: "◎" },
-	{ id: "profile", label: "Public profile", icon: "◉" },
-	{ id: "account", label: "Account", icon: "⚙" },
+	{ id: "home", label: "Home" },
+	{ id: "inbox", label: "Inbox" },
+	{ id: "requests", label: "Requests" },
+	{ id: "clients", label: "Clients" },
+	{ id: "profile", label: "Public profile" },
+	{ id: "account", label: "Account" },
 ];
+
+function NavigationIcon({ name }) {
+	const paths = {
+		home: <><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></>,
+		inbox: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+		requests: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-4 2.5-6 6-6s6 2 6 6M18 8v6M15 11h6" /></>,
+		clients: <><circle cx="8.5" cy="8" r="3" /><circle cx="17" cy="9" r="2" /><path d="M2.5 20c0-4 2.5-6 6-6s6 2 6 6M15 15c3 0 5 1.5 5 4" /></>,
+		profile: <><path d="M5 20V10M12 20V4M19 20v-7M3 20h18" /></>,
+		account: <><path d="M4 7h10M18 7h2M14 5v4M4 17h2M10 17h10M8 15v4M4 12h4M12 12h8M10 10v4" /></>,
+	};
+	return <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{paths[name]}</svg>;
+}
 
 const REQUEST_STATUS_LABELS = {
 	awaiting_payment: "Payment required",
 	matching: "Available",
-	claimed: "Accepted",
-	in_progress: "In progress",
-	delivered: "Delivered",
+	claimed: "Active",
+	in_progress: "Active",
+	delivered: "Active",
 	completed: "Completed",
 	refunded: "Refunded",
 	cancelled: "Cancelled",
@@ -65,6 +79,13 @@ const PROFILE_SPECIALTIES = [
 	"Technique",
 	"Competition Prep",
 ];
+
+function normalizeStringList(value) {
+	const entries = Array.isArray(value) ? value : String(value || "").split(",");
+	return entries
+		.map((entry) => String(entry || "").trim())
+		.filter((entry, index, list) => entry && list.findIndex((item) => item.toLowerCase() === entry.toLowerCase()) === index);
+}
 
 function initials(value) {
 	return String(value || "WL")
@@ -240,6 +261,26 @@ function ConversationMessages({ messages, clientName }) {
 
 function InboxView({ threads, onRefresh }) {
 	const [activeId, setActiveId] = useState(() => threads[0]?.id || "");
+	const [query, setQuery] = useState("");
+	const [unreadOnly, setUnreadOnly] = useState(false);
+	const visibleThreads = useMemo(() => {
+		const normalizedQuery = query.trim().toLowerCase();
+		return threads.filter((thread) => {
+			if (unreadOnly && !thread.unreadForCoach) return false;
+			if (!normalizedQuery) return true;
+			const lastMessage = thread.messages?.[thread.messages.length - 1];
+			return [
+				thread.client?.fullName,
+				thread.client?.city,
+				thread.client?.gymName,
+				lastMessage?.text,
+			]
+				.filter(Boolean)
+				.join(" ")
+				.toLowerCase()
+				.includes(normalizedQuery);
+		});
+	}, [query, threads, unreadOnly]);
 	const activeThread = threads.find((thread) => thread.id === activeId) || threads[0] || null;
 
 	useEffect(() => {
@@ -263,7 +304,28 @@ function InboxView({ threads, onRefresh }) {
 			<PageHeading eyebrow="Conversations" title="Inbox" description="Read and answer every direct client message from one place." />
 			<div className="coach-inbox-layout">
 				<div className="coach-thread-list coach-scroll-panel">
-					{threads.length ? threads.map((thread) => {
+					<div className="coach-thread-toolbar">
+						<label>
+							<span aria-hidden="true">⌕</span>
+							<input
+								type="search"
+								value={query}
+								onChange={(event) => setQuery(event.target.value)}
+								placeholder="Search conversations"
+								aria-label="Search conversations"
+							/>
+						</label>
+						<button
+							type="button"
+							className={unreadOnly ? "is-active" : ""}
+							onClick={() => setUnreadOnly((value) => !value)}
+							aria-pressed={unreadOnly}
+							aria-label="Show unread conversations only"
+						>
+							<span aria-hidden="true">☷</span>
+						</button>
+					</div>
+					{visibleThreads.length ? visibleThreads.map((thread) => {
 						const lastMessage = thread.messages?.[thread.messages.length - 1];
 						return (
 							<button key={thread.id} type="button" className={thread.id === activeThread?.id ? "is-active" : ""} onClick={() => setActiveId(thread.id)}>
@@ -276,7 +338,7 @@ function InboxView({ threads, onRefresh }) {
 								{thread.unreadForCoach ? <b>{thread.unreadForCoach}</b> : null}
 							</button>
 						);
-					}) : <EmptyState title="No messages yet" description="New client conversations will appear here." />}
+					}) : <EmptyState title={threads.length ? "No conversations found" : "No messages yet"} description={threads.length ? "Try a different name or turn off the unread filter." : "New client conversations will appear here."} />}
 				</div>
 				{activeThread ? (
 					<div className="coach-conversation-shell">
@@ -288,7 +350,11 @@ function InboxView({ threads, onRefresh }) {
 						<ConversationMessages messages={activeThread.messages} clientName={activeThread.client?.fullName || "Client"} />
 						<MessageComposer disabled={activeThread.client?.profileVisible === false} placeholder="Reply to this client" onSend={sendReply} />
 					</div>
-				) : null}
+				) : (
+					<div className="coach-conversation-shell">
+						<EmptyState title="Your conversations live here" description="Choose a client conversation to read and reply, or wait for a new message to arrive." />
+					</div>
+				)}
 			</div>
 		</section>
 	);
@@ -341,7 +407,7 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 	function acceptRequest() {
 		try {
 			const accepted = claimServiceRequest(selected.id, coach);
-			setNotice("Request accepted. The client can now see you and reply in this service thread.");
+			setNotice("Request accepted and moved to Active. You can message the client now.");
 			setTab("active");
 			setActiveId(accepted.id);
 			onRefresh();
@@ -357,9 +423,11 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 		onRefresh();
 	}
 
-	function setRequestStatus(status) {
-		updateServiceRequest(selected.id, { requestStatus: status, availabilityStatus: ["completed", "cancelled"].includes(status) ? "closed" : "claimed" });
-		setNotice(status === "in_progress" ? "Work started." : status === "delivered" ? "The client has been notified that your response is ready." : "Request marked complete.");
+	function completeRequest() {
+		updateServiceRequest(selected.id, { requestStatus: "completed", availabilityStatus: "closed" });
+		setNotice("Service completed and moved to Completed.");
+		setTab("completed");
+		setActiveId(selected.id);
 		onRefresh();
 	}
 
@@ -379,9 +447,11 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 		onRefresh();
 	}
 
+	const selectedIsActive = selected && selected.claimedBy?.id === coach.id && ["claimed", "in_progress", "delivered"].includes(selected.requestStatus);
+
 	return (
 		<section className="coach-workspace-page">
-			<PageHeading eyebrow="Quick Services" title="Service requests" description="Paid requests appear here with everything the client submitted." />
+			<PageHeading eyebrow="Quick Services" title="Service requests" description="Accept a paid request, work with the client, then mark the service complete." />
 			<nav className="coach-request-tabs" aria-label="Request status">
 				<button type="button" className={tab === "available" ? "is-active" : ""} onClick={() => { setTab("available"); setActiveId(""); }}>Available <span>{available.length}</span></button>
 				<button type="button" className={tab === "active" ? "is-active" : ""} onClick={() => { setTab("active"); setActiveId(""); }}>Active <span>{active.length}</span></button>
@@ -397,7 +467,7 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 							<p>{request.client?.fullName || "Weightlisted client"} · {request.details?.discipline || request.details?.sport || request.details?.duration || "Remote"}</p>
 							<footer><small>{relativeDate(request.createdAt)}</small><b>{request.details?.coachPayout?.label || request.details?.price?.label}</b></footer>
 						</button>
-					)) : <EmptyState title={`No ${tab} requests`} description={tab === "available" ? "New paid requests that match your specialties will appear here." : "Requests move here as their status changes."} />}
+					)) : <EmptyState title={`No ${tab} requests`} description={tab === "available" ? "New paid requests that match your specialties will appear here." : tab === "active" ? "Accepted requests stay here until you mark them complete." : "Finished services will be saved here."} />}
 				</div>
 				{selected ? (
 					<article className="coach-request-detail coach-scroll-panel">
@@ -406,6 +476,17 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 							<StatusBadge status={selected.requestStatus} />
 						</header>
 						<ClientSnapshot client={selected.client} />
+						{selected.requestStatus === "matching" ? (
+							<section className="coach-request-next-step">
+								<div><span>Next step</span><strong>Accept this request to begin</strong><small>It will move to Active and open a conversation with the client.</small></div>
+								<div className="coach-request-next-step-actions"><button type="button" className="is-primary" onClick={acceptRequest}>Accept request</button><button type="button" onClick={passRequest}>Pass</button></div>
+							</section>
+						) : selectedIsActive ? (
+							<section className="coach-request-next-step is-active">
+								<div><span>Active service</span><strong>Work with {selected.client?.fullName?.split(" ")[0] || "the client"} here</strong><small>Use the conversation below. When the service is finished, move it to Completed.</small></div>
+								<div className="coach-request-next-step-actions"><button type="button" className="is-primary" onClick={completeRequest}>Mark service complete</button></div>
+							</section>
+						) : null}
 						<section className="coach-request-details-card">
 							<DetailRow label="Training">{selected.details?.discipline}</DetailRow>
 							<DetailRow label="Attempt">{selected.details?.attemptType}</DetailRow>
@@ -421,7 +502,7 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 						{selected.attachments?.length ? (
 							<section className="coach-request-attachments"><h3>Client attachments</h3>{selected.attachments.map((attachment) => <button type="button" key={attachment.id}><span>{attachment.kind === "video" ? "▶" : "▧"}</span><div><strong>{attachment.name}</strong><small>{attachment.kind === "video" ? "Video for review" : "Photo for review"}</small></div></button>)}</section>
 						) : null}
-						{selected.serviceCategory === "session" && selected.requestStatus !== "completed" ? (
+						{selected.serviceCategory === "session" && selectedIsActive ? (
 							<section className="coach-schedule-actions">
 								<h3>Session time</h3>
 								<p>{selected.details?.scheduleStatus === "confirmed" ? "Confirmed with the client." : selected.details?.scheduleStatus === "proposed" ? `Proposed ${selected.details.proposedDate} at ${selected.details.proposedTime}.` : "Confirm the requested time or propose another."}</p>
@@ -429,12 +510,6 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 								{proposingTime ? <form onSubmit={submitProposedTime}><input type="date" value={proposedDate} onChange={(event) => setProposedDate(event.target.value)} required /><input type="time" value={proposedTime} onChange={(event) => setProposedTime(event.target.value)} required /><button type="submit">Send proposal</button></form> : null}
 							</section>
 						) : null}
-						<div className="coach-request-actions">
-							{selected.requestStatus === "matching" ? <><button type="button" className="is-primary" onClick={acceptRequest}>Accept request</button><button type="button" onClick={passRequest}>Pass</button></> : null}
-							{selected.requestStatus === "claimed" ? <button type="button" className="is-primary" onClick={() => setRequestStatus("in_progress")}>Start work</button> : null}
-							{selected.requestStatus === "in_progress" ? <button type="button" className="is-primary" onClick={() => setRequestStatus("delivered")}>Mark response delivered</button> : null}
-							{selected.requestStatus === "delivered" ? <button type="button" className="is-primary" onClick={() => setRequestStatus("completed")}>Mark complete</button> : null}
-						</div>
 						{selected.requestStatus !== "matching" ? <RequestMessages request={selected} onRefresh={onRefresh} /> : null}
 					</article>
 				) : null}
@@ -482,7 +557,7 @@ function buildProfileDraft(application, userProfile) {
 		gymName: application?.gymName || userProfile?.gym_name || "",
 		specialties: application?.specialties || [],
 		formats: [application?.inPersonCoaching ? "In person" : "", application?.onlineTraining || application?.remoteAvailable ? "Online" : ""].filter(Boolean),
-		certifications: (application?.certifications || []).join(", "),
+		certifications: normalizeStringList(application?.certifications),
 		website: application?.socialLinks?.find((link) => String(link.type).toLowerCase() === "website")?.value || "",
 		visible: true,
 		acceptingRequests: true,
@@ -490,12 +565,70 @@ function buildProfileDraft(application, userProfile) {
 	};
 }
 
+function MultiEntryPills({ label, values, onChange, placeholder }) {
+	const [entry, setEntry] = useState("");
+	const normalizedValues = normalizeStringList(values);
+
+	function addEntries(rawValue) {
+		const incoming = normalizeStringList(rawValue);
+		if (!incoming.length) return;
+		onChange(normalizeStringList([...normalizedValues, ...incoming]));
+		setEntry("");
+	}
+
+	function handleKeyDown(event) {
+		if (event.key === "Enter" || event.key === ",") {
+			event.preventDefault();
+			addEntries(entry);
+			return;
+		}
+		if (event.key === "Backspace" && !entry && normalizedValues.length) {
+			onChange(normalizedValues.slice(0, -1));
+		}
+	}
+
+	return (
+		<fieldset className="coach-multi-entry-field">
+			<legend>{label}</legend>
+			<div className="coach-multi-entry-control">
+				{normalizedValues.map((value) => (
+					<button
+						type="button"
+						className="coach-multi-entry-pill"
+						key={value.toLowerCase()}
+						onClick={() => onChange(normalizedValues.filter((item) => item !== value))}
+						aria-label={`Remove ${value}`}
+					>
+						<span>{value}</span>
+						<b aria-hidden="true">×</b>
+					</button>
+				))}
+				<input
+					value={entry}
+					onChange={(event) => setEntry(event.target.value)}
+					onKeyDown={handleKeyDown}
+					onBlur={() => addEntries(entry)}
+					placeholder={normalizedValues.length ? "Add another" : placeholder}
+					aria-label={`Add ${label.toLowerCase()}`}
+				/>
+			</div>
+			<small>Press Enter or comma after each entry.</small>
+		</fieldset>
+	);
+}
+
 function PublicProfileView({ application, userProfile }) {
-	const [draft, setDraft] = useState(() => ({
-		...buildProfileDraft(application, userProfile),
-		...(loadLocalCoachPublicProfile(application?.id) || {}),
-	}));
+	const [draft, setDraft] = useState(() => {
+		const baseDraft = buildProfileDraft(application, userProfile);
+		const storedDraft = loadLocalCoachPublicProfile(application?.id) || {};
+		return {
+			...baseDraft,
+			...storedDraft,
+			certifications: normalizeStringList(storedDraft.certifications ?? baseDraft.certifications),
+		};
+	});
 	const [saved, setSaved] = useState(false);
+	const isAvailableToClients = draft.visible && draft.acceptingRequests;
 
 	function toggleList(field, value) {
 		setDraft((current) => ({ ...current, [field]: current[field].includes(value) ? current[field].filter((item) => item !== value) : [...current[field], value] }));
@@ -513,21 +646,35 @@ function PublicProfileView({ application, userProfile }) {
 			<PageHeading eyebrow="Directory presence" title="Public profile" description="These fields control how clients find you on the map, in search, and in service matching." />
 			<div className="coach-profile-editor-layout">
 				<form className="coach-profile-editor" onSubmit={save}>
-					<div className="coach-profile-visibility-grid">
-						<label><input type="checkbox" checked={draft.visible} onChange={(event) => setDraft((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Visible in coach directory</strong><small>Turn this off to disappear from map and search.</small></span></label>
-						<label><input type="checkbox" checked={draft.acceptingRequests} onChange={(event) => setDraft((current) => ({ ...current, acceptingRequests: event.target.checked }))} /><span><strong>Accepting new requests</strong><small>Controls Quick Services eligibility separately.</small></span></label>
-					</div>
+					<button
+						type="button"
+						className={`coach-profile-availability${isAvailableToClients ? " is-active" : ""}`}
+						aria-pressed={isAvailableToClients}
+						onClick={() => setDraft((current) => {
+							const nextAvailability = !(current.visible && current.acceptingRequests);
+							return { ...current, visible: nextAvailability, acceptingRequests: nextAvailability };
+						})}
+					>
+						<i aria-hidden="true" />
+						<span><strong>{isAvailableToClients ? "Visible and accepting requests" : "Hidden from clients"}</strong><small>Controls your directory listing and new Quick Service requests together.</small></span>
+						<b>{isAvailableToClients ? "On" : "Off"}</b>
+					</button>
 					<label><span>Public name</span><input value={draft.fullName} onChange={(event) => setDraft((current) => ({ ...current, fullName: event.target.value }))} /></label>
 					<label><span>Coach title</span><input value={draft.title} onChange={(event) => setDraft((current) => ({ ...current, title: event.target.value }))} /></label>
 					<label><span>Short public bio</span><textarea rows={5} value={draft.bio} onChange={(event) => setDraft((current) => ({ ...current, bio: event.target.value }))} /></label>
 					<div className="coach-profile-editor__grid"><label><span>City</span><input value={draft.city} onChange={(event) => setDraft((current) => ({ ...current, city: event.target.value }))} /></label><label><span>Exact gym</span><input value={draft.gymName} onChange={(event) => setDraft((current) => ({ ...current, gymName: event.target.value }))} /></label></div>
 					<fieldset><legend>Coaching format</legend><div className="coach-workspace-choice-pills">{["In person", "Online"].map((format) => <button type="button" key={format} className={draft.formats.includes(format) ? "is-selected" : ""} onClick={() => toggleList("formats", format)}>{format}</button>)}</div></fieldset>
 					<fieldset><legend>Specialties</legend><div className="coach-workspace-choice-pills">{PROFILE_SPECIALTIES.map((specialty) => <button type="button" key={specialty} className={draft.specialties.includes(specialty) ? "is-selected" : ""} onClick={() => toggleList("specialties", specialty)}>{specialty}</button>)}</div></fieldset>
-					<label><span>Certifications</span><input value={draft.certifications} onChange={(event) => setDraft((current) => ({ ...current, certifications: event.target.value }))} placeholder="Comma-separated" /></label>
+					<MultiEntryPills
+						label="Certifications"
+						values={draft.certifications}
+						onChange={(certifications) => setDraft((current) => ({ ...current, certifications }))}
+						placeholder="Add a certification"
+					/>
 					<label><span>Website or social profile</span><input value={draft.website} onChange={(event) => setDraft((current) => ({ ...current, website: event.target.value }))} type="url" placeholder="https://" /></label>
 					<button className="coach-workspace-primary" type="submit">{saved ? "Profile saved ✓" : "Save public profile"}</button>
 				</form>
-				<aside className="coach-public-preview"><span>Client preview</span><div className="coach-public-preview__card"><Avatar client={{ fullName: draft.fullName, avatarUrl: draft.avatarUrl }} size={82} /><h2>{draft.fullName}</h2><p>{draft.title}</p><small>{[draft.city, draft.gymName].filter(Boolean).join(" · ") || "Location not added"}</small><div className="coach-workspace-tags">{draft.specialties.map((specialty) => <span key={specialty}>{specialty}</span>)}</div><blockquote>{draft.bio || "Your public bio will appear here."}</blockquote><footer><span>{draft.formats.join(" + ") || "Format not selected"}</span><b>{draft.acceptingRequests ? "Accepting requests" : "Requests paused"}</b></footer></div></aside>
+				<aside className="coach-public-preview"><span>Client preview</span><div className="coach-public-preview__card"><Avatar client={{ fullName: draft.fullName, avatarUrl: draft.avatarUrl }} size={82} /><h2>{draft.fullName}</h2><p>{draft.title}</p><small>{[draft.city, draft.gymName].filter(Boolean).join(" · ") || "Location not added"}</small><div className="coach-workspace-tags">{draft.specialties.map((specialty) => <span key={specialty}>{specialty}</span>)}</div><blockquote>{draft.bio || "Your public bio will appear here."}</blockquote><footer><span>{draft.formats.join(" + ") || "Format not selected"}</span><b>{isAvailableToClients ? "Visible & accepting" : "Not visible"}</b></footer></div></aside>
 			</div>
 			<CoachReviewManager coachId={application?.id} coachName={draft.fullName} />
 		</section>
@@ -543,7 +690,7 @@ function HomeView({ coach, threads, requests, onNavigate }) {
 		<section className="coach-workspace-page coach-home">
 			<PageHeading eyebrow="Coach workspace" title={`Welcome, ${coach.name.split(" ")[0]}`} description="Everything here is driven by what clients can do on Weightlisted." action={<button type="button" className="coach-workspace-mode-button" onClick={() => onNavigate("profile")}>Preview public profile</button>} />
 			<div className="coach-home-stats"><button type="button" onClick={() => onNavigate("inbox")}><span>Unread messages</span><strong>{unread}</strong><small>Open inbox →</small></button><button type="button" onClick={() => onNavigate("requests")}><span>Available requests</span><strong>{available.length}</strong><small>Review paid requests →</small></button><button type="button" onClick={() => onNavigate("requests")}><span>Active services</span><strong>{active.length}</strong><small>Continue client work →</small></button></div>
-			<div className="coach-home-grid"><section><header><div><span>Needs attention</span><h2>Today</h2></div></header>{unread ? <button type="button" onClick={() => onNavigate("inbox")}><b>{unread}</b><div><strong>Client messages waiting</strong><span>Read and reply from your inbox.</span></div><i>→</i></button> : null}{available.length ? <button type="button" onClick={() => onNavigate("requests")}><b>{available.length}</b><div><strong>Paid requests available</strong><span>Review every submitted detail before accepting.</span></div><i>→</i></button> : null}{nextSession ? <button type="button" onClick={() => onNavigate("requests")}><b>◷</b><div><strong>{requestTitle(nextSession)}</strong><span>{nextSession.details.scheduledDate} at {nextSession.details.scheduledTime}</span></div><i>→</i></button> : null}{!unread && !available.length && !nextSession ? <EmptyState title="You’re caught up" description="New messages and paid requests will appear here." /> : null}</section><aside><span>Profile visibility</span><h2>Ready to be discovered</h2><p>Your directory visibility and request availability are controlled separately in Public profile.</p><button type="button" onClick={() => onNavigate("profile")}>Manage public profile</button></aside></div>
+			<div className="coach-home-grid"><section><header><div><span>Needs attention</span><h2>Today</h2></div></header>{unread ? <button type="button" onClick={() => onNavigate("inbox")}><b>{unread}</b><div><strong>Client messages waiting</strong><span>Read and reply from your inbox.</span></div><i>→</i></button> : null}{available.length ? <button type="button" onClick={() => onNavigate("requests")}><b>{available.length}</b><div><strong>Paid requests available</strong><span>Review every submitted detail before accepting.</span></div><i>→</i></button> : null}{nextSession ? <button type="button" onClick={() => onNavigate("requests")}><b>◷</b><div><strong>{requestTitle(nextSession)}</strong><span>{nextSession.details.scheduledDate} at {nextSession.details.scheduledTime}</span></div><i>→</i></button> : null}{!unread && !available.length && !nextSession ? <EmptyState title="You’re caught up" description="New messages and paid requests will appear here." /> : null}</section><aside><span>Profile availability</span><h2>Ready to be discovered</h2><p>Use one control to show your profile and accept new requests.</p><button type="button" onClick={() => onNavigate("profile")}>Manage public profile</button></aside></div>
 		</section>
 	);
 }
@@ -625,12 +772,24 @@ export default function CoachWorkspace({
 	const availableRequests = coach.acceptingRequests === false ? 0 : requests.filter((request) => request.requestStatus === "matching" && request.paymentStatus === "paid" && !(request.passedByCoachIds || []).includes(coach.id)).length;
 
 	return (
-		<main className="coach-workspace-shell">
-			{previewMode ? <div className="coach-workspace-preview-note">Coach View preview — no backend role or permission has changed.</div> : null}
+		<main
+			className={`coach-workspace-shell${previewMode ? " is-preview" : ""}`}
+			data-section={section}
+			style={{
+				"--coach-workspace-background": `url(${coachWorkspaceBackground})`,
+				"--coach-workspace-portrait": `url(${coachWorkspacePortrait})`,
+			}}
+		>
+			<div className="coach-workspace-motto" aria-hidden="true">
+				<span>Discipline</span>
+				<span>Builds</span>
+				<span>Freedom</span>
+				<i />
+			</div>
 			<aside className="coach-workspace-sidebar">
 				<header><div className="coach-workspace-logo">W</div><div><span>Weightlisted</span><strong>Coach</strong></div></header>
 				<nav aria-label="Coach workspace">
-					{NAV_ITEMS.map((item) => <button key={item.id} type="button" className={section === item.id ? "is-active" : ""} onClick={() => setSection(item.id)}><i>{item.icon}</i><span>{item.label}</span>{item.id === "inbox" && unreadMessages ? <b>{unreadMessages}</b> : item.id === "requests" && availableRequests ? <b>{availableRequests}</b> : null}</button>)}
+					{NAV_ITEMS.map((item) => <button key={item.id} type="button" className={section === item.id ? "is-active" : ""} onClick={() => setSection(item.id)}><i><NavigationIcon name={item.id} /></i><span>{item.label}</span>{item.id === "inbox" && unreadMessages ? <b>{unreadMessages}</b> : item.id === "requests" && availableRequests ? <b>{availableRequests}</b> : null}</button>)}
 				</nav>
 				<footer><div><Avatar client={{ fullName: coach.name, avatarUrl: coach.avatarUrl }} /><span><strong>{coach.name}</strong><small>{coach.title}</small></span></div><button type="button" onClick={onExitCoachMode}>User View</button></footer>
 			</aside>
@@ -643,7 +802,7 @@ export default function CoachWorkspace({
 				{section === "account" ? <AccountView application={application} user={user} onExitCoachMode={onExitCoachMode} onOpenClientAccount={onOpenClientAccount} onSignOut={onSignOut} /> : null}
 			</div>
 			<nav className="coach-workspace-mobile-nav" aria-label="Coach workspace">
-				{NAV_ITEMS.map((item) => <button key={item.id} type="button" className={section === item.id ? "is-active" : ""} onClick={() => setSection(item.id)}><i>{item.icon}</i><span>{item.id === "profile" ? "Profile" : item.label}</span>{item.id === "inbox" && unreadMessages ? <b>{unreadMessages}</b> : item.id === "requests" && availableRequests ? <b>{availableRequests}</b> : null}</button>)}
+				{NAV_ITEMS.map((item) => <button key={item.id} type="button" className={section === item.id ? "is-active" : ""} onClick={() => setSection(item.id)}><i><NavigationIcon name={item.id} /></i><span>{item.id === "profile" ? "Profile" : item.label}</span>{item.id === "inbox" && unreadMessages ? <b>{unreadMessages}</b> : item.id === "requests" && availableRequests ? <b>{availableRequests}</b> : null}</button>)}
 			</nav>
 		</main>
 	);

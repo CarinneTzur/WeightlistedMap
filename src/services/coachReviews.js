@@ -68,13 +68,17 @@ function isBackendMissing(error) {
 }
 
 export function summarizeCoachReviews(reviews = []) {
-	const count = reviews.length;
+	const validReviews = reviews.filter((review) => {
+		const rating = Number(review?.rating);
+		return Number.isFinite(rating) && rating >= 1 && rating <= 5;
+	});
+	const count = validReviews.length;
 	const average = count
-		? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / count
+		? validReviews.reduce((total, review) => total + Number(review.rating), 0) / count
 		: 0;
 	const distribution = [5, 4, 3, 2, 1].map((rating) => ({
 		rating,
-		count: reviews.filter((review) => review.rating === rating).length,
+		count: validReviews.filter((review) => Number(review.rating) === rating).length,
 	}));
 	return { count, average, distribution };
 }
