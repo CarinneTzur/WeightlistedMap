@@ -1,0 +1,157 @@
+.admin-workspace,
+.admin-workspace * {
+	box-sizing: border-box;
+}
+
+.admin-workspace button,
+.admin-workspace a,
+.admin-workspace input,
+.admin-workspace textarea {
+	transition: border-color 160ms ease, background-color 160ms ease, color 160ms ease, box-shadow 160ms ease, filter 160ms ease, transform 160ms ease;
+}
+
+.admin-workspace button:hover:not(:disabled),
+.admin-workspace a:hover {
+	filter: brightness(1.08);
+}
+
+.admin-workspace button:active:not(:disabled) {
+	transform: translateY(1px);
+}
+
+.admin-workspace button:focus-visible,
+.admin-workspace a:focus-visible,
+.admin-workspace input:focus-visible,
+.admin-workspace textarea:focus-visible {
+	outline: 2px solid rgba(216, 184, 111, 0.56);
+	outline-offset: 2px;
+}
+
+.admin-workspace input:focus,
+.admin-workspace textarea:focus {
+	border-color: rgba(216, 184, 111, 0.36) !important;
+	box-shadow: 0 0 0 3px rgba(216, 184, 111, 0.07);
+}
+
+.admin-workspace input::placeholder,
+.admin-workspace textarea::placeholder {
+	color: rgba(190, 184, 176, 0.42);
+}
+
+.admin-workspace button:disabled {
+	opacity: 0.42;
+	cursor: default !important;
+}
+
+.admin-review-layout {
+	display: grid;
+	grid-template-columns: minmax(230px, 290px) minmax(0, 1fr);
+	align-items: start;
+	gap: clamp(18px, 2.2vw, 28px);
+}
+
+.admin-application-rail {
+	position: sticky;
+	top: 18px;
+	max-height: calc(100dvh - 36px);
+	padding-right: 4px;
+	overflow-y: auto;
+}
+
+.admin-application-option {
+	display: grid !important;
+	gap: 3px;
+	min-height: 0;
+}
+
+.admin-application-option > strong,
+.admin-application-option > div:first-child strong {
+	overflow: hidden;
+	font-size: 14px;
+	font-weight: 650;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.admin-application-option__footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	margin-top: 9px;
+}
+
+.admin-application-option__footer small {
+	color: #85817c;
+	font-size: 10.5px;
+	white-space: nowrap;
+}
+
+.admin-application-option__footer > span {
+	padding: 5px 8px !important;
+	font-size: 10.5px !important;
+}
+
+.admin-application-focus {
+	min-width: 0;
+	border-color: rgba(224, 219, 211, 0.13) !important;
+	box-shadow: 0 24px 80px rgba(0, 0, 0, 0.28) !important;
+}
+
+.admin-application-focus h2 {
+	font-size: clamp(24px, 2.4vw, 30px) !important;
+}
+
+.admin-application-focus > div:first-child {
+	padding-bottom: 17px;
+	border-bottom: 1px solid rgba(224, 219, 211, 0.08);
+}
+
+.admin-workspace ::-webkit-scrollbar {
+	width: 9px;
+	height: 9px;
+}
+
+.admin-workspace ::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.admin-workspace ::-webkit-scrollbar-thumb {
+	border: 2px solid transparent;
+	border-radius: 999px;
+	background: rgba(214, 207, 198, 0.18);
+	background-clip: padding-box;
+}
+
+@media (max-width: 640px) {
+	.admin-workspace h1 {
+		max-width: 12ch;
+	}
+
+	.admin-workspace textarea {
+		min-height: 84px !important;
+	}
+}
+
+@media (max-width: 900px) {
+	.admin-review-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.admin-application-rail {
+		position: static;
+		max-height: none;
+		grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+		padding-right: 0;
+		overflow: visible;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.admin-workspace button,
+	.admin-workspace a,
+	.admin-workspace input,
+	.admin-workspace textarea {
+		transition: none;
+	}
+}

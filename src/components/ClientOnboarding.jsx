@@ -98,33 +98,6 @@ const LOCAL_LOCATION_OPTIONS = Array.from(
 	).values(),
 ).sort((left, right) => left.label.localeCompare(right.label));
 
-function mapNominatimLocation(result) {
-	const address = result?.address || {};
-	const city = address.city || address.town || address.village || address.municipality || address.county || "";
-	return buildLocationOption(city, address.state);
-}
-
-async function searchUsLocations(query, signal) {
-	const url = new URL("https://nominatim.openstreetmap.org/search");
-	url.searchParams.set("format", "jsonv2");
-	url.searchParams.set("addressdetails", "1");
-	url.searchParams.set("countrycodes", "us");
-	url.searchParams.set("limit", "8");
-	url.searchParams.set("dedupe", "1");
-	url.searchParams.set("q", query);
-	const response = await fetch(url.toString(), { headers: { Accept: "application/json" }, signal });
-	if (!response.ok) throw new Error("Location search failed.");
-	const results = await response.json();
-	return Array.from(
-		new Map(
-			results
-				.map(mapNominatimLocation)
-				.filter(Boolean)
-				.map((option) => [`${option.city.toLowerCase()},${option.state}`, option]),
-		).values(),
-	);
-}
-
 function selectedValues(value) {
 	return Array.isArray(value) ? value : [];
 }
@@ -144,43 +117,15 @@ function initialPreferences(profile) {
 function LocationAutocomplete({ value, onChange }) {
 	const [open, setOpen] = useState(false);
 	const [inputValue, setInputValue] = useState(value || "");
-	const [apiOptions, setApiOptions] = useState([]);
-	const [searchStatus, setSearchStatus] = useState("idle");
 	const normalizedInput = inputValue.trim().toLowerCase();
 	const localOptions = LOCAL_LOCATION_OPTIONS.filter((option) =>
 		normalizedInput ? option.searchText.includes(normalizedInput) : true,
 	).slice(0, 8);
-	const options = Array.from(
-		new Map([...apiOptions, ...localOptions].map((option) => [`${option.city.toLowerCase()},${option.state}`, option])).values(),
-	).slice(0, 8);
+	const options = localOptions;
 
 	useEffect(() => {
 		setInputValue(value || "");
 	}, [value]);
-
-	useEffect(() => {
-		if (!open || inputValue.trim().length < 3) {
-			setApiOptions([]);
-			setSearchStatus("idle");
-			return undefined;
-		}
-		const controller = new AbortController();
-		const timeoutId = window.setTimeout(async () => {
-			setSearchStatus("loading");
-			try {
-				setApiOptions(await searchUsLocations(inputValue.trim(), controller.signal));
-				setSearchStatus("done");
-			} catch (error) {
-				if (error?.name === "AbortError") return;
-				setApiOptions([]);
-				setSearchStatus("error");
-			}
-		}, 350);
-		return () => {
-			controller.abort();
-			window.clearTimeout(timeoutId);
-		};
-	}, [inputValue, open]);
 
 	function choose(option) {
 		setInputValue(option.label);
@@ -204,8 +149,7 @@ function LocationAutocomplete({ value, onChange }) {
 				<div className="client-onboarding__location-results" role="listbox">
 					{options.length ? options.map((option) => (
 						<button key={option.label} type="button" role="option" aria-selected={value === option.label} onMouseDown={(event) => event.preventDefault()} onClick={() => choose(option)}>{option.label}</button>
-					)) : <div>{searchStatus === "loading" ? "Searching city and state..." : "Keep typing to find your city or region."}</div>}
-					{options.length && searchStatus === "loading" ? <div>Searching more matches...</div> : null}
+					)) : <div>Enter your location as City, ST. Exact search is optional.</div>}
 				</div>
 			) : null}
 		</label>

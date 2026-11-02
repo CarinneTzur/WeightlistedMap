@@ -14,6 +14,7 @@ import {
 	getMyCoachApplication,
 } from "../../utils/coachApplications";
 import { buildRoleAccess } from "./roles";
+import { clearMarketplaceLocalCache } from "../services/conversationStore";
 import "./AuthDialog.css";
 
 const AuthContext = createContext(null);
@@ -675,11 +676,13 @@ export function AuthProvider({ children }) {
                 const { error } = await supabase.rpc("delete_current_user");
                 if (error) throw error;
                 setProfile(null);
+		clearMarketplaceLocalCache();
                 await supabase.auth.signOut();
 	}, [session?.user]);
 
 	const signOut = useCallback(async () => {
 		if (!supabase) return;
+		clearMarketplaceLocalCache();
 		const { error } = await supabase.auth.signOut();
 		if (error) throw error;
 	}, []);

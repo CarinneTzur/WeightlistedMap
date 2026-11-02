@@ -37,6 +37,7 @@ const blankForm = {
 	gymName: "",
 	gymCity: "",
 	gymState: "",
+	gymZip: "",
 	gymPlaceId: "",
 	gymAddress: "",
 	gymLatitude: null,
@@ -280,47 +281,11 @@ function buildLocationOption(city, state) {
 	};
 }
 
-function getCityFromAddress(address = {}) {
-	return (
-		address.city ||
-		address.town ||
-		address.village ||
-		address.municipality ||
-		address.county ||
-		""
-	);
-}
-
-function mapNominatimLocation(result) {
-	const address = result?.address || {};
-	return buildLocationOption(getCityFromAddress(address), address.state);
-}
-
-async function searchUsLocations(query, signal) {
-	const url = new URL("https://nominatim.openstreetmap.org/search");
-	url.searchParams.set("format", "jsonv2");
-	url.searchParams.set("addressdetails", "1");
-	url.searchParams.set("countrycodes", "us");
-	url.searchParams.set("limit", "8");
-	url.searchParams.set("dedupe", "1");
-	url.searchParams.set("q", query);
-
-	const response = await fetch(url.toString(), {
-		headers: { Accept: "application/json" },
-		signal,
-	});
-
-	if (!response.ok) throw new Error("Location search failed.");
-
-	const results = await response.json();
-	return Array.from(
-		new Map(
-			results
-				.map(mapNominatimLocation)
-				.filter(Boolean)
-				.map((option) => [`${option.city.toLowerCase()},${option.state}`, option]),
-		).values(),
-	);
+function parseManualLocation(value) {
+	const normalized = String(value || "").trim();
+	const match = normalized.match(/^(.+?)(?:,|\s)\s*([A-Za-z]{2})$/);
+	if (!match) return null;
+	return buildLocationOption(match[1], match[2]);
 }
 
 const styles = {
@@ -989,60 +954,22 @@ function LocationField({
 	cityValue,
 	stateValue,
 	onChoose,
-	placeholder = "Start typing a city or state",
+	placeholder = "City, ST",
 	required = true,
 	disabled = false,
 }) {
 	const [open, setOpen] = useState(false);
 	const selectedLabel = cityValue && stateValue ? `${cityValue}, ${stateValue}` : "";
 	const [inputValue, setInputValue] = useState(selectedLabel);
-	const [apiOptions, setApiOptions] = useState([]);
-	const [searchStatus, setSearchStatus] = useState("idle");
 	const normalizedInput = inputValue.trim().toLowerCase();
 	const localOptions = LOCAL_LOCATION_OPTIONS.filter((option) =>
 		normalizedInput ? option.searchText.includes(normalizedInput) : true,
 	).slice(0, 8);
-	const mergedOptions = Array.from(
-		new Map(
-			[...apiOptions, ...localOptions].map((option) => [
-				`${option.city.toLowerCase()},${option.state}`,
-				option,
-			]),
-		).values(),
-	).slice(0, 8);
+	const mergedOptions = localOptions;
 
 	useEffect(() => {
 		setInputValue(selectedLabel);
 	}, [selectedLabel]);
-
-	useEffect(() => {
-		if (disabled || !open || inputValue.trim().length < 3) {
-			setApiOptions([]);
-			setSearchStatus("idle");
-			return undefined;
-		}
-
-		const controller = new AbortController();
-		const timeoutId = window.setTimeout(async () => {
-			setSearchStatus("loading");
-
-			try {
-				const results = await searchUsLocations(inputValue.trim(), controller.signal);
-				setApiOptions(results);
-				setSearchStatus("done");
-			} catch (error) {
-				if (error?.name === "AbortError") return;
-				console.warn("Location search failed.", error);
-				setApiOptions([]);
-				setSearchStatus("error");
-			}
-		}, 350);
-
-		return () => {
-			controller.abort();
-			window.clearTimeout(timeoutId);
-		};
-	}, [disabled, inputValue, open]);
 
 	function chooseLocation(option) {
 		onChoose({
@@ -1057,13 +984,14 @@ function LocationField({
 
 	function handleInputChange(event) {
 		const nextValue = event.target.value;
+		const manualLocation = parseManualLocation(nextValue);
 		setInputValue(nextValue);
 		setOpen(true);
 		onChoose({
 			cityName,
 			stateName,
-			city: nextValue,
-			state: "",
+			city: manualLocation?.city || nextValue,
+			state: manualLocation?.state || "",
 		});
 	}
 
@@ -1116,15 +1044,8 @@ function LocationField({
 								</button>
 							))
 						) : (
-							<div style={styles.locationEmpty}>
-								{searchStatus === "loading"
-									? "Searching city and state..."
-									: "No matching city yet. Keep typing the gym location."}
-							</div>
+							<div style={styles.locationEmpty}>Enter any U.S. location as City, ST.</div>
 						)}
-						{mergedOptions.length && searchStatus === "loading" ? (
-							<div style={styles.locationEmpty}>Searching more matches...</div>
-						) : null}
 					</div>
 				) : null}
 			</div>
@@ -1409,8 +1330,17 @@ export default function CoachApplicationForm({ onBackToMap, accountEmail = "" })
 			gymAddress: gym.address,
 			gymCity: gym.city || current.gymCity,
 			gymState: normalizeStateAbbr(gym.state) || current.gymState,
+			gymZip: String(gym.postalCode || current.gymZip || "").replace(/\D/g, "").slice(0, 5),
 			gymLatitude: gym.latitude,
 			gymLongitude: gym.longitude,
+		}));
+	}
+
+	function chooseGymCoordinates({ latitude, longitude }) {
+		setForm((current) => ({
+			...current,
+			gymLatitude: latitude,
+			gymLongitude: longitude,
 		}));
 	}
 
@@ -1493,6 +1423,7 @@ export default function CoachApplicationForm({ onBackToMap, accountEmail = "" })
 			gymName: checked ? "" : current.gymName,
 			gymCity: checked ? "" : current.gymCity,
 			gymState: checked ? "" : current.gymState,
+			gymZip: checked ? "" : current.gymZip,
 			gymPlaceId: checked ? "" : current.gymPlaceId,
 			gymAddress: checked ? "" : current.gymAddress,
 			gymLatitude: checked ? null : current.gymLatitude,
@@ -1546,6 +1477,12 @@ export default function CoachApplicationForm({ onBackToMap, accountEmail = "" })
 				return;
 			}
 
+			if (!form.onlineOnly && !/^\d{5}$/.test(form.gymZip)) {
+				setError("Enter the gym's 5-digit ZIP code.");
+				setSubmitting(false);
+				return;
+			}
+
 			if (!form.interviewAcknowledged) {
 				setError(
 					"Book your approval interview and confirm it before submitting.",
@@ -1575,6 +1512,7 @@ export default function CoachApplicationForm({ onBackToMap, accountEmail = "" })
 				gymName: form.onlineOnly ? "" : form.gymName,
 				gymCity: form.onlineOnly ? "" : form.gymCity,
 				gymState: form.onlineOnly ? "" : normalizeStateAbbr(form.gymState),
+				gymZip: form.onlineOnly ? "" : form.gymZip,
 				gymPlaceId: form.onlineOnly ? "" : form.gymPlaceId,
 				gymAddress: form.onlineOnly ? "" : form.gymAddress,
 				latitude: form.onlineOnly ? null : form.gymLatitude,
@@ -1721,17 +1659,36 @@ export default function CoachApplicationForm({ onBackToMap, accountEmail = "" })
 									required={!form.onlineOnly}
 									disabled={form.onlineOnly}
 								/>
+								<label style={styles.field}>
+									<span style={styles.label}>Gym ZIP code</span>
+									<input
+										style={styles.input}
+										type="text"
+										inputMode="numeric"
+										autoComplete="postal-code"
+										name="gymZip"
+										value={form.gymZip}
+										onChange={(event) => setForm((current) => ({ ...current, gymZip: event.target.value.replace(/\D/g, "").slice(0, 5) }))}
+										placeholder="30318"
+										required={!form.onlineOnly}
+										disabled={form.onlineOnly}
+										maxLength={5}
+									/>
+								</label>
 								<GymPlaceAutocomplete
 									label="Gym name and exact location"
-									helper="Choose the exact branch from Google Maps."
+									helper="Enter the gym name, then save the exact pin while you are at the gym."
 									value={form.gymName}
 									placeId={form.gymPlaceId}
-									locationHint={[form.gymCity, form.gymState].filter(Boolean).join(", ")}
+									latitude={form.gymLatitude}
+									longitude={form.gymLongitude}
+									locationHint={[[form.gymCity, form.gymState].filter(Boolean).join(", "), form.gymZip].filter(Boolean).join(" ")}
 									required={!form.onlineOnly}
 									disabled={form.onlineOnly}
 									placeholder={form.onlineOnly ? "Not needed for online-only coaches" : "Start typing the gym name"}
 									onChange={updateGymName}
 									onSelect={chooseGymPlace}
+									onCoordinates={chooseGymCoordinates}
 								/>
 							</div>
 						</section>

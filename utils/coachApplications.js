@@ -28,6 +28,10 @@ function compactString(value) {
 	return String(value ?? "").trim();
 }
 
+function normalizeZip(value) {
+	return compactString(value).replace(/\D/g, "").slice(0, 5);
+}
+
 function splitFullName(fullName) {
 	const parts = compactString(fullName).split(/\s+/).filter(Boolean);
 	return {
@@ -238,6 +242,7 @@ function buildInsertRow(input, userId) {
 		gym_name: compactString(input.gymName),
 		gym_city: compactString(input.gymCity),
 		gym_state: normalizeStateAbbr(input.gymState),
+		gym_zip: normalizeZip(input.gymZip) || null,
 		gym_place_id: compactString(input.gymPlaceId),
 		gym_address: compactString(input.gymAddress),
 		coach_title: compactString(input.coachTitle),
@@ -267,10 +272,11 @@ function buildInsertRow(input, userId) {
 
 export function mapSupabaseApplication(row) {
 	if (!row) return null;
-	const nameParts = splitFullName(row.full_name);
+	const publicFullName = row.public_name || row.full_name;
+	const nameParts = splitFullName(publicFullName);
 	const firstName = row.first_name || nameParts.firstName;
 	const lastName = row.last_name || nameParts.lastName;
-	const fullName = buildFullName(firstName, lastName, row.full_name);
+	const fullName = compactString(row.public_name) || buildFullName(firstName, lastName, row.full_name);
 
 	return {
 		id: row.id,
@@ -289,9 +295,10 @@ export function mapSupabaseApplication(row) {
 		gymName: row.gym_name,
 		gymCity: row.gym_city,
 		gymState: row.gym_state,
+		gymZip: row.gym_zip || "",
 		gymPlaceId: row.gym_place_id || "",
 		gymAddress: row.gym_address || "",
-		coachTitle: row.coach_title,
+		coachTitle: row.public_title || row.coach_title,
 		specialties: row.specialties || [],
 		bio: row.bio,
 		reviewStatement: row.review_statement || "",
@@ -315,7 +322,53 @@ export function mapSupabaseApplication(row) {
 		longitude: row.longitude,
 		adminNotes: row.admin_notes || "",
 		declineReason: row.decline_reason || "",
+		profileVisible: row.profile_visible ?? true,
+		acceptingRequests: row.accepting_requests ?? true,
 	};
+}
+
+export async function saveMyCoachPublicProfile(applicationId, profile) {
+	const supabase = requireSupabase();
+	const normalizedProfile = {
+		fullName: compactString(profile?.fullName),
+		title: compactString(profile?.title),
+		bio: compactString(profile?.bio),
+		city: compactString(profile?.city),
+		state: normalizeStateAbbr(profile?.gymState || profile?.state),
+		zip: normalizeZip(profile?.gymZip || profile?.zip),
+		gymName: compactString(profile?.gymName),
+		gymPlaceId: compactString(profile?.gymPlaceId),
+		gymAddress: compactString(profile?.gymAddress),
+		latitude: normalizeNullableNumber(profile?.gymLatitude ?? profile?.latitude),
+		longitude: normalizeNullableNumber(profile?.gymLongitude ?? profile?.longitude),
+		specialties: splitList(profile?.specialties).slice(0, 16),
+		formats: splitList(profile?.formats).slice(0, 8),
+		certifications: splitList(profile?.certifications).slice(0, 20),
+		socialLinks: Array.isArray(profile?.socialLinks)
+			? profile.socialLinks
+				.map((link) => ({
+					type: compactString(link?.type),
+					value: compactString(link?.value),
+				}))
+				.filter((link) => link.type && link.value)
+				.slice(0, 12)
+			: [],
+		visible: profile?.visible !== false,
+		acceptingRequests: profile?.acceptingRequests !== false,
+	};
+
+	const { data, error } = await supabase
+		.rpc("update_my_coach_public_profile", {
+			p_application_id: applicationId,
+			p_profile: normalizedProfile,
+		})
+		.single();
+	if (error) throw error;
+
+	const application = mapSupabaseApplication(data);
+	await refreshApprovedCoachCache();
+	emitChange();
+	return application;
 }
 
 export async function submitCoachApplication(input) {
@@ -486,7 +539,7 @@ function buildGymFromApplication(application) {
 		address: application.gymAddress || "Address pending",
 		city: application.gymCity,
 		state,
-		zip: "",
+		zip: normalizeZip(application.gymZip),
 		latitude: application.latitude || stateCenter[0],
 		longitude: application.longitude || stateCenter[1],
 		tags: splitList(application.specialties).map((specialty) =>
@@ -528,6 +581,8 @@ export function buildCoachFromApplication(application, gymId) {
 		website: getWebsiteFromSocialLinks(application.socialLinks),
 		socialLinks: application.socialLinks || [],
 		certifications: splitList(application.certifications),
+		directoryVisible: application.profileVisible ?? true,
+		acceptingRequests: application.acceptingRequests ?? true,
 	};
 }
 
@@ -536,13 +591,15 @@ function findStaticGymForApplication(application) {
 	const gymName = compactString(application.gymName).toLowerCase();
 	const gymCity = compactString(application.gymCity).toLowerCase();
 	const gymState = normalizeStateAbbr(application.gymState);
+	const gymZip = normalizeZip(application.gymZip);
 
 	return staticGyms.find(
 		(gym) =>
 			(Boolean(gymPlaceId) && compactString(gym.googlePlaceId) === gymPlaceId) ||
 			(compactString(gym.name).toLowerCase() === gymName &&
 				compactString(gym.city).toLowerCase() === gymCity &&
-				normalizeStateAbbr(gym.state) === gymState),
+				normalizeStateAbbr(gym.state) === gymState &&
+				(!gymZip || !normalizeZip(gym.zip) || normalizeZip(gym.zip) === gymZip)),
 	);
 }
 
@@ -576,7 +633,16 @@ function buildApprovedData(applications) {
 		}
 
 		const existingGym = findStaticGymForApplication(application);
-		const manualLocationKey = [application.gymName, application.gymCity, normalizeStateAbbr(application.gymState)]
+		const hasExactCoordinates = application.latitude !== null
+			&& application.latitude !== ""
+			&& application.longitude !== null
+			&& application.longitude !== ""
+			&& Number.isFinite(Number(application.latitude))
+			&& Number.isFinite(Number(application.longitude));
+		const coordinateKey = hasExactCoordinates
+			? `${Number(application.latitude).toFixed(3)}:${Number(application.longitude).toFixed(3)}`
+			: "";
+		const manualLocationKey = [application.gymName, application.gymCity, normalizeStateAbbr(application.gymState), normalizeZip(application.gymZip), coordinateKey]
 			.map((part) => compactString(part).toLowerCase())
 			.join(":");
 		const locationKey = application.gymPlaceId
@@ -632,6 +698,7 @@ export function getApprovedApplicationCoaches() {
 			inPersonCoaching: override.formats?.includes("In person") ?? coach.inPersonCoaching,
 			onlineTraining: override.formats?.includes("Online") ?? coach.onlineTraining,
 			remoteAvailable: override.formats?.includes("Online") ?? coach.remoteAvailable,
+			socialLinks: Array.isArray(override.socialLinks) ? override.socialLinks : coach.socialLinks,
 			directoryVisible: override.visible ?? true,
 			acceptingRequests: override.acceptingRequests ?? true,
 		};
@@ -689,7 +756,7 @@ export function buildCoachApplicationNotificationPayload(application, reviewUrl)
 		`Email: ${application.email}`,
 		`Phone: ${application.phone || "Not provided"}`,
 		`Location: ${[application.city, application.state].filter(Boolean).join(", ") || "Not provided"}`,
-		`Gym: ${[application.gymName, application.gymCity, application.gymState].filter(Boolean).join(", ") || "Not provided"}`,
+		`Gym: ${[application.gymName, application.gymCity, application.gymState, application.gymZip].filter(Boolean).join(", ") || "Not provided"}`,
 		`Specialties: ${splitList(application.specialties).join(", ") || "Not provided"}`,
 		"",
 		`View in admin portal: ${adminPortalUrl}`,
@@ -716,6 +783,7 @@ export function buildCoachApplicationNotificationPayload(application, reviewUrl)
 		city: application.city,
 		state: application.state,
 		gymName: application.gymName,
+		gymZip: application.gymZip,
 		specialties: splitList(application.specialties),
 		socialLinks: application.socialLinks || [],
 		email: application.email,

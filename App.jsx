@@ -26,6 +26,7 @@ import RoleViewSwitcher from "./src/components/RoleViewSwitcher";
 import ClientOnboarding from "./src/components/ClientOnboarding";
 import ProfileCompletionPrompt from "./src/components/ProfileCompletionPrompt";
 import CoachReviews from "./src/components/CoachReviews";
+import SocialLinks from "./src/components/SocialLinks";
 import {
 	COACH_REVIEWS_CHANGED_EVENT,
 	loadCoachReviews,
@@ -42,9 +43,12 @@ import {
 import {
 	appendDirectMessage,
 	DIRECT_MESSAGES_CHANGED_EVENT,
+	getClientRelationshipStatus,
 	loadDirectMessageThread,
 	loadDirectMessageThreads,
 	markDirectMessageThreadRead,
+	refreshMarketplaceData,
+	subscribeMarketplaceData,
 } from "./src/services/conversationStore";
 
 const CoachApplicationAdmin = React.lazy(
@@ -1390,7 +1394,7 @@ const styles = {
 		border: `1px solid ${palette.border}`,
 		color: palette.text,
 		fontFamily: "inherit",
-		fontSize: 16,
+		fontSize: 13.5,
 		lineHeight: 1.4,
 		boxShadow: "0 1.5px 8px rgba(0,0,0,0.22) inset",
 	},
@@ -2091,6 +2095,7 @@ function CoachProfile({
 					<span style={styles.profileStat}>Online coaching</span>
 				) : null}
 			</div>
+			<SocialLinks links={coach.socialLinks} />
 			<button
 				type="button"
 				className="profile-reviews-button"
@@ -2111,7 +2116,7 @@ function CoachProfile({
 				style={styles.primaryButton}
 				onClick={() => onContact(coach)}
 			>
-				Contact now
+				Request coaching
 			</button>
 		</div>
 	);
@@ -2121,11 +2126,15 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const { user, profile } = useAuth();
 	const messageInputRef = useRef(null);
 	const messageListRef = useRef(null);
+	const initialThread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
 	const [message, setMessage] = useState(
 		`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 	);
 	const [messages, setMessages] = useState(
-		() => loadDirectMessageThread(coach.id, { userId: user?.id || "" })?.messages || [],
+		() => initialThread?.messages || [],
+	);
+	const [relationshipStatus, setRelationshipStatus] = useState(
+		() => initialThread ? getClientRelationshipStatus(initialThread) : "not_started",
 	);
 	const {
 		attachments: draftAttachments,
@@ -2139,21 +2148,24 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const specialtyLabel = coach.specialties?.length
 		? coach.specialties.slice(1, 3).join(" • ")
 		: coach.title;
-	const canSend = Boolean(message.trim() || draftAttachments.length);
+	const canSend = relationshipStatus !== "declined" && Boolean(message.trim() || draftAttachments.length);
 
 	useEffect(() => {
 		const thread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
 		setMessages(thread?.messages || []);
+		setRelationshipStatus(thread ? getClientRelationshipStatus(thread) : "not_started");
 		if (thread?.id && thread.unreadForClient) markDirectMessageThreadRead(thread.id, "client");
 		setMessage(
 			`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 		);
+		void refreshMarketplaceData();
 	}, [coach.id, coach.name, user?.id]);
 
 	useEffect(() => {
 		const refreshThread = () => {
 			const thread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
 			setMessages(thread?.messages || []);
+			setRelationshipStatus(thread ? getClientRelationshipStatus(thread) : "not_started");
 			if (thread?.id && thread.unreadForClient) markDirectMessageThreadRead(thread.id, "client");
 		};
 		window.addEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refreshThread);
@@ -2208,7 +2220,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			...current,
 			{ ...sentMessage, attachments: sentAttachments },
 		]);
-		appendDirectMessage(coach, sentMessage, {
+		const savedThread = appendDirectMessage(coach, sentMessage, {
 			id: user?.id || "",
 			fullName: profile?.full_name || profile?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Weightlisted client",
 			avatarUrl: profile?.avatar_url || "",
@@ -2218,6 +2230,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			trainingNote: profile?.training_note || "",
 			profileVisible: profile?.profile_visible ?? true,
 		});
+		setRelationshipStatus(getClientRelationshipStatus(savedThread));
 		setMessage("");
 	}
 
@@ -2257,7 +2270,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 						textTransform: "uppercase",
 					}}
 				>
-					Direct message
+					Coaching request
 				</span>
 			</div>
 
@@ -2285,6 +2298,27 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 				</div>
 				<span className="contact-profile-action">View profile →</span>
 			</button>
+
+			<div className={`coaching-request-status is-${relationshipStatus}`} role="status">
+				<strong>
+					{relationshipStatus === "accepted"
+						? "You’re an active coaching client"
+						: relationshipStatus === "declined"
+							? "This coaching request wasn’t accepted"
+							: relationshipStatus === "pending"
+								? "Coaching request pending"
+								: "Ask about ongoing coaching"}
+				</strong>
+				<span>
+					{relationshipStatus === "accepted"
+						? "Use this conversation for your ongoing coaching relationship."
+						: relationshipStatus === "declined"
+							? "You can still purchase a separate Quick Service from available coaches."
+							: relationshipStatus === "pending"
+								? `${coach.name} can review your profile and accept you as an ongoing client.`
+								: "Introduce yourself and your goals. Sending the first message creates a coaching request."}
+				</span>
+			</div>
 
 			<div
 				style={{
@@ -2327,8 +2361,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 						))
 					) : (
 						<div style={styles.messageHint}>
-							Send your coach a lifting video or photo with your goal and what you
-							want reviewed.
+							Share your goals, training history, schedule, and what you want from ongoing coaching.
 						</div>
 					)}
 				</div>
@@ -2349,11 +2382,12 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 						ref={messageInputRef}
 						className="coach-scroll-panel"
 						style={styles.messageInput}
-						placeholder="Type your message..."
+						placeholder={relationshipStatus === "declined" ? "This request is closed" : "Tell the coach about your goals..."}
 						aria-label={`Message to ${coach.name}`}
 						value={message}
 						onChange={handleMessageChange}
 						onKeyDown={handleMessageKeyDown}
+						disabled={relationshipStatus === "declined"}
 						rows={1}
 						autoFocus
 					/>
@@ -2387,11 +2421,15 @@ function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) 
 			view: "user",
 			userId: user?.id || "",
 		}));
+		void refreshMarketplaceData().then(refresh);
+		const refreshFromBackend = () => { void refreshMarketplaceData().then(refresh); };
 		window.addEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refresh);
 		window.addEventListener("storage", refresh);
+		window.addEventListener("focus", refreshFromBackend);
 		return () => {
 			window.removeEventListener(DIRECT_MESSAGES_CHANGED_EVENT, refresh);
 			window.removeEventListener("storage", refresh);
+			window.removeEventListener("focus", refreshFromBackend);
 		};
 	}, [user?.id]);
 
@@ -2416,7 +2454,7 @@ function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) 
 			{onOpenServices ? (
 				<nav className="communication-panel-tabs" aria-label="Communication type">
 					<button type="button" className="is-active" aria-current="page">Messages</button>
-					<button type="button" onClick={onOpenServices}>Services</button>
+					<button type="button" onClick={onOpenServices}>Quick Services</button>
 				</nav>
 			) : null}
 			{threads.length ? (
@@ -2424,6 +2462,7 @@ function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) 
 					{threads.map((thread) => {
 						const coach = coaches.find((item) => item.id === thread.coachId);
 						const lastMessage = thread.messages?.[thread.messages.length - 1];
+						const relationshipStatus = getClientRelationshipStatus(thread);
 						return (
 							<button
 								key={thread.id}
@@ -2436,6 +2475,7 @@ function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) 
 								<div>
 									<strong>{coach?.name || thread.coachName}</strong>
 									<span>{lastMessage?.text || (lastMessage?.attachments?.length ? "Media attached" : "Conversation started")}</span>
+								<em className={`is-${relationshipStatus}`}>{relationshipStatus === "accepted" ? "Active coaching" : relationshipStatus === "declined" ? "Not accepted" : "Request pending"}</em>
 								</div>
 								<small>{formatThreadDate(thread.updatedAt)}</small>
 							</button>
@@ -3187,6 +3227,12 @@ function MobileBottomSheetDialog({ title, onClose, onBack, children, footer }) {
 		return () => window.removeEventListener("keydown", handleKeyDown);
 	}, []);
 
+	useEffect(() => {
+		if (!user?.id) return undefined;
+		void refreshMarketplaceData();
+		return subscribeMarketplaceData();
+	}, [user?.id]);
+
 	return (
 		<div
 			style={styles.mobileDialogOverlay}
@@ -3739,17 +3785,20 @@ function CoachMapApp({
 		const style = addGlobalMapStyles();
 		const map = L.map(mapNodeRef.current, {
 			zoomControl: true,
-			attributionControl: false,
+			attributionControl: true,
 			scrollWheelZoom: true,
 		}).setView([38.8, -96.5], window.innerWidth >= 1024 ? 4 : 3);
 
 		L.tileLayer(
 			"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
-			{ maxZoom: 16 },
+			{
+				maxZoom: 16,
+				attribution: "Tiles &copy; Esri &mdash; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, and the GIS user community",
+			},
 		).addTo(map);
 		L.tileLayer(
 			"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}",
-			{ maxZoom: 16, opacity: 0.58 },
+			{ maxZoom: 16, opacity: 0.38 },
 		).addTo(map);
 
 		const gyms = getAllGyms();
@@ -3913,6 +3962,19 @@ function CoachMapApp({
 								},
 							}
 							: null;
+
+						// A map selection always takes over the side panel. Keep the
+						// previous communication view in `previousView` so Back can
+						// restore it, but do not leave it covering the cluster results.
+						setServicesOpen(false);
+						setServicesReturnToMessages(false);
+						setMessagesOpen(false);
+						setAccountOpen(false);
+						setMobileLocationSheetOpen(false);
+						setMobileFilterSheetOpen(false);
+						setMobileSearchExpanded(false);
+						setMobileHeaderCollapsed(false);
+
 						if (isMulti) {
 							const cities = [...new Set(clusterGyms.map((gym) => gym.city))];
 							const states = [
@@ -4873,6 +4935,11 @@ function CoachMapApp({
 		setStatesPanelOpen(previousView.statesPanelOpen);
 		setFavoritesOpen(previousView.favoritesOpen);
 		setSemanticSearchOpen(previousView.semanticSearchOpen);
+		setServicesOpen(previousView.servicesOpen);
+		setServicesInitialView(previousView.servicesInitialView);
+		setServicesReturnToMessages(previousView.servicesReturnToMessages);
+		setMessagesOpen(previousView.messagesOpen);
+		setAccountOpen(previousView.accountOpen);
 		setTrainingType(previousView.trainingType);
 		setProfileCoach(previousView.profileCoach);
 		setContactCoach(previousView.contactCoach);
@@ -4884,6 +4951,8 @@ function CoachMapApp({
 		setMobileSheetSnap(previousView.mobileSheetSnap);
 		setMobileHeaderCollapsed(previousView.mobileHeaderCollapsed);
 		setMobileSearchExpanded(previousView.mobileSearchExpanded);
+		setMobileLocationSheetOpen(previousView.mobileLocationSheetOpen);
+		setMobileFilterSheetOpen(previousView.mobileFilterSheetOpen);
 		if (previousView.mapView && mapRef.current) {
 			mapRef.current.flyTo(
 				previousView.mapView.center,
@@ -5502,7 +5571,7 @@ function CoachMapApp({
 					/>
 					<nav className="communications-segmented-control desktop-communications-launcher" aria-label="Conversations">
 						<button type="button" onClick={openMessages}>Messages</button>
-						<button type="button" onClick={() => openServices("requests")}>Services</button>
+						<button type="button" onClick={() => openServices("requests")}>Quick Services</button>
 					</nav>
 				</div>
 			) : null}

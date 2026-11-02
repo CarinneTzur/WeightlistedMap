@@ -1,3 +1,5 @@
+import { FOUNDER_PREVIEW_COACH_ID } from "../../data/founderPreview";
+
 export const APP_VIEWS = Object.freeze({
 	USER: "user",
 	COACH: "coach",
@@ -58,7 +60,7 @@ export function getPathForAppView(view) {
 
 export function buildFounderCoachPreviewApplication(user, profile) {
 	return {
-		id: `founder-coach-preview-${user?.id || "account"}`,
+		id: FOUNDER_PREVIEW_COACH_ID,
 		userId: user?.id || "",
 		status: "preview",
 		fullName:
@@ -73,7 +75,10 @@ export function buildFounderCoachPreviewApplication(user, profile) {
 		state: "",
 		gymName: profile?.gym_name || "Anytime Fitness",
 		gymCity: profile?.city || "New York",
-		gymState: "",
+		gymState: "NY",
+		gymZip: "10001",
+		latitude: 40.7506,
+		longitude: -73.9972,
 		specialties: profile?.training_focus?.length
 			? profile.training_focus
 			: ["Powerlifting", "General Fitness", "Nutrition"],

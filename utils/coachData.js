@@ -12,12 +12,26 @@ function uniqueById(items) {
 	return Array.from(new Map(items.map((item) => [item.id, item])).values());
 }
 
+const SHOW_DEMO_DIRECTORY = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_COACHES === "true";
+
 function getCoachSource() {
-	return uniqueById([...staticCoaches, ...getApprovedApplicationCoaches()]);
+	return uniqueById([
+		...(SHOW_DEMO_DIRECTORY ? staticCoaches : []),
+		...getApprovedApplicationCoaches(),
+	]);
 }
 
 function getGymSource() {
-	return uniqueById([...staticGyms, ...getCreatedApplicationGyms()]);
+	if (SHOW_DEMO_DIRECTORY) {
+		return uniqueById([...staticGyms, ...getCreatedApplicationGyms()]);
+	}
+	const approvedGymIds = new Set(
+		getApprovedApplicationCoaches().flatMap((coach) => coach.gymIds || []),
+	);
+	return uniqueById([
+		...staticGyms.filter((gym) => approvedGymIds.has(gym.id)),
+		...getCreatedApplicationGyms(),
+	]);
 }
 
 export function getApprovedCoaches() {

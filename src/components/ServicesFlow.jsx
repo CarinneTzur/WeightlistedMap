@@ -21,6 +21,7 @@ import {
 	appendServiceRequestMessage,
 	loadServiceRequests,
 	markServiceRequestRead,
+	refreshMarketplaceData,
 	saveServiceRequest,
 	SERVICE_REQUESTS_CHANGED_EVENT,
 } from "../services/conversationStore";
@@ -242,13 +243,17 @@ export default function ServicesFlow({
 			view: "user",
 			userId: user?.id || "",
 		}));
+		if (open) void refreshMarketplaceData().then(refreshRequests);
+		const refreshFromBackend = () => { if (open) void refreshMarketplaceData().then(refreshRequests); };
 		window.addEventListener(SERVICE_REQUESTS_CHANGED_EVENT, refreshRequests);
 		window.addEventListener("storage", refreshRequests);
+		window.addEventListener("focus", refreshFromBackend);
 		return () => {
 			window.removeEventListener(SERVICE_REQUESTS_CHANGED_EVENT, refreshRequests);
 			window.removeEventListener("storage", refreshRequests);
+			window.removeEventListener("focus", refreshFromBackend);
 		};
-	}, [user?.id]);
+	}, [open, user?.id]);
 
 	useEffect(() => {
 		contentRef.current?.scrollTo?.({ top: 0, behavior: "smooth" });
@@ -540,7 +545,7 @@ export default function ServicesFlow({
 	function renderStep() {
 		switch (step) {
 			case "category":
-				return <><div className="services-question-heading"><p>Services</p><h2>What do you need help with?</h2><span>Focused help without a subscription</span></div><ChoiceGrid options={SERVICE_CATEGORIES} value={draft.category} onSelect={selectCategory} directory /></>;
+				return <><div className="services-question-heading"><p>Quick Services</p><h2>What do you need help with?</h2><span>One focused, paid task—not an ongoing coaching relationship</span></div><ChoiceGrid options={SERVICE_CATEGORIES} value={draft.category} onSelect={selectCategory} directory /></>;
 			case "competitionSport":
 				return <><div className="services-question-heading"><p>Competition</p><h2>What are you competing in?</h2></div><ChoiceGrid options={COMPETITION_SPORTS} value={draft.sport} onSelect={(sport) => goTo("requestType", { sport, requestType: "" })} directory dense /></>;
 			case "requestType":
@@ -682,7 +687,7 @@ export default function ServicesFlow({
 				{showSectionTabs ? (
 					<nav className="services-section-tabs" aria-label="Quick Services">
 						<button type="button" className={section === "new" ? "is-active" : ""} onClick={() => selectSection("new")}>New request</button>
-						<button type="button" className={section === "requests" ? "is-active" : ""} onClick={() => selectSection("requests")}>Service requests{requests.length ? <span>{requests.length}</span> : null}</button>
+						<button type="button" className={section === "requests" ? "is-active" : ""} onClick={() => selectSection("requests")}>My Quick Services{requests.length ? <span>{requests.length}</span> : null}</button>
 					</nav>
 				) : null}
 				<div className="services-step-content">{section === "requests" ? renderRequests() : renderStep()}</div>

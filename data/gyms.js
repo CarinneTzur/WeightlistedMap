@@ -1,5 +1,20 @@
 export const gyms = [
 	{
+		id: "gym_weightlisted_founder_ny",
+		name: "Anytime Fitness",
+		address: "",
+		city: "New York",
+		state: "NY",
+		zip: "10001",
+		latitude: 40.7506,
+		longitude: -73.9972,
+		tags: ["powerlifting", "general fitness", "nutrition"],
+		website: "",
+		image: "",
+		description: "Preview location for the Weightlisted founder coach profile.",
+		isPreview: true,
+	},
+	{
 		id: "gym_barbell_house_la",
 		name: "Barbell House LA",
 		address: "123 Example Ave",

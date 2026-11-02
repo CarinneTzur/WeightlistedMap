@@ -64,6 +64,7 @@ export async function getGymPlace(placeId, { sessionToken, signal, fallbackName 
 		address: textValue(place.formattedAddress),
 		city: addressPart(place.addressComponents, "locality") || addressPart(place.addressComponents, "postal_town"),
 		state: addressPart(place.addressComponents, "administrative_area_level_1", { short: true }),
+		postalCode: addressPart(place.addressComponents, "postal_code"),
 		latitude: Number(place.location?.latitude) || null,
 		longitude: Number(place.location?.longitude) || null,
 	};

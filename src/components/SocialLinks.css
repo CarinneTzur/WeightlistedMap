@@ -1,0 +1,92 @@
+.coach-social-links {
+	display: flex;
+	width: 100%;
+	max-width: 440px;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.coach-social-links a {
+	display: inline-flex;
+	min-height: 38px;
+	max-width: 100%;
+	align-items: center;
+	padding: 0 12px;
+	border: 1px solid rgba(198, 197, 195, 0.18);
+	border-radius: 999px;
+	background: rgba(198, 197, 195, 0.055);
+	color: rgba(242, 241, 239, 0.72);
+	font-size: 12.5px;
+	font-weight: 480;
+	line-height: 1;
+	text-decoration: none;
+	gap: 8px;
+	transition: border-color 160ms ease, background 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.coach-social-links a:hover,
+.coach-social-links a:focus-visible {
+	border-color: rgba(198, 197, 195, 0.38);
+	background: rgba(198, 197, 195, 0.1);
+	color: #f2f1ef;
+	opacity: 1;
+}
+
+.coach-social-links a:focus-visible {
+	outline: 2px solid rgba(111, 183, 233, 0.62);
+	outline-offset: 2px;
+}
+
+.coach-social-links svg {
+	width: 17px;
+	height: 17px;
+	flex: 0 0 auto;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 1.7;
+	stroke-linecap: round;
+	stroke-linejoin: round;
+	opacity: 0.82;
+}
+
+.coach-social-links svg .is-filled {
+	fill: currentColor;
+	stroke: none;
+}
+
+.coach-social-links a span {
+	max-width: 250px;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.coach-social-links.is-compact {
+	gap: 6px;
+}
+
+.coach-social-links.is-compact a {
+	min-height: 32px;
+	padding: 0 10px;
+	font-size: 11px;
+	gap: 6px;
+}
+
+.coach-social-links.is-compact svg {
+	width: 15px;
+	height: 15px;
+}
+
+@media (max-width: 520px) {
+	.coach-social-links {
+		gap: 7px;
+	}
+
+	.coach-social-links a {
+		min-height: 36px;
+		padding: 0 10px;
+		font-size: 12px;
+	}
+}

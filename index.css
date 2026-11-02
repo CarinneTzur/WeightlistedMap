@@ -100,6 +100,20 @@ html {
 	white-space: nowrap;
 }
 
+.direct-message-card em {
+	width: fit-content;
+	margin-top: 7px;
+	font-size: 10px;
+	font-style: normal;
+	font-weight: 650;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.direct-message-card em.is-pending { color: #d9b8bb; }
+.direct-message-card em.is-accepted { color: #b9d7c0; }
+.direct-message-card em.is-declined { color: rgba(198, 197, 195, 0.48); }
+
 .direct-message-card small {
 	color: rgba(198, 197, 195, 0.48);
 	font-size: 11.5px;
@@ -160,6 +174,43 @@ html {
 	font-size: 12.5px;
 	font-weight: 540;
 	white-space: nowrap;
+}
+
+.coaching-request-status {
+	display: grid;
+	gap: 4px;
+	margin: 14px 0 0;
+	padding: 12px 14px;
+	border: 1px solid rgba(198, 197, 195, 0.16);
+	border-radius: 13px;
+	background: rgba(198, 197, 195, 0.045);
+}
+
+.coaching-request-status strong {
+	color: #f2f1ef;
+	font-size: 12.5px;
+	font-weight: 620;
+}
+
+.coaching-request-status span {
+	color: rgba(198, 197, 195, 0.68);
+	font-size: 11.5px;
+	line-height: 1.45;
+}
+
+.coaching-request-status.is-pending {
+	border-color: rgba(201, 142, 149, 0.3);
+	background: rgba(145, 61, 72, 0.09);
+}
+
+.coaching-request-status.is-accepted {
+	border-color: rgba(132, 180, 143, 0.3);
+	background: rgba(79, 126, 90, 0.09);
+}
+
+.coaching-request-status.is-declined {
+	border-color: rgba(198, 197, 195, 0.12);
+	opacity: 0.78;
 }
 
 .communications-segmented-control {

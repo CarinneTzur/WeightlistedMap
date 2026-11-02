@@ -13,7 +13,8 @@ revoke all on private.admin_allowlist from public;
 insert into private.admin_allowlist (email)
 values
   ('carinnetz@gmail.com'),
-  ('ctzurdecker@outlook.com')
+  ('ctzurdecker@outlook.com'),
+  ('getweightlisted@gmail.com')
 on conflict (email) do nothing;
 
 create table if not exists public.profiles (
@@ -64,6 +65,7 @@ alter table public.coach_applications
   add column if not exists gym_name text,
   add column if not exists gym_city text,
   add column if not exists gym_state text,
+  add column if not exists gym_zip text,
   add column if not exists gym_place_id text,
   add column if not exists gym_address text,
   add column if not exists coach_title text,
@@ -89,6 +91,10 @@ alter table public.coach_applications
   add column if not exists interview_acknowledged boolean not null default false,
   add column if not exists latitude numeric,
   add column if not exists longitude numeric,
+  add column if not exists public_name text,
+  add column if not exists public_title text,
+  add column if not exists profile_visible boolean not null default true,
+  add column if not exists accepting_requests boolean not null default true,
   add column if not exists admin_notes text,
   add column if not exists decline_reason text;
 
@@ -115,6 +121,10 @@ check (years_of_experience is null or years_of_experience >= 0);
 alter table public.coach_applications drop constraint if exists coach_applications_roster_check;
 alter table public.coach_applications add constraint coach_applications_roster_check
 check (current_roster_size is null or current_roster_size >= 0);
+
+alter table public.coach_applications drop constraint if exists coach_applications_gym_zip_check;
+alter table public.coach_applications add constraint coach_applications_gym_zip_check
+check (gym_zip is null or gym_zip ~ '^[0-9]{5}$');
 
 create or replace function public.set_updated_at()
 returns trigger language plpgsql set search_path = public as $$
@@ -317,13 +327,17 @@ grant select, insert, update, delete on public.coach_applications to authenticat
 -- Anonymous visitors see only approved, public coach fields—not applications.
 create or replace view public.coach_directory with (security_barrier = true) as
 select
-  id, created_at, updated_at, status, first_name, last_name, full_name,
-  city, state, gym_name, gym_city, gym_state, coach_title, specialties,
+  id, created_at, updated_at, status, first_name, last_name,
+  coalesce(nullif(public_name, ''), full_name) as full_name,
+  city, state, gym_name, gym_city, gym_state,
+  coalesce(nullif(public_title, ''), coach_title) as coach_title, specialties,
   bio, lifting_experience, coaching_experience, years_of_experience,
   current_roster_size, online_training, remote_available, in_person_coaching,
   coaching_formats, profile_photo_url, social_links, certifications,
-  latitude, longitude, gym_place_id, gym_address
-from public.coach_applications where status = 'approved';
+  latitude, longitude, gym_place_id, gym_address, profile_visible,
+  accepting_requests,
+  gym_zip
+from public.coach_applications where status = 'approved' and profile_visible = true;
 revoke all on public.coach_directory from public;
 grant select on public.coach_directory to anon, authenticated;
 
@@ -401,4 +415,4 @@ for delete to authenticated using (
 create policy "Authenticated users can read client profile photos" on storage.objects
 for select to authenticated using (bucket_id = 'client-profile-photos');
 
--- carinnetz@gmail.com is made an administrator by the private allowlist above.
+-- Owner accounts in private.admin_allowlist are made administrators above.
