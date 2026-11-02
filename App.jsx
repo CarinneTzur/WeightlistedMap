@@ -1871,7 +1871,7 @@ function CoachCard({
 				>
 					{coach.title}
 				</div>
-				{coach.isMock ? <div style={styles.mockCoachBadge}>Preview coach</div> : null}
+				{coach.isMock ? <div style={styles.mockCoachBadge}>Mock coach</div> : null}
 				{clusterPreview ? (
 					<>
 						{gymNames.length ? (
@@ -2087,7 +2087,7 @@ function CoachProfile({
 			/>
 			<div style={styles.profileName}>{coach.name}</div>
 			<div style={styles.profileTitle}>{coach.title}</div>
-			{coach.isMock ? <div style={{ ...styles.mockCoachBadge, margin: "2px auto 7px" }}>Preview coach</div> : null}
+			{coach.isMock ? <div style={{ ...styles.mockCoachBadge, margin: "2px auto 7px" }}>Mock coach</div> : null}
 			<div style={styles.profileLocation}>
 				Available at: {gymNames.join(" + ") || coach.city}
 				{coach.remoteAvailable ? " • Remote coaching available" : ""}
@@ -2319,7 +2319,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			<div className={`coaching-request-status is-${relationshipStatus}`} role="status">
 				<strong>
 					{coach.isMock
-						? "Preview coach profile"
+						? "Mock coach profile"
 						: relationshipStatus === "accepted"
 						? "You’re an active coaching client"
 						: relationshipStatus === "declined"
@@ -2403,7 +2403,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 						ref={messageInputRef}
 						className="coach-scroll-panel"
 						style={styles.messageInput}
-						placeholder={coach.isMock ? "Preview coach — messaging is disabled" : relationshipStatus === "declined" ? "This request is closed" : "Tell the coach about your goals..."}
+						placeholder={coach.isMock ? "Mock coach — messaging is disabled" : relationshipStatus === "declined" ? "This request is closed" : "Tell the coach about your goals..."}
 						aria-label={`Message to ${coach.name}`}
 						value={message}
 						onChange={handleMessageChange}
