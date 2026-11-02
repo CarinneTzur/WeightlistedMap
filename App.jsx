@@ -2736,7 +2736,8 @@ function CoachListPanel({
 	favoriteCoachIds,
 	onToggleFavorite,
 	contactCoach,
-	setContactCoach,
+	onOpenContact,
+	onCloseContact,
 	isDesktop,
 	emptyMessage,
 	searchAutoFocus = false,
@@ -2771,8 +2772,8 @@ function CoachListPanel({
 		return (
 			<ContactPanel
 				coach={contactCoach}
-				onBack={() => setContactCoach(null)}
-				onViewProfile={() => setContactCoach(null)}
+				onBack={onCloseContact}
+				onViewProfile={onCloseContact}
 				isDesktop={isDesktop}
 			/>
 		);
@@ -2785,7 +2786,7 @@ function CoachListPanel({
 				onBack={onProfileBack || (() => setProfileCoach(null))}
 				isFavorite={favoriteCoachIds.includes(profileCoach.id)}
 				onToggleFavorite={onToggleFavorite}
-				onContact={setContactCoach}
+				onContact={onOpenContact}
 			/>
 		);
 	}
@@ -2900,7 +2901,7 @@ function CoachListPanel({
 						key={coach.id}
 						coach={coach}
 						onClick={() => {
-							setContactCoach(null);
+							onCloseContact?.();
 							if (onOpenProfile) {
 								onOpenProfile(coach, scrollPanelRef.current?.scrollTop || 0);
 							} else {
@@ -4243,11 +4244,14 @@ function CoachMapApp({
 	}, [filter]);
 
 	function toggleFavoriteCoach(coachId) {
-		setFavoriteCoachIds((current) =>
-			current.includes(coachId)
-				? current.filter((id) => id !== coachId)
-				: [...current, coachId],
-		);
+		const updateFavorite = () => {
+			setFavoriteCoachIds((current) =>
+				current.includes(coachId)
+					? current.filter((id) => id !== coachId)
+					: [...current, coachId],
+			);
+		};
+		onRequireAuth?.({ reason: "favorites", onAuthenticated: updateFavorite });
 	}
 
 	function closeMobileSearchMode() {
@@ -6166,7 +6170,8 @@ function CoachMapApp({
 							favoriteCoachIds={favoriteCoachIds}
 							onToggleFavorite={toggleFavoriteCoach}
 							contactCoach={contactCoach}
-							setContactCoach={openContactCoach}
+							onOpenContact={openContactCoach}
+							onCloseContact={() => setContactCoach(null)}
 							isDesktop={isDesktop}
 							emptyMessage={activePanelEmptyMessage}
 							searchAutoFocus={isDesktop}

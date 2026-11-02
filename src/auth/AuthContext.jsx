@@ -24,6 +24,10 @@ const AUTH_COPY = {
 		title: "Sign in to contact this coach",
 		description: "Your account keeps this conversation private and lets you return to it later.",
 	},
+	favorites: {
+		title: "Sign in to save this coach",
+		description: "Your account keeps your favorite coaches available when you return.",
+	},
 	service: {
 		title: "Sign in to send your request",
 		description: "We’ll save the request to your account before matching you with a coach.",
@@ -49,6 +53,12 @@ const AUTH_COPY = {
 		description: "Turn visibility back on before messaging coaches, submitting requests, or applying as a coach.",
 	},
 };
+
+const PROFILE_VISIBILITY_REQUIRED_REASONS = new Set([
+	"contact",
+	"service",
+	"coach_application",
+]);
 
 // Keep profile reads tolerant while the optional onboarding migration is rolled out.
 const PROFILE_FIELDS = "*";
@@ -576,7 +586,7 @@ export function AuthProvider({ children }) {
 
 	const requireAuth = useCallback(({ reason = "account", onAuthenticated, onCancel } = {}) => {
 		if (session?.user) {
-			if (reason !== "account" && profile?.profile_visible === false) {
+			if (PROFILE_VISIBILITY_REQUIRED_REASONS.has(reason) && profile?.profile_visible === false) {
 				pendingActionRef.current = { onAuthenticated, onCancel };
 				setPrompt({ reason: "profile_hidden", requestedReason: reason });
 				return false;
