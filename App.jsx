@@ -1163,6 +1163,20 @@ const styles = {
 		marginBottom: 1,
 	},
 	coachTitle: { fontSize: 14, color: palette.graphite100, marginBottom: 3 },
+	mockCoachBadge: {
+		display: "inline-flex",
+		width: "fit-content",
+		margin: "1px 0 4px",
+		padding: "3px 7px",
+		border: "1px solid rgba(217,189,125,0.24)",
+		borderRadius: 999,
+		background: "rgba(217,189,125,0.09)",
+		color: "#e2cb91",
+		fontSize: 10,
+		fontWeight: 650,
+		letterSpacing: "0.06em",
+		textTransform: "uppercase",
+	},
 	coachLocation: { fontSize: 13, color: palette.muted, marginBottom: 4 },
 	coachGymLine: {
 		fontSize: 13.5,
@@ -1857,6 +1871,7 @@ function CoachCard({
 				>
 					{coach.title}
 				</div>
+				{coach.isMock ? <div style={styles.mockCoachBadge}>Preview coach</div> : null}
 				{clusterPreview ? (
 					<>
 						{gymNames.length ? (
@@ -2072,6 +2087,7 @@ function CoachProfile({
 			/>
 			<div style={styles.profileName}>{coach.name}</div>
 			<div style={styles.profileTitle}>{coach.title}</div>
+			{coach.isMock ? <div style={{ ...styles.mockCoachBadge, margin: "2px auto 7px" }}>Preview coach</div> : null}
 			<div style={styles.profileLocation}>
 				Available at: {gymNames.join(" + ") || coach.city}
 				{coach.remoteAvailable ? " • Remote coaching available" : ""}
@@ -2116,7 +2132,7 @@ function CoachProfile({
 				style={styles.primaryButton}
 				onClick={() => onContact(coach)}
 			>
-				Request coaching
+				{coach.isMock ? "Preview request flow" : "Request coaching"}
 			</button>
 		</div>
 	);
@@ -2148,7 +2164,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const specialtyLabel = coach.specialties?.length
 		? coach.specialties.slice(1, 3).join(" • ")
 		: coach.title;
-	const canSend = relationshipStatus !== "declined" && Boolean(message.trim() || draftAttachments.length);
+	const canSend = !coach.isMock && relationshipStatus !== "declined" && Boolean(message.trim() || draftAttachments.length);
 
 	useEffect(() => {
 		const thread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
@@ -2199,6 +2215,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	}, [messages]);
 
 	function handleSend() {
+		if (coach.isMock) return;
 		const trimmed = message.trim();
 		if (!trimmed && !draftAttachments.length) return;
 		const sentAttachments = detachAttachments();
@@ -2301,7 +2318,9 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 
 			<div className={`coaching-request-status is-${relationshipStatus}`} role="status">
 				<strong>
-					{relationshipStatus === "accepted"
+					{coach.isMock
+						? "Preview coach profile"
+						: relationshipStatus === "accepted"
 						? "You’re an active coaching client"
 						: relationshipStatus === "declined"
 							? "This coaching request wasn’t accepted"
@@ -2310,7 +2329,9 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 								: "Ask about ongoing coaching"}
 				</strong>
 				<span>
-					{relationshipStatus === "accepted"
+					{coach.isMock
+						? "This temporary profile demonstrates the marketplace. Messaging is disabled until a real coach replaces it."
+						: relationshipStatus === "accepted"
 						? "Use this conversation for your ongoing coaching relationship."
 						: relationshipStatus === "declined"
 							? "You can still purchase a separate Quick Service from available coaches."
@@ -2382,12 +2403,12 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 						ref={messageInputRef}
 						className="coach-scroll-panel"
 						style={styles.messageInput}
-						placeholder={relationshipStatus === "declined" ? "This request is closed" : "Tell the coach about your goals..."}
+						placeholder={coach.isMock ? "Preview coach — messaging is disabled" : relationshipStatus === "declined" ? "This request is closed" : "Tell the coach about your goals..."}
 						aria-label={`Message to ${coach.name}`}
 						value={message}
 						onChange={handleMessageChange}
 						onKeyDown={handleMessageKeyDown}
-						disabled={relationshipStatus === "declined"}
+						disabled={coach.isMock || relationshipStatus === "declined"}
 						rows={1}
 						autoFocus
 					/>

@@ -12,7 +12,9 @@ function uniqueById(items) {
 	return Array.from(new Map(items.map((item) => [item.id, item])).values());
 }
 
-const SHOW_DEMO_DIRECTORY = import.meta.env.DEV || import.meta.env.VITE_SHOW_DEMO_COACHES === "true";
+// The temporary launch-preview directory is on by default. Set this explicitly
+// to "false" when the real coach directory is ready to stand on its own.
+const SHOW_DEMO_DIRECTORY = import.meta.env.VITE_SHOW_DEMO_COACHES !== "false";
 
 function getCoachSource() {
 	return uniqueById([
