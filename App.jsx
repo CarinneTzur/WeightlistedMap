@@ -2025,6 +2025,7 @@ function CoachProfile({
 	isFavorite,
 	onToggleFavorite,
 	onContact,
+	edgeInset = 0,
 }) {
 	const gymNames = getCoachGymNames(coach);
 	const [reviewsOpen, setReviewsOpen] = useState(false);
@@ -2059,7 +2060,15 @@ function CoachProfile({
 	}
 
 	return (
-		<div className="coach-scroll-panel" style={styles.profilePanel}>
+		<div
+			className="coach-scroll-panel"
+			style={{
+				...styles.profilePanel,
+				width: `calc(100% + ${edgeInset}px)`,
+				marginRight: -edgeInset,
+				paddingRight: edgeInset,
+			}}
+		>
 			<div style={styles.profileTopRow}>
 				<button
 					style={styles.backArrow}
@@ -2755,6 +2764,7 @@ function CoachListPanel({
 	onProfileBack,
 	restoreResultsScrollTop = 0,
 	profileCompletionPrompt = null,
+	profileEdgeInset = 0,
 }) {
 	const scrollPanelRef = useRef(null);
 	const isCompact = !isDesktop;
@@ -2787,6 +2797,7 @@ function CoachListPanel({
 				isFavorite={favoriteCoachIds.includes(profileCoach.id)}
 				onToggleFavorite={onToggleFavorite}
 				onContact={onOpenContact}
+				edgeInset={profileEdgeInset}
 			/>
 		);
 	}
@@ -6157,6 +6168,7 @@ function CoachMapApp({
 							onOpenProfile={openCoachProfile}
 								onProfileBack={handleCoachProfileBack}
 								restoreResultsScrollTop={mobileSearchResultsScrollTopRef.current}
+							profileEdgeInset={isDesktop ? 34 : isMobileSearchMode ? 14 : 16}
 								profileCompletionPrompt={
 									showProfileCompletionPrompt ? (
 										<ProfileCompletionPrompt
