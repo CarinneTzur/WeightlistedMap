@@ -1376,15 +1376,15 @@ const styles = {
 	},
 	messageSentBubble: {
 		alignSelf: "flex-end",
-		maxWidth: "86%",
-		padding: "12px 14px",
-		borderRadius: "18px 18px 6px 18px",
-		background: palette.graphite100,
-		color: palette.graphite900,
-		fontSize: 14,
-		lineHeight: 1.45,
-		fontWeight: 560,
-		boxShadow: "0 14px 32px rgba(0,0,0,0.26)",
+		maxWidth: "82%",
+		padding: "10px 13px",
+		borderRadius: "14px 14px 4px 14px",
+		background: "#30475A",
+		color: "#F2F1EF",
+		fontSize: 13,
+		lineHeight: 1.5,
+		fontWeight: 400,
+		boxShadow: "none",
 		whiteSpace: "pre-wrap",
 		wordBreak: "break-word",
 	},
@@ -2361,14 +2361,15 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			>
 				<div
 					ref={messageListRef}
+					className="client-message-history"
 					style={{
 						flex: 1,
 						minHeight: 0,
 						overflowY: "auto",
 						display: "flex",
 						flexDirection: "column",
-						gap: 12,
-						padding: "0 2px 14px",
+						gap: 8,
+						padding: "8px 12px 18px 4px",
 					}}
 				>
 					{messages.length ? (
@@ -2378,7 +2379,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 								style={{
 									...styles.messageSentBubble,
 									...(sentMessage.sender === "coach"
-										? { marginLeft: 0, marginRight: "auto", borderRadius: "14px 14px 14px 3px", background: "rgba(72,116,158,.22)" }
+										? { alignSelf: "flex-start", marginLeft: 0, marginRight: "auto", borderRadius: "14px 14px 14px 4px", background: "#38373A", color: "#F2F1EF" }
 										: {}),
 								}}
 							>
@@ -2389,6 +2390,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 									</div>
 								) : null}
 								{sentMessage.text ? <div>{sentMessage.text}</div> : null}
+								{sentMessage.createdAt && <time style={{display:"block",fontSize:10,color:"#BAC5CF",marginTop:5,textAlign:"right"}}>{new Date(sentMessage.createdAt).toLocaleTimeString([], {hour:"numeric",minute:"2-digit"})}</time>}
 							</div>
 						))
 					) : (
