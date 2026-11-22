@@ -2999,8 +2999,8 @@ function getSingleGymTooltipPlacement(map, lat, lng, markerSize) {
 	const markerPoint = map.latLngToContainerPoint([lat, lng]);
 	const edgeGap = 12;
 	const overlayGap = 12;
-	const tooltipHeight = 198;
-	const tooltipWidth = 264;
+	const tooltipHeight = 260;
+	const tooltipWidth = 280;
 	let topLimit = edgeGap;
 	let bottomLimit = map.getSize().y - edgeGap;
 
@@ -3101,7 +3101,8 @@ function addGlobalMapStyles() {
       pointer-events: none;
       background: linear-gradient(145deg, rgba(22,20,22,0.98), rgba(45,42,45,0.97));
       border: 1px solid rgba(198,197,195,0.18); border-radius: 18px; padding: 14px;
-      width: 232px; max-width: calc(100vw - 48px);
+      width: 280px; max-width: calc(100vw - 48px); box-sizing: border-box;
+      white-space: normal; overflow-wrap: anywhere;
       box-shadow: 0 28px 64px rgba(0,0,0,0.58), 0 0 0 0.5px rgba(198,197,195,0.08);
       backdrop-filter: blur(20px);
       font-family: Inter, ui-sans-serif, system-ui, sans-serif;
@@ -3114,12 +3115,12 @@ function addGlobalMapStyles() {
     .sgp-gym { color: #F2F1EF; font-size: 17px; font-weight: 760; letter-spacing: -0.02em; line-height: 1.22; }
     .sgp-location { display: flex; align-items: center; gap: 6px; color: #A8A6A2; font-size: 12px; margin-top: 4px; }
     .sgp-location-dot { width: 5px; height: 5px; border-radius: 50%; background: #C6C5C3; opacity: 0.72; flex: 0 0 auto; }
-    .sgp-coach { display: flex; align-items: center; gap: 10px; border-top: 1px solid rgba(198,197,195,0.11); margin-top: 12px; padding-top: 12px; }
+    .sgp-coach { display: grid; grid-template-columns: 34px minmax(0, 1fr); align-items: start; gap: 8px 10px; border-top: 1px solid rgba(198,197,195,0.11); margin-top: 12px; padding-top: 12px; }
 	.sgp-initials { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; border-radius: 50%; background: rgba(198,197,195,0.1); border: 1px solid rgba(198,197,195,0.15); color: #F2F1EF; font-size: 11px; font-weight: 560; letter-spacing: 0.04em; }
     .sgp-coach-copy { flex: 1; min-width: 0; }
-	.sgp-coach-name { color: #F2F1EF; font-size: 13px; font-weight: 560; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .sgp-coach-title { color: #A8A6A2; font-size: 11px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-	.sgp-tag { flex: 0 0 auto; max-width: 92px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding: 4px 8px; border-radius: 999px; background: rgba(198,197,195,0.08); color: #C6C5C3; border: 1px solid rgba(198,197,195,0.13); font-size: 10px; font-weight: 540; text-transform: capitalize; }
+	.sgp-coach-name { color: #F2F1EF; font-size: 13px; font-weight: 560; white-space: normal; line-height: 1.35; }
+    .sgp-coach-title { color: #A8A6A2; font-size: 11px; line-height: 1.35; white-space: normal; margin-top: 3px; }
+	.sgp-tag { grid-column: 2; justify-self: start; max-width: 100%; box-sizing: border-box; white-space: normal; line-height: 1.35; padding: 4px 8px; border-radius: 999px; background: rgba(198,197,195,0.08); color: #C6C5C3; border: 1px solid rgba(198,197,195,0.13); font-size: 10px; font-weight: 540; text-transform: capitalize; }
     .sgp-more { color: #A8A6A2; font-size: 10px; margin-top: 8px; padding-left: 44px; }
     .leaflet-popup-content .single-gym-preview { width: 220px; max-width: 100%; padding: 2px; border: 0; background: transparent; box-shadow: none; backdrop-filter: none; }
 
