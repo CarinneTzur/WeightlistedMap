@@ -3,6 +3,6 @@
  "short_name":"Weightlisted",
  "start_url":"/",
  "display":"standalone",
- "background_color":"#1e1c1e",
- "theme_color":"#1e1c1e"
+ "background_color":"#262326",
+ "theme_color":"#262326"
 }

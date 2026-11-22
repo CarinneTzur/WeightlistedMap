@@ -17,4 +17,27 @@
 }
 .mobile-map-shell .mobile-coach-search:focus-visible { outline:none; }
 .mobile-map-shell #mobile-coach-search-panel:focus-within { outline:1px solid #8baabd; outline-offset:1px; border-radius:15px; }
-html:has(.mobile-map-shell),body:has(.mobile-map-shell) { overflow:hidden; overscroll-behavior:none; }
+/* Safari samples document colors outside the visual viewport. Do not leave a
+   black canvas underneath the fixed map and drawer (including before React loads). */
+@media (max-width:1023px) {
+ html,body,#root { background-color:#262326; }
+ html { color-scheme:dark; }
+ .mobile-map-shell { background:#262326 !important; }
+ .mobile-map-shell .mobile-results-sheet {
+  background:#262326 !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+ }
+ .mobile-map-shell .mobile-directory-header {
+  background:#262326 !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+ }
+ html:has(.mobile-map-shell),body:has(.mobile-map-shell) {
+  overscroll-behavior:none;
+  background-color:#262326;
+ }
+}
+@media (display-mode:standalone) {
+ html,body,#root { background-color:#262326; }
+}
