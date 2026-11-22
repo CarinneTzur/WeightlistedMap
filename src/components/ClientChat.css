@@ -123,20 +123,20 @@
  .client-chat-expanded .client-chat-header { padding:12px; }
 }
 
-/* Short, quiet transitions; message updates never replay the page entrance. */
+/* Keep the workspace visible: only the incoming conversation moves slightly.
+   Sidebars and navigation must not disappear/replay when a thread remounts. */
 @keyframes client-chat-enter {
- from { opacity:0; transform:translateY(5px); }
- to { opacity:1; transform:translateY(0); }
+ from { transform:translateY(3px); }
+ to { transform:translateY(0); }
 }
 @keyframes client-chat-rail-enter {
- from { opacity:0; transform:translateX(-8px); }
- to { opacity:1; transform:translateX(0); }
+ from { transform:translateX(-6px); }
+ to { transform:translateX(0); }
 }
-.client-chat-conversation,.client-chat-details { animation:client-chat-enter 180ms ease-out; }
-.client-chat-rail { animation:client-chat-rail-enter 180ms ease-out; }
+.client-chat-conversation { animation:client-chat-enter 140ms ease-out; }
 .client-chat .client-chat-thread,.client-chat .client-chat-icon,.client-chat .client-chat-send { transition:background-color 140ms ease,color 140ms ease; }
-@media(max-width:760px) { .client-chat-rail.is-open { animation:client-chat-rail-enter 180ms ease-out; } }
+@media(max-width:760px) { .client-chat-rail.is-open { animation:client-chat-rail-enter 140ms ease-out; } }
 @media(prefers-reduced-motion:reduce) {
- .client-chat-conversation,.client-chat-details,.client-chat-rail,.client-chat-rail.is-open { animation:none; }
+ .client-chat-conversation,.client-chat-rail.is-open { animation:none; }
  .client-chat .client-chat-thread,.client-chat .client-chat-icon,.client-chat .client-chat-send { transition:none; }
 }
