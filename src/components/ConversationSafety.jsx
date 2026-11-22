@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
+import "./ConversationSafety.css";
 
 export default function ConversationSafety({ coachId, userId, onBlockedChange, refreshKey }) {
  const [thread, setThread] = useState(null);
@@ -28,7 +29,7 @@ export default function ConversationSafety({ coachId, userId, onBlockedChange, r
   } catch(failure) {setError(failure.message || "Unable to update block.");}
   finally {setBusy(false);}
  }
- return <details style={{padding:"10px 0",fontSize:13}}><summary>Safety & support</summary>
+ return <details className="conversation-safety"><summary>Safety & support</summary>
   <p>Authorized administrators can review conversations for support and safety.</p>
   {thread && <>
    {thread.blocked_by_client && <p role="status">Coach blocked. Neither of you can send new messages here. Existing messages stay available.</p>}
