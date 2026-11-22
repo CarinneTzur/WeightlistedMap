@@ -352,6 +352,13 @@ function MessageComposer({ disabled, placeholder, onSend }) {
 				<textarea
 					value={text}
 					onChange={(event) => setText(event.target.value)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" && event.ctrlKey && !event.repeat && !event.nativeEvent.isComposing) {
+							event.preventDefault();
+							event.currentTarget.form?.requestSubmit();
+						}
+					}}
+					title="Ctrl+Enter to send; Enter for a new line"
 					placeholder={disabled ? "Messaging is paused while this profile is hidden" : placeholder}
 					disabled={disabled}
 					rows={1}

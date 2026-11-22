@@ -2267,7 +2267,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	}
 
 	function handleMessageKeyDown(event) {
-		if (event.key === "Enter" && event.ctrlKey) {
+		if (event.key === "Enter" && event.ctrlKey && !event.repeat && !event.nativeEvent.isComposing) {
 			event.preventDefault();
 			handleSend();
 		}
