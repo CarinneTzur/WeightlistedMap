@@ -1,3 +1,4 @@
+import AdminSafetyReports from "./AdminSafetyReports";
 import React, { useEffect, useMemo, useState } from "react";
 import {
 	COACH_APPLICATION_CHANGED_EVENT,
@@ -1117,7 +1118,7 @@ export default function CoachApplicationAdmin({
 
 
 						</div>
-						<AdminConversationReview conversations={marketplaceOverview.conversations} /></>}
+						<AdminSafetyReports /><AdminConversationReview conversations={marketplaceOverview.conversations} /></>}
 				</section> : null}
 
 				{workspaceSection === "applications" ? <>

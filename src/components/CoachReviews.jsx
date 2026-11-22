@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
+import { supabase } from "../lib/supabase";
 import { FOUNDER_PREVIEW_COACH_ID } from "../../data/founderPreview";
 import {
 	COACH_REVIEWS_CHANGED_EVENT,
@@ -255,12 +256,17 @@ export default function CoachReviews({ coach, onBack }) {
 		setRatingFilter(null);
 	}, [coach.id]);
 
-	function beginReview() {
-		if (user) {
+	async function checkReviewAccess() {
+		try {
+			const { data, error: failure } = await supabase.rpc("can_review_coach", { p_coach_id: coach.id });
+			if (failure) throw failure;
+			if (!data) throw new Error("Only verified current or former clients can review this coach. Your coaching request must first be accepted.");
 			setEditing(true);
-			return;
-		}
-		requireAuth({ reason: "account", onAuthenticated: () => setEditing(true) });
+		} catch (failure) { setError(failure.message || "Review eligibility could not be verified."); }
+	}
+	function beginReview() {
+		if (user) { void checkReviewAccess(); return; }
+		requireAuth({ reason: "account", onAuthenticated: checkReviewAccess });
 	}
 
 	async function save(values) {

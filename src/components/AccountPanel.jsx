@@ -1,3 +1,4 @@
+import NotificationPreferences from "./NotificationPreferences";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "../auth/AuthContext";
 import "./AccountPanel.css";
@@ -308,15 +309,17 @@ export default function AccountPanel({
 					</button>
 				</form>
 
+				<NotificationPreferences />
 				<section className="account-panel__actions">
 					<h2>Account actions</h2>
+<p><a href="/legal/privacy.html" target="_blank" rel="noreferrer">Privacy notice</a> · <a href="/legal/terms.html" target="_blank" rel="noreferrer">Terms of use</a></p>
 					{onOpenMatchingPreferences ? (
 						<button type="button" onClick={onOpenMatchingPreferences} disabled={busy}>Update profile details</button>
 					) : null}
 					<button type="button" onClick={handleSignOut} disabled={busy}>Sign out</button>
 					{confirmingDelete ? (
 						<div className="account-panel__delete-confirm">
-							<p>Delete your account, saved conversations, applications, and profile? This cannot be undone.</p>
+							<p>Delete your account, saved conversations, applications, and profile? Restricted safety reports and administrator action records are retained. This cannot be undone.</p>
 							<label><span>Type DELETE to confirm</span><input value={deleteText} onChange={(event) => setDeleteText(event.target.value)} autoComplete="off" /></label>
 							<div><button type="button" onClick={() => { setConfirmingDelete(false); setDeleteText(""); }}>Cancel</button><button type="button" className="account-panel__delete" disabled={busy} onClick={handleDelete}>Delete account</button></div>
 						</div>
