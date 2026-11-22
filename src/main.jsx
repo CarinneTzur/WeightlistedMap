@@ -9,7 +9,7 @@ import { isStaging } from "./lib/environment";
 createRoot(document.getElementById("root")).render(
 	<StrictMode>
 		<AppErrorBoundary><AuthProvider>
-			{isStaging && <div role="status" style={{position:"fixed",bottom:8,left:8,zIndex:99999,background:"#204a69",color:"white",padding:"6px 12px",borderRadius:8,fontSize:12}}>STAGING · test data only · interview bookings disabled</div>}
+			{isStaging && <div role="status" className="staging-badge" title="Test data only. Interview bookings disabled."><span>STAGING</span><span className="staging-badge-detail"> · test data only · interview bookings disabled</span></div>}
 			<App />
 		</AuthProvider></AppErrorBoundary>
 	</StrictMode>,

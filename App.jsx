@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import L from "leaflet";
+import "./src/components/MobileDirectory.css";
 import "leaflet/dist/leaflet.css";
 import {
 	getAllCoaches,
@@ -720,7 +721,7 @@ if (typeof window !== "undefined") runSelfTests();
 
 const styles = {
 	shell: {
-		minHeight: "100vh",
+		minHeight: 0,
 		height: "100dvh",
 		width: "100%",
 		background:
@@ -1096,7 +1097,8 @@ const styles = {
 	},
 	coachCardCompact: {
 		borderRadius: 15,
-		padding: "12px 50px 12px 12px",
+		padding: "14px",
+		alignItems: "flex-start",
 		marginBottom: 10,
 		gap: 12,
 		boxShadow: "0 8px 22px rgba(0,0,0,0.20)",
@@ -1704,6 +1706,7 @@ function CoachCard({
 		<div style={{ position: "relative", width: "100%" }}>
 			<button
 				type="button"
+				className={compact ? "directory-coach-card is-compact" : "directory-coach-card"}
 				style={{
 					...styles.coachCard,
 					...(compact ? styles.coachCardCompact : {}),
@@ -1722,7 +1725,7 @@ function CoachCard({
 				}}
 				loading="lazy"
 			/>
-			<div style={styles.coachInfo}>
+			<div className="directory-coach-copy" style={styles.coachInfo}>
 				<div
 					style={{
 						...styles.coachName,
@@ -2390,7 +2393,7 @@ function CoachListPanel({
 			onScroll={onResultsScroll}
 		>
 			{focusedSearchMode ? null : (
-				<div style={styles.coachListHeader}>
+				<div className="directory-list-heading" style={styles.coachListHeader}>
 					<button
 						style={styles.backArrow}
 						aria-label="Back to map"
@@ -3388,7 +3391,7 @@ function CoachMapApp({
 			mapRef.current?.invalidateSize();
 		}, 260);
 		return () => window.clearTimeout(timeout);
-	}, [isDesktop, panelVisible, searchFocused]);
+	}, [isDesktop, panelVisible, searchFocused, visualViewport.height]);
 
 	useEffect(() => {
 		if (!mapNodeRef.current || mapRef.current) return undefined;
@@ -3400,6 +3403,7 @@ function CoachMapApp({
 			attributionControl: true,
 			scrollWheelZoom: true,
 		}).setView([38.8, -96.5], window.innerWidth >= 1024 ? 4 : 3);
+		if (window.innerWidth < 1024) map.panBy([0, Math.round((window.visualViewport?.height || window.innerHeight) * 0.19)], { animate: false });
 
 		L.tileLayer(
 			"https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}",
@@ -4786,12 +4790,12 @@ function CoachMapApp({
 			: effectiveMobileSheetSnap === "collapsed"
 			? "calc(92px + env(safe-area-inset-bottom))"
 			: effectiveMobileSheetSnap === "full"
-				? "100dvh"
+				? `${visualViewport.height}px`
 				: isShortMobile
-					? "56dvh"
+					? `${Math.round(visualViewport.height * .56)}px`
 					: isTablet
-						? "54dvh"
-						: "52dvh";
+						? `${Math.round(visualViewport.height * .54)}px`
+						: `${Math.round(visualViewport.height * .52)}px`;
 	const effectivePanelVisible = isMobile ? true : panelVisible;
 	const isCoachSearchPanelActive =
 		semanticSearchOpen &&
@@ -4848,9 +4852,10 @@ function CoachMapApp({
 
 	return (
 		<main
-			className={isMobileSearchMode ? "mobile-search-mode" : undefined}
+			className={[isMobile ? "mobile-map-shell" : "map-shell", isMobileSearchMode ? "mobile-search-mode" : ""].filter(Boolean).join(" ")}
 			style={{
 				...styles.shell,
+				...(isMobile ? { position: "fixed", top: 0, left: 0, height: `${visualViewport.height}px`, "--app-height": `${visualViewport.height}px` } : {}),
 				...(isMobileSearchMode ? { background: palette.graphite900 } : {}),
 			}}
 		>
@@ -4926,7 +4931,7 @@ function CoachMapApp({
 				aria-label="Interactive map of strength coaches"
 				style={{
 					...styles.map,
-					height: isMobile ? "100dvh" : styles.map.height,
+					height: "100%",
 					...(isMobile ? { "--mobile-results-height": mobilePanelHeight } : {}),
 					...(isMobileSearchMode
 						? {
@@ -5548,8 +5553,9 @@ function CoachMapApp({
 						: isTablet && !isShortMobile
 							? "min(680px, calc(100vw - 32px))"
 							: "100vw",
-					height: isDesktop ? "100vh" : mobilePanelHeight,
-					maxHeight: isMobileSearchMode ? `${visualViewport.height}px` : "100dvh",
+					position: isMobile ? "absolute" : styles.glassPanel.position,
+					height: isDesktop ? "100dvh" : mobilePanelHeight,
+					maxHeight: isMobile ? `${visualViewport.height}px` : "100dvh",
 					top: isDesktop ? 0 : isMobileSearchMode ? mobileSearchResultsTop : "auto",
 					bottom: isDesktop || isMobileSearchMode ? "auto" : 0,
 					right: isMobileSearchMode ? 0 : isTablet && !isShortMobile ? "50%" : 0,

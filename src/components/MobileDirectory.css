@@ -1,0 +1,20 @@
+/* The app occupies the available browser viewport; only the results scroll. */
+.mobile-map-shell { overscroll-behavior:none; isolation:isolate; }
+.mobile-map-shell .mobile-results-sheet { border-bottom:0; }
+.mobile-map-shell .directory-coach-copy > div:first-child { padding-right:32px; }
+.mobile-map-shell .directory-list-heading { margin-bottom:14px !important; gap:12px !important; }
+.mobile-map-shell .directory-list-heading > button:first-child { width:40px !important; height:40px !important; flex:0 0 40px; font-size:24px !important; }
+.mobile-map-shell .directory-list-heading > div > div:first-child { font-size:10px !important; letter-spacing:.12em !important; }
+.mobile-map-shell .directory-list-heading > div > div:last-child { font-size:19px !important; line-height:1.4; }
+.mobile-map-shell .mobile-directory-header { box-shadow:0 6px 24px #0003 !important; }
+.staging-badge { position:fixed; bottom:8px; left:8px; z-index:99999; background:#204a69; color:white; padding:6px 12px; border-radius:8px; font:12px system-ui,sans-serif; pointer-events:none; }
+@media(max-width:1023px) {
+ .staging-badge { top:calc(env(safe-area-inset-top) + 1px); bottom:auto; left:50%; transform:translateX(-50%); font-size:8px; line-height:12px; letter-spacing:.12em; padding:0 6px; border-radius:0 0 4px 4px; opacity:.85; }
+ .staging-badge-detail { display:none; }
+}
+@media(display-mode:standalone) {
+ html,body { background:#1e1c1e; }
+}
+.mobile-map-shell .mobile-coach-search:focus-visible { outline:none; }
+.mobile-map-shell #mobile-coach-search-panel:focus-within { outline:1px solid #8baabd; outline-offset:1px; border-radius:15px; }
+html:has(.mobile-map-shell),body:has(.mobile-map-shell) { overflow:hidden; overscroll-behavior:none; }
