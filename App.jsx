@@ -3066,9 +3066,10 @@ function addGlobalMapStyles() {
 
     .coach-map-marker {
       border-radius: 999px;
+      opacity: 1;
       background: #357CB5;
       border: 5px solid #24577F;
-      box-shadow: 0 0 0 1px rgba(125,177,225,0.65), 0 12px 26px rgba(0,0,0,0.46);
+      box-shadow: 0 0 0 1px #7DB1E1;
       display: flex; align-items: center; justify-content: center;
       color: #FFFFFF;
 	  font-weight: 650;
@@ -3078,14 +3079,14 @@ function addGlobalMapStyles() {
       background: #357CB5;
       border-color: #24577F;
       color: #F1F7FD;
-      box-shadow: 0 0 0 2px rgba(125,177,225,0.32), 0 14px 32px rgba(0,0,0,0.52);
+      box-shadow: 0 0 0 2px #7DB1E1;
     }
     .coach-map-marker.active,
     .coach-map-marker.cluster.active {
       background: #7DB1E1;
       border-color: #405A72;
       color: ${palette.graphite900};
-      box-shadow: 0 0 0 2px rgba(151,197,238,0.72), 0 18px 40px rgba(0,0,0,0.56);
+      box-shadow: 0 0 0 2px #97C5EE;
     }
 
 	.state-block-label { color: rgba(242,241,239,0.32); font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; text-align: center; text-shadow: 0 2px 6px rgba(0,0,0,0.62); pointer-events: none; user-select: none; white-space: nowrap; line-height: 1; transform: translate(-50%, -50%); transition: opacity 160ms ease, font-size 160ms ease; }
