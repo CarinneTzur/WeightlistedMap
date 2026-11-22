@@ -143,13 +143,25 @@ function PasswordVisibilityIcon({ visible }) {
 	);
 }
 
+function PasswordFields({ password, setPassword, confirmPassword, setConfirmPassword, isNewPassword, mode }) {
+ const [visible, setVisible] = useState(false);
+ return <>
+  <label><span>Password</span>
+   <div className="auth-password-field">
+    <input id="weightlisted-password" name="password" type={visible ? "text" : "password"} value={password} onChange={event => setPassword(event.target.value)} autoComplete={mode === "signup" || isNewPassword ? "new-password" : "current-password"} minLength={8} required />
+    <button type="button" className="auth-password-visibility" onClick={() => setVisible(value => !value)} aria-label={visible ? "Hide password" : "Show password"} aria-pressed={visible}><PasswordVisibilityIcon visible={visible} /></button>
+   </div>
+  </label>
+  {isNewPassword && <label><span>Confirm new password</span><input id="weightlisted-password-confirmation" name="password_confirmation" type={visible ? "text" : "password"} value={confirmPassword} onChange={event => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required /></label>}
+ </>;
+}
+
 function AuthDialog({ prompt, recoveryMode = false, onClose, onAuthenticated, onPasswordUpdated, onEnableProfile }) {
 	const [mode, setMode] = useState("signup");
 	const [fullName, setFullName] = useState("");
 	const [email, setEmail] = useState("");
 	const [password, setPassword] = useState("");
 	const [confirmPassword, setConfirmPassword] = useState("");
-	const [showPassword, setShowPassword] = useState(false);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
@@ -162,7 +174,6 @@ function AuthDialog({ prompt, recoveryMode = false, onClose, onAuthenticated, on
 		setNotice("");
 		setPassword("");
 		setConfirmPassword("");
-		setShowPassword(false);
 		const frame = window.requestAnimationFrame(() => emailRef.current?.focus());
 		const onKeyDown = (event) => {
 			if (event.key === "Escape") onClose();
@@ -293,26 +304,8 @@ function AuthDialog({ prompt, recoveryMode = false, onClose, onAuthenticated, on
 							<input id="weightlisted-full-name" name="name" value={fullName} onChange={(event) => setFullName(event.target.value)} autoComplete="name" required />
 						</label>
 					) : null}
-					{!isPasswordReset ? <label>
-						<span>Password</span>
-						<div className="auth-password-field">
-							<input id="weightlisted-password" name="password" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoComplete={mode === "signup" || isNewPassword ? "new-password" : "current-password"} minLength={8} required />
-							<button
-								type="button"
-								className="auth-password-visibility"
-								onClick={() => setShowPassword((current) => !current)}
-								aria-label={showPassword ? "Hide password" : "Show password"}
-								aria-pressed={showPassword}
-							>
-								<PasswordVisibilityIcon visible={showPassword} />
-							</button>
-						</div>
-					</label> : null}
-					{isNewPassword ? <label>
-						<span>Confirm new password</span>
-						<input id="weightlisted-password-confirmation" name="password_confirmation" type={showPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" minLength={8} required />
-					</label> : null}
-					{mode === "signin" ? <button type="button" className="auth-forgot-password auth-forgot-inline" onClick={() => { setMode("reset"); setError(""); setNotice(""); }}>Forgot password?</button> : null}
+					{!isPasswordReset && <PasswordFields key={isNewPassword ? "recovery" : mode} password={password} setPassword={setPassword} confirmPassword={confirmPassword} setConfirmPassword={setConfirmPassword} isNewPassword={isNewPassword} mode={mode} />}
+                    {mode === "signin" ? <button type="button" className="auth-forgot-password auth-forgot-inline" onClick={() => { setMode("reset"); setError(""); setNotice(""); }}>Forgot password?</button> : null}
 					{error ? <p className="auth-error" role="alert">{error}</p> : null}
 					{notice ? <p className="auth-notice" role="status">{notice}</p> : null}
 					<button className="auth-submit" type="submit" disabled={busy}>

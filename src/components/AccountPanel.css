@@ -273,6 +273,9 @@
 .account-panel__visibility { display: flex; gap: 10px; margin-top: 17px; cursor: pointer; }
 .account-panel__visibility input {
 	position: relative;
+	flex: 0 0 34px;
+	box-sizing: border-box;
+	padding: 0;
 	width: 34px;
 	height: 20px;
 	margin: 1px 0 0;
@@ -284,13 +287,14 @@
 	cursor: pointer;
 	transition: background 160ms ease, border-color 160ms ease;
 }
-.account-panel__visibility input::after { position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; border-radius: 50%; background: rgba(242, 241, 239, 0.72); content: ""; transition: transform 160ms ease; }
+.account-panel__visibility input::after { position: absolute; top: 50%; left: 3px; width: 12px; height: 12px; transform: translateY(-50%); border-radius: 50%; background: rgba(242, 241, 239, 0.72); content: ""; transition: transform 160ms ease; }
 .account-panel__visibility input:checked {
 	border-color: rgba(125, 177, 225, 0.88);
 	background: rgba(72, 116, 158, 0.5);
 	box-shadow: inset 0 0 0 1px rgba(151, 197, 238, 0.32);
 }
-.account-panel__visibility input:checked::after { transform: translateX(14px); background: #f6faff; }
+.account-panel__visibility input:checked::after { transform: translate(14px, -50%); background: #f6faff; }
+.account-panel__visibility input:focus-visible { outline: 2px solid #7db1e1; outline-offset: 3px; }
 .account-panel__visibility span { display: grid; gap: 2px; }
 .account-panel__visibility strong { font-size: 12.5px; font-weight: 540; line-height: 1.35; }
 .account-panel__visibility small { color: var(--panel-muted); font-size: 12px; line-height: 1.4; }

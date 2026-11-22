@@ -5,8 +5,7 @@
 	display: grid;
 	place-items: center;
 	padding: calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom));
-	background: rgba(4, 4, 4, 0.7);
-	backdrop-filter: blur(10px);
+	background: rgba(4, 4, 4, 0.86);
 }
 
 .auth-dialog {
