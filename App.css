@@ -1119,8 +1119,8 @@ figure {
 		font-size: 23px;
 	}
 }
-.client-message-history { scrollbar-width: thin; scrollbar-color: #66636a transparent; overscroll-behavior: contain; }
-.client-message-history::-webkit-scrollbar { width: 5px; }
+.client-message-history { scrollbar-width: none; overscroll-behavior: contain; }
+.client-message-history::-webkit-scrollbar { display: none; width: 0; }
 .client-message-history::-webkit-scrollbar-track { background: transparent; }
 .client-message-history::-webkit-scrollbar-thumb { background: #66636a; border-radius: 999px; }
 .client-message-history::-webkit-scrollbar-button { display: none; }
