@@ -35,6 +35,6 @@ export default function ConversationSafety({ coachId, userId, onBlockedChange, r
    {confirming ? <div><p>Block this coach? This stops new messages in both directions without deleting this conversation.</p><button type="button" disabled={busy} onClick={toggle}>Confirm block</button> <button type="button" disabled={busy} onClick={()=>setConfirming(false)}>Cancel</button></div> : <button type="button" disabled={busy} onClick={()=>thread.blocked_by_client?toggle():setConfirming(true)}>{busy?"Saving…":thread.blocked_by_client?"Unblock coach":"Block coach"}</button>}
   </>}
   {error && <p role="alert">{error}</p>}
-  <p><a href="mailto:getweightlisted@gmail.com?subject=Weightlisted%20conversation%20support">Report a concern to getweightlisted@gmail.com</a></p>
+  <p><a style={{color:"#A8CBE7",textUnderlineOffset:"3px",overflowWrap:"anywhere"}} href="mailto:getweightlisted@gmail.com?subject=Weightlisted%20conversation%20support">Report a concern to getweightlisted@gmail.com</a></p>
  </details>;
 }
