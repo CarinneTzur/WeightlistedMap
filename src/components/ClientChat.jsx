@@ -52,6 +52,14 @@ function Conversation({ coach, onBack, onViewProfile, user, profile }) {
   nearBottom.current = true; setHasNewMessages(false);
  }
  const lastId = messages.at(-1)?.id;
+ useEffect(() => {
+  const observer = new ResizeObserver(() => {
+   if (nearBottom.current) scrollToLatest();
+  });
+  observer.observe(listRef.current);
+  observer.observe(listRef.current.firstElementChild);
+  return () => observer.disconnect();
+ }, [expanded]);
  useLayoutEffect(() => {
   if (scrollPosition.current !== null) { listRef.current.scrollTop = scrollPosition.current; scrollPosition.current = null; }
   else if (nearBottom.current || previousLast.current === null) scrollToLatest();
@@ -105,7 +113,7 @@ function Conversation({ coach, onBack, onViewProfile, user, profile }) {
    <button type="button" className="client-chat-identity" onClick={onViewProfile} aria-label={`View ${coach.name}'s profile`}>
     <img src={coach.headshot} alt="" /><span><strong>{coach.name}</strong><small>{blocked ? "Messaging blocked" : status === "accepted" ? "Your coach" : status === "pending" ? "Request pending" : status === "declined" ? "Request closed" : "Coaching conversation"}</small></span>
    </button>
-   <button type="button" ref={expandRef} className="client-chat-icon" onClick={toggleExpanded} aria-expanded={expanded} aria-label={expanded ? "Exit full screen" : "Full screen messages"} title={expanded ? "Exit full screen (Escape)" : "Full screen messages"}><Icon name={expanded ? "collapse" : "expand"} /></button>
+   <button type="button" ref={expandRef} className={`client-chat-icon${expanded ? " client-chat-exit" : ""}`} onClick={toggleExpanded} aria-expanded={expanded} aria-label={expanded ? "Exit full screen" : "Full screen messages"} title={expanded ? "Exit full screen (Escape)" : "Full screen messages"}><Icon name={expanded ? "collapse" : "expand"} />{expanded && <span>Exit full screen</span>}</button>
   </header>
   {!coach.isMock && <ConversationSafety coachId={coach.id} userId={user?.id} onBlockedChange={setBlocked} refreshKey={messages.length} />}
   {coach.isMock && <p className="client-chat-notice">Mock coach · messaging unavailable</p>}

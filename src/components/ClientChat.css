@@ -11,7 +11,7 @@
 .client-chat-identity span { display:grid; min-width:0; gap:1px; }
 .client-chat-identity strong { font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .client-chat-identity small { font-size:11px; color:#a4a1a9; }
-.client-chat > .conversation-safety { padding:8px 20px; margin:0; flex:none; max-height:30%; overflow:auto; border-bottom:1px solid #ffffff08; font-size:12px; }
+.client-chat > .conversation-safety { padding:8px 20px; margin:0; flex:none; max-height:30%; overflow:auto; border-bottom:0; font-size:12px; }
 .client-chat > .conversation-safety summary { color:#a4a1a9; font-size:11px; font-weight:400; }
 .client-chat-notice,.client-chat-error { margin:0; padding:8px 20px; font-size:12px; flex:none; }
 .client-chat-error { color:#efb8b2; background:#402b2e; max-height:100px; overflow:auto; }
@@ -20,7 +20,7 @@
 .client-chat-messages { display:flex; flex-direction:column; min-height:100%; padding:16px 20px 20px; }
 .client-chat-day { display:flex; align-items:center; gap:12px; margin:10px 0 18px; color:#96929b; font-size:10px; }
 .client-chat-day::before,.client-chat-day::after { content:""; flex:1; height:1px; background:#ffffff08; }
-.client-chat-message { max-width:85%; width:fit-content; padding:8px 12px 6px; margin-top:14px; border:1px solid #ffffff06; border-radius:12px; }
+.client-chat-message { max-width:85%; width:fit-content; padding:8px 12px 6px; margin-top:14px; border:0; border-radius:12px; }
 .client-chat-message.is-grouped { margin-top:5px; }
 .client-chat-message.is-sent { align-self:flex-end; background:#303c46; border-bottom-right-radius:4px; }
 .client-chat-message.is-received { align-self:flex-start; background:#323134; border-bottom-left-radius:4px; }
@@ -31,9 +31,9 @@
 .client-chat-empty strong { color:#d7d4dc; font-size:14px; font-weight:550; }
 .client-chat-empty p { font-size:12px; line-height:1.7; }
 .client-chat .client-chat-latest { position:absolute; bottom:12px; left:50%; transform:translateX(-50%); border:1px solid #61788a; border-radius:20px; padding:6px 12px; background:#303c46; color:#e7edf2; font-size:11px; }
-.client-chat-composer { padding:12px 16px 8px; margin:0; flex:none; border-top:1px solid #ffffff0d; }
-.client-chat-compose-row { display:flex; align-items:flex-end; gap:8px; padding:3px 4px; border:1px solid #ffffff1a; border-radius:12px; background:#2c2b2e; }
-.client-chat-compose-row:focus-within { border-color:#738796; }
+.client-chat-composer { padding:12px 16px 8px; margin:0; flex:none; border-top:0; }
+.client-chat-compose-row { display:flex; align-items:flex-end; gap:8px; padding:3px 4px; border:0; border-radius:14px; background:#343236; }
+.client-chat-compose-row:focus-within { box-shadow:0 0 0 1px #738796; }
 .client-chat .client-chat-input { display:block; flex:1; width:100%; min-width:0; min-height:40px; max-height:120px; resize:none; border:0; border-radius:8px; padding:10px; margin:0; background:transparent; color:#eeedef; font:inherit; font-size:13px; line-height:20px; box-shadow:none; }
 .client-chat .client-chat-input:focus,.client-chat .client-chat-input:focus-visible { outline:none; box-shadow:none; }
 .client-chat-input::placeholder { color:#929097; }
@@ -41,13 +41,35 @@
 .client-chat .client-chat-send:disabled { background:transparent; color:#6f6c73; cursor:default; }
 .client-chat-shortcut { display:block; min-height:16px; margin-top:5px; text-align:right; font-size:9px; color:#8c8892; }
 .client-chat button:focus-visible,.client-chat summary:focus-visible,.client-chat-scroll:focus-visible { outline:2px solid #8baabd; outline-offset:-2px; }
-.client-chat-expanded { position:fixed; inset:0; z-index:4500; height:100dvh; width:100%; padding-inline:max(0px,calc((100vw - 860px) / 2)); background:#242325; }
-.client-chat-expanded .client-chat-header { padding-top:max(14px,env(safe-area-inset-top)); }
-.client-chat-expanded .client-chat-composer { padding-bottom:max(8px,env(safe-area-inset-bottom)); }
+/* Full screen is a page: full-width navigation, one centered reading column,
+   and a composer on the same surface. The scrollbar stays at the viewport edge. */
+.client-chat-expanded { position:fixed; inset:0; z-index:4500; height:100dvh; width:100%; padding:0; background:#201f21; }
+.client-chat-expanded .client-chat-header { padding:16px 28px; padding-top:max(16px,env(safe-area-inset-top)); background:#272528; }
+.client-chat-expanded .client-chat-identity img { width:40px; height:40px; }
+.client-chat-expanded .client-chat-identity strong { font-size:15px; }
+.client-chat-expanded .client-chat-identity small { font-size:12px; }
+.client-chat-expanded .client-chat-exit { display:flex; gap:8px; flex:0 0 auto; width:auto; padding:8px 12px; height:36px; font-size:12px; border-radius:8px; background:#ffffff09; }
+.client-chat-expanded > .conversation-safety { padding:10px 28px; background:#272528; }
+.client-chat-expanded .client-chat-messages { width:min(100%,760px); margin-inline:auto; padding:24px 24px 16px; }
+.client-chat-expanded .client-chat-message { max-width:76%; }
+.client-chat-expanded .client-chat-message p { font-size:14px; line-height:1.6; }
+.client-chat-expanded .client-chat-message time { font-size:10px; }
+.client-chat-expanded .client-chat-composer { width:min(100%,760px); align-self:center; padding:12px 24px max(20px,env(safe-area-inset-bottom)); }
+.client-chat-expanded .client-chat-input { font-size:14px; }
+.client-chat-expanded .client-chat-compose-row { padding:6px 8px; }
+.client-chat-expanded .client-chat-shortcut { text-align:center; margin-top:8px; font-size:10px; }
+.client-chat-expanded .client-chat-error { width:min(100%,712px); align-self:center; border-radius:8px; }
 @media(max-width:480px) {
  .client-chat-header { padding:10px; gap:6px; }
  .client-chat-messages { padding-inline:12px; }
  .client-chat-composer { padding-inline:10px; }
  .client-chat-message { max-width:88%; }
  .client-chat .client-chat-input { font-size:16px; }
+}
+
+@media(max-width:600px) {
+ .client-chat-expanded .client-chat-header { padding-inline:12px; }
+ .client-chat-expanded .client-chat-exit span { display:none; }
+ .client-chat-expanded .client-chat-messages { padding-inline:16px; }
+ .client-chat-expanded .client-chat-composer { padding-inline:12px; }
 }

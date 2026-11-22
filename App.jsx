@@ -5569,7 +5569,7 @@ function CoachMapApp({
 						isDesktop || isMobileSearchMode || effectiveMobileSheetSnap === "full" ? 0 : 24,
 					borderTopRightRadius:
 						isDesktop || isMobileSearchMode || effectiveMobileSheetSnap === "full" ? 0 : 24,
-					padding: servicesOpen || messagesOpen || accountOpen || clientOnboardingOpen
+					padding: contactCoach || servicesOpen || messagesOpen || accountOpen || clientOnboardingOpen
 						? 0
 						: isDesktop
 						? "34px 34px 22px"
