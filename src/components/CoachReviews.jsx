@@ -223,6 +223,7 @@ export default function CoachReviews({ coach, onBack }) {
 	const [error, setError] = useState("");
 	const [editing, setEditing] = useState(false);
 	const [ratingFilter, setRatingFilter] = useState(null);
+	const [eligible, setEligible] = useState(null);
 	const summary = useMemo(() => summarizeCoachReviews(reviews), [reviews]);
 	const visibleReviews = useMemo(
 		() => ratingFilter ? reviews.filter((review) => Number(review.rating) === ratingFilter) : reviews,
@@ -255,6 +256,17 @@ export default function CoachReviews({ coach, onBack }) {
 	useEffect(() => {
 		setRatingFilter(null);
 	}, [coach.id]);
+
+	useEffect(() => {
+		let active = true;
+		setEligible(null);
+		setEditing(false);
+		if (!user?.id || previewReviews || !supabase) return;
+		supabase.rpc("can_review_coach", { p_coach_id: coach.id }).then(({ data, error }) => {
+			if (active) setEligible(!error && data === true);
+		}).catch(() => { if (active) setEligible(false); });
+		return () => { active = false; };
+	}, [coach.id, user?.id, previewReviews]);
 
 	async function checkReviewAccess() {
 		try {
@@ -316,7 +328,7 @@ export default function CoachReviews({ coach, onBack }) {
 				</div>
 			</section>
 			{previewReviews ? <div className="coach-review-preview-note">Preview reviews — examples only, not real client testimonials.</div> : editing ? <ReviewForm key={myReview?.updatedAt || "new"} existingReview={myReview} onCancel={() => setEditing(false)} onSaved={save} /> : (
-				<button type="button" className="coach-review-write-button" onClick={beginReview}>{myReview ? "Edit your review" : "Write a review"}</button>
+				<div><button type="button" className="coach-review-write-button" onClick={beginReview} disabled={Boolean(user) && eligible !== true}>{user && eligible === null ? "Checking review access…" : myReview ? "Edit your review" : "Write a review"}</button>{user && eligible === false && <p className="coach-review-preview-note">Reviews are available after this coach accepts you as a client. Current and former clients can review their experience.</p>}</div>
 			)}
 			{error ? <div className="coach-review-error" role="alert">{error}</div> : null}
 			<div className="coach-review-list">

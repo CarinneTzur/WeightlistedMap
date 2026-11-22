@@ -1,4 +1,5 @@
-import { createClient } from "@supabase/supabase-js";
+import { removeUserFolder } from "./storage-cleanup.mjs";
+import { createClient } from "npm:@supabase/supabase-js@2";
 
 const corsHeaders = {
 	"Access-Control-Allow-Origin": "*",
@@ -14,22 +15,6 @@ function jsonResponse(body: Record<string, unknown>, status = 200) {
 	});
 }
 
-async function removeUserFolder(
-	adminClient: ReturnType<typeof createClient>,
-	bucket: string,
-	prefix: string,
-) {
-	const { data, error } = await adminClient.storage.from(bucket).list(prefix, {
-		limit: 1000,
-	});
-	if (error) throw error;
-	const paths = (data || []).map((item) => `${prefix}/${item.name}`);
-	if (!paths.length) return;
-	const { error: removeError } = await adminClient.storage
-		.from(bucket)
-		.remove(paths);
-	if (removeError) throw removeError;
-}
 
 Deno.serve(async (request) => {
 	if (request.method === "OPTIONS") {

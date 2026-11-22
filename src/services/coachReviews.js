@@ -7,10 +7,8 @@ import {
 
 export const COACH_REVIEWS_CHANGED_EVENT = "weightlisted:coach-reviews-changed";
 
-const LOCAL_REVIEWS_KEY = "weightlisted.coachReviews.v1";
 const LOCAL_REVIEW_REPLIES_KEY = "weightlisted.coachReviewReplies.v1";
 const PREVIEW_RESPONSES_KEY = "weightlisted.founderPreviewReviewResponses.v1";
-const REVIEW_BACKEND_MISSING_CODES = new Set(["42P01", "42883", "PGRST202", "PGRST205"]);
 
 function compact(value) {
 	return String(value ?? "").trim();
@@ -31,22 +29,6 @@ function publicDisplayName(profile, user) {
 	if (!raw || raw.includes("@")) return compact(user?.email?.split("@")[0]) || "Weightlisted member";
 	const parts = raw.split(/\s+/).filter(Boolean);
 	return parts.length > 1 ? `${parts[0]} ${parts.at(-1)[0].toUpperCase()}.` : parts[0];
-}
-
-function readLocalReviews() {
-	if (typeof window === "undefined") return [];
-	try {
-		const parsed = JSON.parse(window.localStorage.getItem(LOCAL_REVIEWS_KEY) || "[]");
-		return Array.isArray(parsed) ? parsed : [];
-	} catch {
-		return [];
-	}
-}
-
-function writeLocalReviews(reviews) {
-	if (typeof window === "undefined") return;
-	window.localStorage.setItem(LOCAL_REVIEWS_KEY, JSON.stringify(reviews));
-	emitReviewChange();
 }
 
 function readLocalReviewReplies() {
@@ -123,9 +105,7 @@ function rowToReply(row) {
 	};
 }
 
-function isBackendMissing(error) {
-	return REVIEW_BACKEND_MISSING_CODES.has(error?.code);
-}
+
 
 export function summarizeCoachReviews(reviews = []) {
 	const validReviews = reviews.filter((review) => {
@@ -154,11 +134,9 @@ export async function loadCoachReviews(coachId) {
 			.eq("coach_id", normalizedCoachId)
 			.order("updated_at", { ascending: false });
 		if (!error) return (data || []).map(rowToReview);
-		if (!isBackendMissing(error)) throw error;
+		throw error;
 	}
-	return readLocalReviews()
-		.filter((review) => review.coachId === normalizedCoachId)
-		.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+	throw new Error("Reviews are unavailable right now. Please try again later.");
 }
 
 export async function loadCoachReviewReplies(reviewId) {
@@ -176,11 +154,9 @@ export async function loadCoachReviewReplies(reviewId) {
 			.eq("review_id", normalizedReviewId)
 			.order("created_at", { ascending: true });
 		if (!error) return (data || []).map(rowToReply);
-		if (!isBackendMissing(error)) throw error;
+		throw error;
 	}
-	return readLocalReviewReplies()
-		.filter((reply) => reply.reviewId === normalizedReviewId)
-		.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+	throw new Error("Reviews are unavailable right now. Please try again later.");
 }
 
 export async function saveCoachReview({ coachId, rating, body, user, profile }) {
@@ -201,31 +177,10 @@ export async function saveCoachReview({ coachId, rating, body, user, profile }) 
 			emitReviewChange();
 			return rowToReview(Array.isArray(data) ? data[0] : data);
 		}
-		if (!isBackendMissing(error)) throw error;
+		throw error;
 	}
 
-	const now = new Date().toISOString();
-	const reviews = readLocalReviews();
-	const existingIndex = reviews.findIndex(
-		(review) => review.coachId === normalizedCoachId && review.reviewerUserId === user.id,
-	);
-	const nextReview = {
-		id: existingIndex >= 0 ? reviews[existingIndex].id : `local-review-${Date.now()}`,
-		coachId: normalizedCoachId,
-		reviewerUserId: user.id,
-		reviewerDisplayName: publicDisplayName(profile, user),
-		reviewerAvatarUrl: profile?.profile_visible === false ? "" : compact(profile?.avatar_url),
-		rating: normalizedRating,
-		body: normalizedBody,
-		coachResponse: existingIndex >= 0 ? reviews[existingIndex].coachResponse || "" : "",
-		coachRespondedAt: existingIndex >= 0 ? reviews[existingIndex].coachRespondedAt || null : null,
-		createdAt: existingIndex >= 0 ? reviews[existingIndex].createdAt : now,
-		updatedAt: now,
-	};
-	if (existingIndex >= 0) reviews[existingIndex] = nextReview;
-	else reviews.push(nextReview);
-	writeLocalReviews(reviews);
-	return nextReview;
+	throw new Error("Reviews are unavailable right now. Please try again later.");
 }
 
 export async function deleteCoachReview({ coachId, userId }) {
@@ -239,11 +194,9 @@ export async function deleteCoachReview({ coachId, userId }) {
 			emitReviewChange();
 			return;
 		}
-		if (!isBackendMissing(error)) throw error;
+		throw error;
 	}
-	writeLocalReviews(readLocalReviews().filter(
-		(review) => !(review.coachId === normalizedCoachId && review.reviewerUserId === userId),
-	));
+	throw new Error("Reviews are unavailable right now. Please try again later.");
 }
 
 export async function saveCoachReviewResponse({ reviewId, response, coachId }) {
@@ -272,21 +225,9 @@ export async function saveCoachReviewResponse({ reviewId, response, coachId }) {
 			emitReviewChange();
 			return rowToReview(Array.isArray(data) ? data[0] : data);
 		}
-		if (!isBackendMissing(error)) throw error;
+		throw error;
 	}
-	const now = new Date().toISOString();
-	const reviews = readLocalReviews();
-	const index = reviews.findIndex(
-		(review) => review.id === reviewId && review.coachId === compact(coachId),
-	);
-	if (index < 0) throw new Error("Review not found.");
-	reviews[index] = {
-		...reviews[index],
-		coachResponse: normalizedResponse,
-		coachRespondedAt: normalizedResponse ? now : null,
-	};
-	writeLocalReviews(reviews);
-	return reviews[index];
+	throw new Error("Reviews are unavailable right now. Please try again later.");
 }
 
 export async function saveCoachReviewReply({
@@ -332,20 +273,8 @@ export async function saveCoachReviewReply({
 			emitReviewChange();
 			return rowToReply(Array.isArray(data) ? data[0] : data);
 		}
-		if (!isBackendMissing(error)) throw error;
+		throw error;
 	}
 
-	const now = new Date().toISOString();
-	const nextReply = {
-		id: `local-review-reply-${Date.now()}`,
-		reviewId: normalizedReviewId,
-		parentReplyId: compact(parentReplyId) || null,
-		authorUserId: user?.id || "local-coach",
-		authorRole,
-		authorDisplayName: compact(authorDisplayName) || (authorRole === "coach" ? "Coach" : publicDisplayName(profile, user)),
-		body: normalizedBody,
-		createdAt: now,
-	};
-	writeLocalReviewReplies([...readLocalReviewReplies(), nextReply]);
-	return nextReply;
+	throw new Error("Reviews are unavailable right now. Please try again later.");
 }

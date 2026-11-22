@@ -40,3 +40,19 @@ Ordinary account/conversation records follow existing account deletion. Safety r
 Admin > Conversations includes Safety reports. Filter Open/Reviewing/Resolved, select a report, record action, save. To inspect messages use Conversation oversight with a recorded reason. Outbox failures are server-only; inspect them in Supabase. Never give a browser a service-role key.
 
 Rollback frontend via prior Vercel deployment. Keep additive database tables; do not drop safety/audit records during rollback. The audited admin SELECT restriction may require keeping the new admin UI or restoring the earlier policy in a deliberate rollback.
+
+## November 22 implementation update
+
+- Operator confirmed: Carinne Tzurdecker, Alpharetta, Georgia, United States. Notices updated.
+- No owned sending domain yet. Notification emails and custom Auth SMTP remain inactive.
+- Public endpoint probes returned 404 for delete-my-account and deliver-notifications in both Supabase projects. Deployment remains required; no actual account deletion was attempted.
+- Anonymous safety-report SELECT was denied (401) in both projects.
+- Real reviews/replies now fail on backend errors instead of saving locally. The UI checks eligibility before enabling review creation. Database acceptance history remains the authority.
+- Account photo cleanup supports batches and nested folders, with tests for cross-user isolation.
+- Production directory excludes static mock coaches; staging retains them.
+- .github/workflows/checks.yml runs tests/build on pushes and pull requests.
+- .github/workflows/availability.yml checks the production app shell and JavaScript hourly once merged into the default branch. GitHub schedules may be delayed. Enable Actions failure notifications in the repository owner's GitHub notification settings. This does not capture all browser/runtime errors or replace database monitoring.
+- A recoverable error screen is installed for rendering failures. Browser errors currently log to the browser console; centralized runtime alerting is still not configured.
+- Client photo objects are still publicly served; privacy notice now states that explicitly. Text conversations use database access controls.
+
+Supabase dashboard sign-in is required before the agent can deploy the pending Edge Functions, inspect Auth email delivery and recovery configuration, or run cross-account backend walkthroughs. No service-role credential is available to the agent, and none is requested in chat.

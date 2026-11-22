@@ -1,3 +1,4 @@
+import { isStaging } from "../src/lib/environment";
 import { coaches as staticCoaches } from "../data/coaches";
 import { gyms as staticGyms } from "../data/gyms";
 import { STATE_CENTERS } from "../data/usStates";
@@ -12,9 +13,8 @@ function uniqueById(items) {
 	return Array.from(new Map(items.map((item) => [item.id, item])).values());
 }
 
-// The temporary launch-preview directory is on by default. Set this explicitly
-// to "false" when the real coach directory is ready to stand on its own.
-const SHOW_DEMO_DIRECTORY = import.meta.env.VITE_SHOW_DEMO_COACHES !== "false";
+// Production is a real directory; staging keeps its clearly marked mock coaches.
+const SHOW_DEMO_DIRECTORY = isStaging && import.meta.env.VITE_SHOW_DEMO_COACHES !== "false";
 
 function getCoachSource() {
 	const approved = getApprovedApplicationCoaches();
