@@ -120,6 +120,9 @@ function isImageFile(file) {
 
 function getAuthErrorMessage(error) {
 	const message = String(error?.message || "");
+	if (error?.code === "email_not_confirmed" || /email not confirmed/i.test(message)) {
+		return "Check your email and click the confirmation link to activate your account, then sign in again. If you don’t see it, check your spam folder.";
+	}
 	if (/failed to fetch|network|load failed/i.test(message)) {
 		return "Weightlisted could not reach the account service. Check the Supabase project URL and try again.";
 	}
