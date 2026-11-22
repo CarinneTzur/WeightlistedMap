@@ -3066,17 +3066,17 @@ function addGlobalMapStyles() {
 
     .coach-map-marker {
       border-radius: 999px;
-      background: ${palette.graphite100};
-      border: 5px solid ${palette.graphite800};
-      box-shadow: 0 0 0 1px rgba(198,197,195,0.42), 0 12px 26px rgba(0,0,0,0.46);
+      background: #357CB5;
+      border: 5px solid #24577F;
+      box-shadow: 0 0 0 1px rgba(125,177,225,0.65), 0 12px 26px rgba(0,0,0,0.46);
       display: flex; align-items: center; justify-content: center;
-      color: ${palette.graphite900};
+      color: #FFFFFF;
 	  font-weight: 650;
       transition: width 220ms ease, height 220ms ease, font-size 220ms ease;
     }
     .coach-map-marker.cluster {
-      background: #294D6B;
-      border-color: #426B8D;
+      background: #357CB5;
+      border-color: #24577F;
       color: #F1F7FD;
       box-shadow: 0 0 0 2px rgba(125,177,225,0.32), 0 14px 32px rgba(0,0,0,0.52);
     }
