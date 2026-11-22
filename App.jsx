@@ -3068,7 +3068,7 @@ function addGlobalMapStyles() {
       border-radius: 999px;
       opacity: 1;
       background: ${palette.graphite100};
-      border: 5px solid ${palette.graphite800};
+      border: 5px solid #17384F;
       box-shadow: 0 0 0 1px #24577F, 0 12px 26px rgba(0,0,0,0.46);
       display: flex; align-items: center; justify-content: center;
       color: ${palette.graphite900};
@@ -3077,14 +3077,14 @@ function addGlobalMapStyles() {
     }
     .coach-map-marker.cluster {
       background: ${palette.graphite800};
-      border-color: ${palette.graphite700};
+      border-color: #17384F;
       color: ${palette.text};
       box-shadow: 0 0 0 2px #24577F, 0 14px 32px rgba(0,0,0,0.52);
     }
     .coach-map-marker.active,
     .coach-map-marker.cluster.active {
       background: ${palette.graphite800};
-      border-color: ${palette.graphite100};
+      border-color: #204963;
       color: ${palette.text};
       box-shadow: 0 0 0 2px #24577F, 0 18px 40px rgba(0,0,0,0.56);
     }
