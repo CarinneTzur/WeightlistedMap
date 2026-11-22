@@ -743,7 +743,6 @@ const styles = {
 	map: {
 		width: "100%",
 		height: "100dvh",
-		filter: "grayscale(1) contrast(1.05) brightness(0.82)",
 	},
 	introOverlay: {
 		position: "fixed",
@@ -3058,7 +3057,7 @@ function addGlobalMapStyles() {
 	const style = document.createElement("style");
 	style.innerHTML = `
     .leaflet-container { background: ${palette.graphite900}; font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
-    .leaflet-tile-pane { filter: contrast(1.3) brightness(0.88); }
+    .leaflet-tile-pane { filter: grayscale(1) contrast(1.365) brightness(0.7216); }
     .leaflet-control-zoom { border: 1px solid ${palette.border} !important; border-radius: 14px !important; overflow: hidden; box-shadow: 0 18px 45px rgba(0,0,0,0.28) !important; }
     .leaflet-control-zoom a { width: 44px !important; height: 44px !important; line-height: 44px !important; background: rgba(30,28,30,0.88) !important; color: ${palette.graphite100} !important; border-bottom: 1px solid ${palette.border} !important; }
     .leaflet-control-zoom a:hover { background: ${palette.graphite700} !important; color: white !important; }

@@ -2,6 +2,12 @@
 
 ## Staging deployment
 
+Staging project now selected: `zimtgpfxddttxytattmd`. Its browser-safe publishable
+key is configured in `src/lib/environment.js` as the staging-only default.
+Optional Vercel staging variables override this pair; incomplete overrides fail closed.
+Production credentials remain separate. Database schema and function deployment
+must still be verified independently of frontend connectivity.
+
 - Keep GitHub `main` and the existing Vercel production site unchanged.
 - Push work to `codex/staging`; the existing Vercel Git integration should create Preview deployments.
 - Preview builds (or builds with `APP_ENV=staging`) use ONLY `VITE_STAGING_SUPABASE_URL` and `VITE_STAGING_SUPABASE_ANON_KEY`. Configure these in Vercel Preview, scoped to `codex/staging`, using a separate test Supabase project. Without them, backend features are disabled; the production Supabase URL is explicitly rejected.
