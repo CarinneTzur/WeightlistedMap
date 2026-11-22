@@ -6,6 +6,7 @@ import ConversationSafety from "./ConversationSafety";
 import { MessageMediaGallery } from "./ChatMedia";
 import { ScrollArea } from "./ui";
 import "./ClientChat.css";
+import { ConversationRail, CoachDetails } from "./ClientChatPanels";
 
 function Icon({ name }) {
  const paths = { back: "M19 12H5m7-7-7 7 7 7", expand: "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5", collapse: "M3 8h5V3m8 0v5h5M8 21v-5H3m13 5v-5h5", send: "m5 12 14-7-5 14-3-6-6-1Zm6 1 8-8" };
@@ -17,15 +18,19 @@ function messageDate(value) {
 }
 export default function ClientChat(props) {
  const { user, profile } = useAuth();
- return <Conversation key={`${user?.id}:${props.coach.id}`} {...props} user={user} profile={profile} />;
+ const [expanded, setExpanded] = useState(false);
+ const drafts = useRef({});
+ return <Conversation expanded={expanded} setExpanded={setExpanded} drafts={drafts}  key={`${user?.id}:${props.coach.id}`} {...props} user={user} profile={profile} />;
 }
-function Conversation({ coach, onBack, onViewProfile, user, profile }) {
+function Conversation({ coach, onBack, onViewProfile, onSelectCoach, user, profile, expanded, setExpanded, drafts }) {
  const [thread, setThread] = useState(() => loadDirectMessageThread(coach.id, { userId: user?.id || "" }));
- const [draft, setDraft] = useState("");
+ const draftKey = `${user?.id}:${coach.id}`;
+ const [draft, updateDraft] = useState(() => drafts.current[draftKey] || "");
+ function setDraft(value) { updateDraft(current => { const next = typeof value === "function" ? value(current) : value; drafts.current[draftKey] = next; return next; }); }
  const [error, setError] = useState("");
  const [sending, setSending] = useState(false);
  const [blocked, setBlocked] = useState(false);
- const [expanded, setExpanded] = useState(false);
+ const [showThreads, setShowThreads] = useState(false);
  const [hasNewMessages, setHasNewMessages] = useState(false);
  const panelRef = useRef(null), inputRef = useRef(null), listRef = useRef(null), expandRef = useRef(null);
  const sendingRef = useRef(false), nearBottom = useRef(true), previousLast = useRef(null), scrollPosition = useRef(null);
@@ -83,7 +88,7 @@ function Conversation({ coach, onBack, onViewProfile, user, profile }) {
   document.body.style.overflow = "hidden";
   expandRef.current?.focus();
   const handleKey = event => {
-   if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); toggleExpanded(); }
+   if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); if (showThreads) setShowThreads(false); else toggleExpanded(); }
    if (event.key !== "Tab") return;
    const items = [...panelRef.current.querySelectorAll('button:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex="0"]')].filter(item => item.getClientRects().length);
    const first = items[0], last = items.at(-1);
@@ -92,7 +97,8 @@ function Conversation({ coach, onBack, onViewProfile, user, profile }) {
   };
   document.addEventListener("keydown", handleKey, true);
   return () => { document.body.style.overflow = overflow; document.removeEventListener("keydown", handleKey, true); expandRef.current?.focus(); };
- }, [expanded]);
+ }, [expanded, showThreads]);
+ useEffect(() => { if (showThreads) panelRef.current?.querySelector('[aria-label="Search conversations"]')?.focus(); }, [showThreads]);
  async function send(event) {
   event?.preventDefault();
   if (disabled || sendingRef.current || !draft.trim()) return;
@@ -108,7 +114,10 @@ function Conversation({ coach, onBack, onViewProfile, user, profile }) {
   finally { sendingRef.current = false; setSending(false); }
  }
  const panel = <section ref={panelRef} className={`client-chat${expanded ? " client-chat-expanded" : ""}`} role={expanded ? "dialog" : undefined} aria-modal={expanded || undefined} aria-label={`Messages with ${coach.name}`}>
+  {expanded && <ConversationRail coach={coach} userId={user?.id} onSelect={onSelectCoach} open={showThreads} onClose={() => setShowThreads(false)} />}
+  <div className="client-chat-conversation" inert={expanded && showThreads ? "" : undefined}>
   <header className="client-chat-header">
+   {expanded && <button type="button" className="client-chat-icon client-chat-list-toggle" aria-label="Show conversations" onClick={() => setShowThreads(true)}>☰</button>}
    <button type="button" className="client-chat-icon" aria-label="Back to conversations" onClick={onBack}><Icon name="back" /></button>
    <button type="button" className="client-chat-identity" onClick={onViewProfile} aria-label={`View ${coach.name}'s profile`}>
     <img src={coach.headshot} alt="" /><span><strong>{coach.name}</strong><small>{blocked ? "Messaging blocked" : status === "accepted" ? "Your coach" : status === "pending" ? "Request pending" : status === "declined" ? "Request closed" : "Coaching conversation"}</small></span>
@@ -150,6 +159,8 @@ function Conversation({ coach, onBack, onViewProfile, user, profile }) {
    </div>
    <span className="client-chat-shortcut" role="status">{sending ? "Sending…" : "Ctrl + Enter to send"}</span>
   </form>
+  </div>
+  {expanded && <CoachDetails coach={coach} status={status} onViewProfile={onViewProfile} />}
  </section>;
  return expanded ? createPortal(panel, document.body) : panel;
 }

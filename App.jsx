@@ -2358,8 +2358,9 @@ function CoachListPanel({
 		return (
 			<ContactPanel
 				coach={contactCoach}
+				onSelectCoach={onOpenContact}
 				onBack={onCloseContact}
-				onViewProfile={onCloseContact}
+				onViewProfile={() => { setProfileCoach(contactCoach); onCloseContact(); }}
 				isDesktop={isDesktop}
 			/>
 		);
@@ -5688,6 +5689,7 @@ function CoachMapApp({
 						contactCoach ? (
 							<ContactPanel
 								coach={contactCoach}
+								onSelectCoach={setContactCoach}
 								onBack={() => setContactCoach(null)}
 								onViewProfile={() => openCoachProfileFromMessage(contactCoach)}
 								isDesktop={isDesktop}
