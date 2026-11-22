@@ -12,6 +12,8 @@ create table if not exists private.admin_allowlist (
   email text primary key check (email = lower(email))
 );
 revoke all on private.admin_allowlist from public;
+alter table private.admin_allowlist enable row level security;
+revoke all on private.admin_allowlist from anon, authenticated;
 
 insert into private.admin_allowlist (email)
 values
