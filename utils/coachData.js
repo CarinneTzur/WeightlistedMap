@@ -17,9 +17,11 @@ function uniqueById(items) {
 const SHOW_DEMO_DIRECTORY = import.meta.env.VITE_SHOW_DEMO_COACHES !== "false";
 
 function getCoachSource() {
+	const approved = getApprovedApplicationCoaches();
+	const hasRealFounder = approved.some(coach => coach.name === "Weightlisted Founder");
 	return uniqueById([
-		...(SHOW_DEMO_DIRECTORY ? staticCoaches : []),
-		...getApprovedApplicationCoaches(),
+		...(SHOW_DEMO_DIRECTORY ? staticCoaches.filter(coach => !hasRealFounder || coach.id !== "founder-coach-preview") : []),
+		...approved,
 	]);
 }
 
