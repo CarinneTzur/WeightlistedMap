@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { flushSync } from "react-dom";
+import { createPortal, flushSync } from "react-dom";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -2150,6 +2150,25 @@ function CoachProfile({
 
 function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const { user, profile } = useAuth();
+	const [expanded, setExpanded] = useState(false);
+	const expandButtonRef = useRef(null);
+	useEffect(() => {
+		if (!expanded) return;
+		const previousOverflow = document.body.style.overflow;
+		document.body.style.overflow = "hidden";
+		const escape = event => {
+			if (event.key === "Escape") { event.stopImmediatePropagation(); setExpanded(false); }
+			if (event.key === "Tab") {
+				const items = [...document.querySelectorAll('.client-chat-expanded button:not(:disabled), .client-chat-expanded textarea:not(:disabled), .client-chat-expanded a, .client-chat-expanded summary')].filter(item => item.getClientRects().length);
+				const first = items[0], last = items.at(-1);
+				if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+				else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+			}
+		};
+		document.addEventListener("keydown", escape, true);
+		const frame = requestAnimationFrame(() => expandButtonRef.current?.focus());
+		return () => { document.body.style.overflow = previousOverflow; document.removeEventListener("keydown", escape, true); cancelAnimationFrame(frame); };
+	}, [expanded]);
 	const [blocked, setBlocked] = useState(false);
 	const messageInputRef = useRef(null);
 	const messageListRef = useRef(null);
@@ -2274,19 +2293,26 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 		}
 	}
 
-	return (
+	const panel = (
 		<div
+			className={expanded ? "client-chat-expanded" : undefined}
+			role={expanded ? "dialog" : undefined}
+			aria-modal={expanded ? true : undefined}
+			aria-label={expanded ? "Messages with " + coach.name : undefined}
 			style={{
 				...styles.contactPanel,
 				...(isDesktop ? {} : { minHeight: 0 }),
 			}}
 		>
 			<div style={styles.contactTopRow}>
+                <button ref={expandButtonRef} type="button" className="ui-button client-chat-expand-button" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} title={expanded ? "Exit full screen (Escape)" : "Expand messages"}>
+                 <span aria-hidden="true">{expanded ? "↙" : "⛶"}</span> {expanded ? "Exit full screen" : "Full screen"}
+                </button>
 				<button
 					type="button"
 					style={styles.backArrow}
 					aria-label="Back to coach profile"
-					onClick={onBack}
+					onClick={() => { setExpanded(false); onBack(); }}
 				>
 					←
 				</button>
@@ -2306,7 +2332,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 				type="button"
 				className="contact-profile-link"
 				style={styles.contactHeader}
-				onClick={onViewProfile}
+				onClick={() => { setExpanded(false); onViewProfile(); }}
 				aria-label={`View ${coach.name}’s profile on the map`}
 			>
 				<img
@@ -2441,6 +2467,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			</div>
 		</div>
 	);
+	return expanded ? createPortal(panel, document.body) : panel;
 }
 
 function DirectMessagesPanel({ coaches, onBack, onOpenThread, onOpenServices }) {
