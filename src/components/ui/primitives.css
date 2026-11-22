@@ -9,6 +9,14 @@
 	scrollbar-color: var(--ui-scroll-thumb) transparent;
 }
 
+/* Chromium's native thin scrollbar overrides the custom track and adds arrows. */
+@supports selector(::-webkit-scrollbar) {
+ :is(.ui-scroll-area, .coach-scroll-panel) {
+  scrollbar-width: auto;
+  scrollbar-color: auto;
+ }
+}
+
 :is(.ui-scroll-area, .coach-scroll-panel)::-webkit-scrollbar {
 	width: var(--ui-scroll-size);
 }
