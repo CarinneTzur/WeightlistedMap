@@ -20,6 +20,7 @@ import {
 } from "./src/components/ChatMedia";
 import ServicesFlow from "./src/components/ServicesFlow";
 import ConversationSafety from "./src/components/ConversationSafety";
+import "./src/components/ClientChat.css";
 import { ScrollArea } from "./src/components/ui";
 import AccountPanel from "./src/components/AccountPanel";
 import AccountMenu from "./src/components/AccountMenu";
