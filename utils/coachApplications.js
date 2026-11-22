@@ -1,4 +1,5 @@
 import { gyms as staticGyms } from "../data/gyms";
+import founderPortrait from "../assets/coach-workspace-portrait.png";
 import { STATE_ABBR_BY_NAME, STATE_CENTERS } from "../data/usStates";
 import { isSupabaseConfigured, requireSupabase } from "../src/lib/supabase";
 
@@ -310,7 +311,7 @@ export function mapSupabaseApplication(row) {
 		remoteAvailable: Boolean(row.remote_available),
 		inPersonCoaching: Boolean(row.in_person_coaching),
 		coachingFormats: row.coaching_formats || [],
-		profilePhotoUrl: row.profile_photo_url,
+		profilePhotoUrl: row.profile_photo_url || (row.public_name === "Weightlisted Founder" ? founderPortrait : ""),
 		profilePhotoFileName: row.profile_photo_file_name,
 		socialLinks: row.social_links || [],
 		certifications: row.certifications || [],
