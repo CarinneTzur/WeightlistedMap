@@ -1,3 +1,5 @@
+@import "./src/components/ui/primitives.css";
+
 * {
 	box-sizing: border-box;
 }
@@ -7,34 +9,6 @@ html {
 	-webkit-text-size-adjust: 100%;
 	text-size-adjust: 100%;
 	background: #080807;
-}
-
-.coach-scroll-panel {
-	scrollbar-width: thin;
-	scrollbar-color: rgba(198, 197, 195, 0.34) transparent;
-}
-
-.coach-scroll-panel::-webkit-scrollbar {
-	width: 6px;
-}
-
-.coach-scroll-panel::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-.coach-scroll-panel::-webkit-scrollbar-thumb {
-	border-radius: 999px;
-	background: rgba(198, 197, 195, 0.34);
-}
-
-.coach-scroll-panel::-webkit-scrollbar-thumb:hover {
-	background: rgba(198, 197, 195, 0.48);
-}
-
-.coach-scroll-panel::-webkit-scrollbar-button {
-	display: none;
-	width: 0;
-	height: 0;
 }
 
 .direct-message-list {

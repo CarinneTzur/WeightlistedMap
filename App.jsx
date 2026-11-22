@@ -20,6 +20,7 @@ import {
 } from "./src/components/ChatMedia";
 import ServicesFlow from "./src/components/ServicesFlow";
 import ConversationSafety from "./src/components/ConversationSafety";
+import { ScrollArea } from "./src/components/ui";
 import AccountPanel from "./src/components/AccountPanel";
 import AccountMenu from "./src/components/AccountMenu";
 import CoachWorkspace, { CoachApprovalCelebration } from "./src/components/CoachWorkspace";
@@ -2359,9 +2360,8 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 					...(isDesktop ? {} : { paddingTop: 14 }),
 				}}
 			>
-				<div
+				<ScrollArea
 					ref={messageListRef}
-					className="client-message-history"
 					style={{
 						flex: 1,
 						minHeight: 0,
@@ -2398,7 +2398,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 							Share your goals, training history, schedule, and what you want from ongoing coaching.
 						</div>
 					)}
-				</div>
+				</ScrollArea>
 
 				<MediaDraftTray
 					attachments={draftAttachments}

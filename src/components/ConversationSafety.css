@@ -1,26 +1,5 @@
 .conversation-safety { padding: 10px 0; font-size: 13px; color: #c6c5c3; }
 .conversation-safety summary { cursor: pointer; color: #f2f1ef; font-weight: 550; }
 .conversation-safety p { line-height: 1.5; margin: 12px 0; }
-.conversation-safety button {
- appearance: none;
- display: inline-flex;
- align-items: center;
- justify-content: center;
- min-height: 40px;
- padding: 9px 18px;
- border: 1px solid rgba(198,197,195,.24);
- border-radius: 999px;
- background: rgba(198,197,195,.07);
- color: #f2f1ef;
- font: inherit;
- font-size: 13px;
- font-weight: 550;
- line-height: 1.3;
- cursor: pointer;
- transition: background 140ms ease, border-color 140ms ease;
-}
-.conversation-safety button:hover:not(:disabled) { background: rgba(198,197,195,.13); border-color: rgba(198,197,195,.42); }
-.conversation-safety button:focus-visible { outline: 2px solid #7db1e1; outline-offset: 3px; }
-.conversation-safety button:disabled { opacity: .5; cursor: wait; }
 .conversation-safety button + button { margin-left: 8px; }
 .conversation-safety [role=alert] { color: #e8c0c0; }

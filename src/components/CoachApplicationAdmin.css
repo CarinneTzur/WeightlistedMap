@@ -107,22 +107,6 @@
 	border-bottom: 1px solid rgba(224, 219, 211, 0.08);
 }
 
-.admin-workspace ::-webkit-scrollbar {
-	width: 9px;
-	height: 9px;
-}
-
-.admin-workspace ::-webkit-scrollbar-track {
-	background: transparent;
-}
-
-.admin-workspace ::-webkit-scrollbar-thumb {
-	border: 2px solid transparent;
-	border-radius: 999px;
-	background: rgba(214, 207, 198, 0.18);
-	background-clip: padding-box;
-}
-
 @media (max-width: 640px) {
 	.admin-workspace h1 {
 		max-width: 12ch;

@@ -1,0 +1,45 @@
+/* Shared styles extracted from the existing coach directory. */
+:root {
+ --ui-scroll-size: 6px;
+ --ui-scroll-thumb: rgba(198, 197, 195, .34);
+ --ui-scroll-thumb-hover: rgba(198, 197, 195, .48);
+}
+:is(.ui-scroll-area, .coach-scroll-panel) {
+	scrollbar-width: thin;
+	scrollbar-color: var(--ui-scroll-thumb) transparent;
+}
+
+:is(.ui-scroll-area, .coach-scroll-panel)::-webkit-scrollbar {
+	width: var(--ui-scroll-size);
+}
+
+:is(.ui-scroll-area, .coach-scroll-panel)::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+:is(.ui-scroll-area, .coach-scroll-panel)::-webkit-scrollbar-thumb {
+	border-radius: 999px;
+	background: var(--ui-scroll-thumb);
+}
+
+:is(.ui-scroll-area, .coach-scroll-panel)::-webkit-scrollbar-thumb:hover {
+	background: var(--ui-scroll-thumb-hover);
+}
+
+:is(.ui-scroll-area, .coach-scroll-panel)::-webkit-scrollbar-button {
+	display: none;
+	width: 0;
+	height: 0;
+}
+
+
+.ui-button {
+ appearance:none; display:inline-flex; align-items:center; justify-content:center;
+ min-height:40px; padding:9px 18px; border:1px solid rgba(198,197,195,.24);
+ border-radius:999px; background:rgba(198,197,195,.07); color:#f2f1ef;
+ font:inherit; font-size:13px; font-weight:550; line-height:1.3; cursor:pointer;
+ transition:background 140ms ease,border-color 140ms ease;
+}
+.ui-button:hover:not(:disabled){background:rgba(198,197,195,.13);border-color:rgba(198,197,195,.42)}
+.ui-button:focus-visible{outline:2px solid #7db1e1;outline-offset:3px}
+.ui-button:disabled{opacity:.5;cursor:not-allowed}
