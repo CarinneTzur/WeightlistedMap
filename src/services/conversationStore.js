@@ -10,6 +10,7 @@ export const SERVICE_REQUESTS_CHANGED_EVENT = "weightlisted:service-requests-cha
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const backendWarnings = new Set();
 let realtimeSubscriptionId = 0;
+let confirmedWriteVersion = 0;
 
 function isUuid(value) {
 	return UUID_PATTERN.test(String(value || ""));
@@ -53,6 +54,7 @@ async function confirmedWrite(rpcName, args, kind) {
 	if (authError || !authData.user) throw new Error("Sign in again before saving.");
 	const { data, error } = await supabase.rpc(rpcName, remoteJson(args));
 	if (error) throw error;
+	confirmedWriteVersion += 1;
 	const row = Array.isArray(data) ? data[0] : data;
 	if (row && kind) {
 		const item = kind === "direct" ? mapRemoteConversation(row) : mapRemoteServiceRequest(row);
@@ -133,6 +135,7 @@ export async function syncMarketplaceData() {
 	if (authError) throw authError;
 	if (!authData.user) return false;
 
+	const startedAtVersion = confirmedWriteVersion;
 	const [conversationResult, requestResult] = await Promise.all([
 		supabase
 			.from("marketplace_conversations")
@@ -147,6 +150,8 @@ export async function syncMarketplaceData() {
 	]);
 	if (conversationResult.error) throw conversationResult.error;
 	if (requestResult.error) throw requestResult.error;
+	// A fetch started before a successful send must not erase its newer result.
+	if (startedAtVersion !== confirmedWriteVersion) return syncMarketplaceData();
 
 	const remoteThreads = (conversationResult.data || []).map(mapRemoteConversation);
 	const remoteRequests = (requestResult.data || []).map(mapRemoteServiceRequest);
@@ -250,6 +255,7 @@ export function loadDirectMessageThreadById(threadId, access = {}) {
 
 export async function appendDirectMessage(coach, message, client = {}) {
 	if (isUuid(coach.id)) return confirmedWrite("create_or_append_marketplace_conversation", { p_coach_application_id: coach.id, p_message: message, p_client_snapshot: compactProfile(client) }, "direct");
+	if (!isDemoRecord(coach.id)) throw new Error("This coach profile is a preview and cannot receive saved messages. Choose an approved coach profile.");
 	const now = message.createdAt || new Date().toISOString();
 	const threads = loadAllDirectMessageThreads();
 	const clientProfile = compactProfile(client);

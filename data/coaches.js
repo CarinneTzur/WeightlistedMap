@@ -18,6 +18,7 @@ export const coaches = [
 		remoteAvailable: true,
 		approved: true,
 		isPreview: true,
+		isMock: true,
 	},
 	...mockCoaches,
 ];
