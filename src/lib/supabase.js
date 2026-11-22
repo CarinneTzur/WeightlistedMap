@@ -1,7 +1,9 @@
 import { createClient } from "@supabase/supabase-js";
+import { getBackendConfig, isStaging } from "./environment";
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const config = getBackendConfig(import.meta.env, isStaging);
+const supabaseUrl = config?.url;
+const supabaseAnonKey = config?.key;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
 

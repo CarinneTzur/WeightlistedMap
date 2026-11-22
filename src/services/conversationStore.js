@@ -46,6 +46,28 @@ function queueBackendRpc(label, rpcName, args) {
 		.catch((error) => warnBackendOnce(label, error));
 }
 
+
+async function confirmedWrite(rpcName, args, kind) {
+	if (!supabase) throw new Error("Account access is not configured.");
+	const { data: authData, error: authError } = await supabase.auth.getUser();
+	if (authError || !authData.user) throw new Error("Sign in again before saving.");
+	const { data, error } = await supabase.rpc(rpcName, remoteJson(args));
+	if (error) throw error;
+	const row = Array.isArray(data) ? data[0] : data;
+	if (row && kind) {
+		const item = kind === "direct" ? mapRemoteConversation(row) : mapRemoteServiceRequest(row);
+		const key = kind === "direct" ? DIRECT_THREADS_KEY : SERVICE_REQUESTS_KEY;
+		const event = kind === "direct" ? DIRECT_MESSAGES_CHANGED_EVENT : SERVICE_REQUESTS_CHANGED_EVENT;
+		writeStoredList(key, event, [item, ...readStoredList(key).filter(entry => entry.id !== item.id)]);
+		return item;
+	}
+	return row;
+}
+
+function isDemoRecord(id) {
+	return String(id || "").startsWith("coach-demo-");
+}
+
 function readStoredList(key) {
 	if (typeof window === "undefined") return [];
 	try {
@@ -70,7 +92,9 @@ function mergeRemoteItems(localItems, remoteItems) {
 	const remoteIds = new Set(remoteItems.map((item) => item?.id).filter(Boolean));
 	return [
 		...remoteItems,
-		...localItems.filter((item) => !remoteIds.has(item?.id)),
+		// Keep only explicit demo records. Server-removed/revoked records must
+		// disappear from the cache after a successful synchronization.
+		...localItems.filter((item) => isDemoRecord(item?.id) && !remoteIds.has(item?.id)),
 	].sort(byMostRecent).slice(0, 100);
 }
 
@@ -224,7 +248,8 @@ export function loadDirectMessageThreadById(threadId, access = {}) {
 	return loadDirectMessageThreads(access).find((thread) => thread.id === threadId) || null;
 }
 
-export function appendDirectMessage(coach, message, client = {}) {
+export async function appendDirectMessage(coach, message, client = {}) {
+	if (isUuid(coach.id)) return confirmedWrite("create_or_append_marketplace_conversation", { p_coach_application_id: coach.id, p_message: message, p_client_snapshot: compactProfile(client) }, "direct");
 	const now = message.createdAt || new Date().toISOString();
 	const threads = loadAllDirectMessageThreads();
 	const clientProfile = compactProfile(client);
@@ -264,7 +289,8 @@ export function appendDirectMessage(coach, message, client = {}) {
 	return nextThread;
 }
 
-export function updateClientRelationship(threadId, relationshipStatus) {
+export async function updateClientRelationship(threadId, relationshipStatus) {
+	if (!isDemoRecord(threadId)) return confirmedWrite("set_marketplace_relationship", { p_conversation_id: threadId, p_relationship_status: relationshipStatus }, "direct");
 	if (!["pending", "accepted", "declined"].includes(relationshipStatus)) {
 		throw new Error("Choose a valid client relationship status.");
 	}
@@ -291,7 +317,8 @@ export function updateClientRelationship(threadId, relationshipStatus) {
 	return nextThread;
 }
 
-export function appendDirectMessageReply(threadId, message) {
+export async function appendDirectMessageReply(threadId, message) {
+	if (!isDemoRecord(threadId)) return confirmedWrite("append_marketplace_conversation_message", { p_conversation_id: threadId, p_message: message }, "direct");
 	const now = message.createdAt || new Date().toISOString();
 	const threads = loadAllDirectMessageThreads();
 	const existing = threads.find((thread) => thread.id === threadId);
@@ -370,7 +397,8 @@ function saveServiceRequestLocal(request) {
 	return nextRequest;
 }
 
-export function saveServiceRequest(request) {
+export async function saveServiceRequest(request) {
+	if (!isDemoRecord(request.id)) return confirmedWrite("create_marketplace_service_request", { p_request: request }, "service");
 	const nextRequest = saveServiceRequestLocal(request);
 	queueBackendRpc("service request creation", "create_marketplace_service_request", {
 		p_request: nextRequest,
@@ -378,11 +406,12 @@ export function saveServiceRequest(request) {
 	return nextRequest;
 }
 
-export function updateServiceRequest(requestId, patchOrUpdater) {
+export async function updateServiceRequest(requestId, patchOrUpdater) {
 	const requests = loadAllServiceRequests();
 	const existing = requests.find((item) => item.id === requestId);
 	if (!existing) return null;
 	const patch = typeof patchOrUpdater === "function" ? patchOrUpdater(existing) : patchOrUpdater;
+	if (!isDemoRecord(requestId)) return confirmedWrite("update_marketplace_service_request", { p_request_id: requestId, p_patch: patch || {} }, "service");
 	const nextRequest = saveServiceRequestLocal({ ...existing, ...(patch || {}), updatedAt: new Date().toISOString() });
 	queueBackendRpc("service request update", "update_marketplace_service_request", {
 		p_request_id: requestId,
@@ -391,7 +420,8 @@ export function updateServiceRequest(requestId, patchOrUpdater) {
 	return nextRequest;
 }
 
-export function appendServiceRequestMessage(requestId, message) {
+export async function appendServiceRequestMessage(requestId, message) {
+	if (!isDemoRecord(requestId)) return confirmedWrite("append_marketplace_service_message", { p_request_id: requestId, p_message: message }, "service");
 	const request = loadAllServiceRequests().find((item) => item.id === requestId);
 	if (!request) return null;
 	const now = message.createdAt || new Date().toISOString();
@@ -409,7 +439,8 @@ export function appendServiceRequestMessage(requestId, message) {
 	return nextRequest;
 }
 
-export function claimServiceRequest(requestId, coach) {
+export async function claimServiceRequest(requestId, coach) {
+	if (!isDemoRecord(requestId)) return confirmedWrite("claim_marketplace_service_request", { p_request_id: requestId, p_coach_application_id: coach.id }, "service");
 	const request = loadAllServiceRequests().find((item) => item.id === requestId);
 	if (!request) throw new Error("This request is no longer available.");
 	if (request.requestStatus !== "matching" || request.paymentStatus !== "paid") {
@@ -437,7 +468,8 @@ export function claimServiceRequest(requestId, coach) {
 	return nextRequest;
 }
 
-export function passServiceRequest(requestId, coachId) {
+export async function passServiceRequest(requestId, coachId) {
+	if (!isDemoRecord(requestId)) { await confirmedWrite("pass_marketplace_service_request", { p_request_id: requestId, p_coach_application_id: coachId }); await refreshMarketplaceData(); return; }
 	const request = loadAllServiceRequests().find((item) => item.id === requestId);
 	if (!request) return null;
 	const nextRequest = saveServiceRequestLocal({
@@ -481,25 +513,10 @@ export async function markServiceRequestPaidByAdmin(requestId, paymentReference 
 }
 
 export async function loadAdminMarketplaceOverview() {
-	if (!supabase) throw new Error("Supabase is not configured.");
-	const [conversationResult, requestResult] = await Promise.all([
-		supabase
-			.from("marketplace_conversations")
-			.select("id,coach_application_id,relationship_status,payload,read_by_client_at,read_by_coach_at,created_at,updated_at")
-			.order("updated_at", { ascending: false })
-			.limit(50),
-		supabase
-			.from("marketplace_service_requests")
-			.select("id,request_status,payment_status,payout_status,passed_by_coach_ids,payload,read_by_client_at,read_by_coach_at,claimed_at,created_at,updated_at")
-			.order("updated_at", { ascending: false })
-			.limit(50),
-	]);
-	if (conversationResult.error) throw conversationResult.error;
-	if (requestResult.error) throw requestResult.error;
-	return {
-		conversations: (conversationResult.data || []).map(mapRemoteConversation),
-		serviceRequests: (requestResult.data || []).map(mapRemoteServiceRequest),
-	};
+ if (!supabase) throw new Error("Supabase is not configured.");
+ const { data, error } = await supabase.rpc("admin_conversation_summaries");
+ if (error) throw error;
+ return { conversations: data || [], serviceRequests: [] };
 }
 
 function minutesAgo(minutes) {

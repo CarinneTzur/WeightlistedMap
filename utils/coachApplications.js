@@ -818,6 +818,7 @@ export function buildCoachApplicationNotificationPayload(application, reviewUrl)
 }
 
 export async function sendCoachApplicationNotification(application, reviewUrl) {
+	if (typeof __STAGING_BUILD__ !== "undefined" && __STAGING_BUILD__) return { ok: false, skipped: true, reason: "External notifications are disabled in staging." };
 	const webhookUrl = import.meta.env?.VITE_COACH_APPLICATION_WEBHOOK_URL || "";
 	const payload = buildCoachApplicationNotificationPayload(application, reviewUrl);
 

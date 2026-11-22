@@ -8,6 +8,7 @@ import {
 } from "../../utils/coachApplications";
 import { loadAdminMarketplaceOverview } from "../services/conversationStore";
 import "./CoachApplicationAdmin.css";
+import AdminConversationReview from "./AdminConversationReview";
 
 const styles = {
 	page: {
@@ -1101,7 +1102,7 @@ export default function CoachApplicationAdmin({
 							<span style={styles.label}>Read-only owner oversight</span>
 							<h2 id="marketplace-overview-title" style={{ ...styles.name, fontSize: 22 }}>Marketplace activity</h2>
 						</div>
-						<span style={styles.meta}>Use this area to spot stalled requests or payment issues. Conversations remain private from other users.</span>
+						<span style={styles.meta}>Review coaching progress and support requests. Conversations are accessible only to authorized accounts.</span>
 					</div>
 					{previewMode ? (
 						<div style={{ ...styles.empty, textAlign: "left" }}>Apply the marketplace migration and sign in with an owner account to see live conversations and service requests here.</div>
@@ -1113,36 +1114,10 @@ export default function CoachApplicationAdmin({
 						<div style={styles.marketplaceStats}>
 							<div style={styles.marketplaceStat}><span style={styles.label}>Coaching requests</span><strong style={{ fontSize: 28 }}>{pendingCoachRequests}</strong><small style={styles.meta}>Awaiting coach decision</small></div>
 							<div style={styles.marketplaceStat}><span style={styles.label}>Active clients</span><strong style={{ fontSize: 28 }}>{activeCoachRelationships}</strong></div>
-							<div style={styles.marketplaceStat}><span style={styles.label}>Payment attention</span><strong style={{ fontSize: 28 }}>{awaitingPaymentRequests}</strong><small style={styles.meta}>Not yet paid</small></div>
-							<div style={styles.marketplaceStat}><span style={styles.label}>Quick Services</span><strong style={{ fontSize: 28 }}>{activeServiceRequests}</strong><small style={styles.meta}>Matching or in progress</small></div>
+
+
 						</div>
-						<div style={styles.marketplaceLists}>
-							<div>
-								<h3 style={{ margin: "0 0 9px", fontSize: 14 }}>Recent coaching conversations</h3>
-								<ul style={styles.marketplaceList}>
-									{marketplaceOverview.conversations.slice(0, 5).map((conversation) => (
-										<li key={conversation.id} style={styles.marketplaceItem}>
-											<strong>{conversation.client?.fullName || "Weightlisted client"}</strong>
-											<div style={styles.meta}>{conversation.coachName || "Coach"} · {humanizeStatus(conversation.relationshipStatus)} · {formatDate(conversation.updatedAt)}</div>
-										</li>
-									))}
-									{!marketplaceOverview.conversations.length ? <li style={styles.meta}>No shared conversations yet.</li> : null}
-								</ul>
-							</div>
-							<div>
-								<h3 style={{ margin: "0 0 9px", fontSize: 14 }}>Recent Quick Services</h3>
-								<ul style={styles.marketplaceList}>
-									{marketplaceOverview.serviceRequests.slice(0, 5).map((request) => (
-										<li key={request.id} style={styles.marketplaceItem}>
-											<strong>{request.client?.fullName || "Weightlisted client"}</strong>
-											<div style={styles.meta}>{humanizeStatus(request.requestType || request.serviceCategory || "Service request")} · {humanizeStatus(request.paymentStatus)} · {formatDate(request.updatedAt)}</div>
-										</li>
-									))}
-									{!marketplaceOverview.serviceRequests.length ? <li style={styles.meta}>No shared service requests yet.</li> : null}
-								</ul>
-							</div>
-						</div>
-					</>}
+						<AdminConversationReview conversations={marketplaceOverview.conversations} /></>}
 				</section> : null}
 
 				{workspaceSection === "applications" ? <>

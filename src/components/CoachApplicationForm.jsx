@@ -10,7 +10,8 @@ import { gyms as knownGyms } from "../../data/gyms";
 import { STATE_CENTERS } from "../../data/usStates";
 import GymPlaceAutocomplete from "./GymPlaceAutocomplete";
 
-const CAL_INTERVIEW_LINK = "https://cal.com/carinne-tzurdecker-rwwlw0/30min";
+import { isStaging } from "../lib/environment";
+const CAL_INTERVIEW_LINK = isStaging ? "" : "https://cal.com/carinne-tzurdecker-rwwlw0/30min";
 const CAL_INTERVIEW_EVENT_SLUG = "30min";
 const CAL_INTERVIEW_EMBED_LINK = `${CAL_INTERVIEW_LINK}?embed=1&theme=dark`;
 const CAL_EMBED_ORIGINS = new Set(["https://cal.com", "https://app.cal.com"]);
@@ -1824,12 +1825,12 @@ export default function CoachApplicationForm({ onBackToMap, accountEmail = "" })
 								Book a 30 minute interview with Carinne. This interview is
 								required before a coach application can be approved.
 							</div>
-							<iframe
+							{!isStaging ? <iframe
 								title="Book approval interview"
 								src={CAL_INTERVIEW_EMBED_LINK}
 								style={styles.calEmbedFrame}
 								loading="lazy"
-							/>
+							/> : <p>Interview booking is disabled in staging to protect the live calendar.</p>}
 							<label
 								style={{
 									...styles.switchLabel,

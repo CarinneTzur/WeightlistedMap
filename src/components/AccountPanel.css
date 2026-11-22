@@ -243,6 +243,11 @@
 .account-panel__delete-confirm input:focus { border-color: rgba(242, 241, 239, 0.52); box-shadow: 0 0 0 2px rgba(198, 197, 195, 0.12), 0 1.5px 8px rgba(0, 0, 0, 0.22) inset; }
 
 .account-panel__choices { display: flex; flex-wrap: wrap; gap: 8px; }
+.account-panel__custom-focus { display: flex; gap: 8px; margin-top: 10px; }
+.account-panel__custom-focus input { flex: 1; min-width: 0; }
+.account-panel__custom-focus button { flex-shrink: 0; padding: 0 16px; border: 1px solid rgba(125,177,225,.5); border-radius: 999px; background: rgba(72,116,158,.2); color: #f6faff; font: inherit; font-size: 13px; cursor: pointer; }
+.account-panel__custom-focus button:disabled { opacity: .45; cursor: default; }
+.account-panel__choices button { overflow-wrap: anywhere; max-width: 100%; }
 .account-panel__choices button {
 	min-height: 32px;
 	padding: 6px 11px;

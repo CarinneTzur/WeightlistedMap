@@ -320,7 +320,7 @@ export default function ServicesFlow({
 		goTo("review");
 	}
 
-	function saveAndOpenRequest(authenticatedUser = user) {
+	async function saveAndOpenRequest(authenticatedUser = user) {
 		const request = {
 			...buildServiceRequest(draft, attachments),
 			client: {
@@ -336,9 +336,10 @@ export default function ServicesFlow({
 		};
 		setSubmittedRequest(request);
 		try {
-			saveServiceRequest(request);
-		} catch {
-			// The confirmation still works when private browsing blocks local storage.
+			await saveServiceRequest(request);
+		} catch (error) {
+			window.alert(`Request not saved: ${error.message}. Please try again.`);
+			return;
 		}
 		goTo("sent");
 	}
@@ -372,17 +373,19 @@ export default function ServicesFlow({
 		}
 	}
 
-	function addRequestMessage(event) {
+	async function addRequestMessage(event) {
+		try {
 		event.preventDefault();
 		const text = requestMessage.trim();
 		if (!text || !activeRequestId) return;
-		appendServiceRequestMessage(activeRequestId, {
+		await appendServiceRequestMessage(activeRequestId, {
 			id: `service-message-${Date.now()}`,
 			sender: "client",
 			text,
 			createdAt: new Date().toISOString(),
 		});
 		setRequestMessage("");
+		} catch (error) { window.alert(`Not saved: ${error.message}. Please try again.`); }
 	}
 
 	const requestTypeLabel = getRequestTypeLabel(draft);

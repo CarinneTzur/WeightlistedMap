@@ -43,7 +43,7 @@ import "./CoachWorkspace.css";
 const NAV_ITEMS = [
 	{ id: "home", label: "Home" },
 	{ id: "inbox", label: "Inbox" },
-	{ id: "requests", label: "Quick Services" },
+
 	{ id: "clients", label: "Clients" },
 	{ id: "profile", label: "Public profile" },
 	{ id: "account", label: "Account" },
@@ -333,11 +333,13 @@ function MessageComposer({ disabled, placeholder, onSend }) {
 		detachAttachments,
 	} = useLocalMediaDrafts();
 
-	function submit(event) {
+	async function submit(event) {
 		event.preventDefault();
 		const trimmed = text.trim();
 		if (disabled || (!trimmed && !attachments.length)) return;
-		onSend(trimmed, detachAttachments());
+		try { await onSend(trimmed, attachments); }
+		catch (error) { window.alert(`Not saved: ${error.message}. Your draft is still available.`); return; }
+		detachAttachments();
 		setText("");
 	}
 
@@ -439,7 +441,7 @@ function InboxView({ threads, requests, coach, onRefresh, fullscreen = false, on
 		onRefresh();
 	}, [activeThread?.id, activeThread?.kind, activeThread?.sourceId, activeThread?.unreadForCoach, onRefresh]);
 
-	function sendReply(text, attachments) {
+	async function sendReply(text, attachments) {
 		if (!activeThread) return;
 		const message = {
 			id: `coach-message-${Date.now()}`,
@@ -448,8 +450,8 @@ function InboxView({ threads, requests, coach, onRefresh, fullscreen = false, on
 			attachments: attachments.map(({ id, kind, name, size, mimeType, status, url }) => ({ id, kind, name, size, mimeType, status, url })),
 			createdAt: new Date().toISOString(),
 		};
-		if (activeThread.kind === "service") appendServiceRequestMessage(activeThread.sourceId, message);
-		else appendDirectMessageReply(activeThread.sourceId, message);
+		if (activeThread.kind === "service") await appendServiceRequestMessage(activeThread.sourceId, message);
+		else await appendDirectMessageReply(activeThread.sourceId, message);
 		onRefresh();
 	}
 
@@ -532,8 +534,8 @@ function DetailRow({ label, children }) {
 }
 
 function RequestMessages({ request, onRefresh }) {
-	function send(text, attachments) {
-		appendServiceRequestMessage(request.id, {
+	async function send(text, attachments) {
+		await appendServiceRequestMessage(request.id, {
 			id: `coach-service-message-${Date.now()}`,
 			sender: "coach",
 			text,
@@ -591,9 +593,9 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 		markServiceRequestRead(selected.id, "coach");
 	}, [selected?.id, selected?.unreadForCoach]);
 
-	function acceptRequest() {
+	async function acceptRequest() {
 		try {
-			const accepted = claimServiceRequest(selected.id, coach);
+			const accepted = await claimServiceRequest(selected.id, coach);
 			setNotice("Request accepted and moved to Active. You can message the client now.");
 			setTab("active");
 			setActiveId(accepted.id);
@@ -603,35 +605,43 @@ function RequestsView({ requests, coach, onRefresh, initialRequestId = "" }) {
 		}
 	}
 
-	function passRequest() {
-		passServiceRequest(selected.id, coach.id);
+	async function passRequest() {
+		try {
+		await passServiceRequest(selected.id, coach.id);
 		setNotice("Request passed. It remains available to other eligible coaches.");
 		setActiveId("");
 		onRefresh();
+		} catch (error) { window.alert(`Not saved: ${error.message}. Please try again.`); }
 	}
 
-	function completeRequest() {
-		updateServiceRequest(selected.id, { requestStatus: "completed", availabilityStatus: "closed" });
+	async function completeRequest() {
+		try {
+		await updateServiceRequest(selected.id, { requestStatus: "completed", availabilityStatus: "closed" });
 		setNotice("Service completed and moved to Completed.");
 		setTab("completed");
 		setActiveId(selected.id);
 		onRefresh();
+		} catch (error) { window.alert(`Not saved: ${error.message}. Please try again.`); }
 	}
 
-	function confirmSchedule() {
-		updateServiceRequest(selected.id, (request) => ({ details: { ...request.details, scheduleStatus: "confirmed" } }));
+	async function confirmSchedule() {
+		try {
+		await updateServiceRequest(selected.id, (request) => ({ details: { ...request.details, scheduleStatus: "confirmed" } }));
 		setNotice("Requested time confirmed. The client will see the confirmation.");
 		onRefresh();
+		} catch (error) { window.alert(`Not saved: ${error.message}. Please try again.`); }
 	}
 
-	function submitProposedTime(event) {
+	async function submitProposedTime(event) {
+		try {
 		event.preventDefault();
 		if (!proposedDate || !proposedTime) return;
-		updateServiceRequest(selected.id, (request) => ({ details: { ...request.details, scheduleStatus: "proposed", proposedDate, proposedTime } }));
-		appendServiceRequestMessage(selected.id, { id: `schedule-${Date.now()}`, sender: "coach", text: `I proposed ${formatDate(`${proposedDate}T${proposedTime}`, true)} for our session.`, createdAt: new Date().toISOString() });
+		await updateServiceRequest(selected.id, (request) => ({ details: { ...request.details, scheduleStatus: "proposed", proposedDate, proposedTime } }));
+		await appendServiceRequestMessage(selected.id, { id: `schedule-${Date.now()}`, sender: "coach", text: `I proposed ${formatDate(`${proposedDate}T${proposedTime}`, true)} for our session.`, createdAt: new Date().toISOString() });
 		setProposingTime(false);
 		setNotice("A new time was proposed to the client.");
 		onRefresh();
+		} catch (error) { window.alert(`Not saved: ${error.message}. Please try again.`); }
 	}
 
 	const selectedIsActive = selected && selected.claimedBy?.id === coach.id && ["claimed", "in_progress", "delivered"].includes(selected.requestStatus);
@@ -759,20 +769,22 @@ function ClientsView({ threads, onRefresh, onOpenInbox }) {
 		});
 	}
 
-	function confirmDecision() {
+	async function confirmDecision() {
+		try {
 		if (!pendingDecision) return;
-		updateClientRelationship(pendingDecision.threadId, pendingDecision.status);
+		await updateClientRelationship(pendingDecision.threadId, pendingDecision.status);
 		setNotice(pendingDecision.status === "accepted" ? `${pendingDecision.clientName} is now an active coaching client.` : `${pendingDecision.clientName}’s coaching request was passed.`);
 		const accepted = pendingDecision.status === "accepted";
 		setPendingDecision(null);
 		setActiveId("");
 		if (accepted) setTab("active");
 		onRefresh();
+		} catch (error) { window.alert(`Not saved: ${error.message}. Please try again.`); }
 	}
 
-	function sendClientRequestReply(text, attachments) {
+	async function sendClientRequestReply(text, attachments) {
 		if (!activeThread) return;
-		appendDirectMessageReply(activeThread.id, {
+		await appendDirectMessageReply(activeThread.id, {
 			id: `coach-client-request-message-${Date.now()}`,
 			text,
 			attachments: attachments.map(({ id, kind, name, size, mimeType, status, url }) => ({ id, kind, name, size, mimeType, status, url })),
@@ -1140,7 +1152,7 @@ function HomeView({ coach, threads, requests, onNavigate }) {
 	return (
 		<section className="coach-workspace-page coach-home">
 			<PageHeading eyebrow="Coach workspace" title={`Welcome, ${coach.name.split(" ")[0]}`} description="Everything here is driven by what clients can do on Weightlisted." action={<button type="button" className="coach-workspace-mode-button" onClick={() => onNavigate("profile")}>Preview public profile</button>} />
-			<div className="coach-home-stats"><button type="button" onClick={() => onNavigate("inbox")}><span>Unread messages</span><strong>{unread}</strong><small>Open inbox →</small></button><button type="button" onClick={() => onNavigate("clients")}><span>Client requests</span><strong>{pendingClients.length}</strong><small>Review ongoing coaching requests →</small></button><button type="button" onClick={() => onNavigate("requests")}><span>Available Quick Services</span><strong>{available.length}</strong><small>Review one-off paid jobs →</small></button><button type="button" onClick={() => onNavigate("requests")}><span>Active Quick Services</span><strong>{active.length}</strong><small>Finish accepted jobs →</small></button></div>
+			<div className="coach-home-stats"><button type="button" onClick={() => onNavigate("inbox")}><span>Unread messages</span><strong>{unread}</strong><small>Open inbox →</small></button><button type="button" onClick={() => onNavigate("clients")}><span>Client requests</span><strong>{pendingClients.length}</strong><small>Review ongoing coaching requests →</small></button></div>
 			<div className="coach-home-grid"><section><header><div><span>Needs attention</span><h2>Today</h2></div></header>{unread ? <button type="button" onClick={() => onNavigate("inbox")}><b>{unread}</b><div><strong>Messages waiting</strong><span>Read and reply from your inbox.</span></div><i>→</i></button> : null}{pendingClients.length ? <button type="button" onClick={() => onNavigate("clients")}><b>{pendingClients.length}</b><div><strong>Ongoing coaching requests</strong><span>Review and decide who joins your client roster.</span></div><i>→</i></button> : null}{available.length ? <button type="button" onClick={() => onNavigate("requests")}><b>{available.length}</b><div><strong>Quick Services available</strong><span>Short paid jobs waiting for a coach.</span></div><i>→</i></button> : null}{nextSession ? <button type="button" onClick={() => onNavigate("requests")}><b>◷</b><div><strong>{requestTitle(nextSession)}</strong><span>{nextSession.details.scheduledDate} at {nextSession.details.scheduledTime}</span></div><i>→</i></button> : null}{!unread && !pendingClients.length && !available.length && !nextSession ? <EmptyState title="You’re caught up" description="New coaching requests, messages, and Quick Services will appear here." /> : null}</section><aside><span>Profile availability</span><h2>Ready to be discovered</h2><p>Use one control to show your profile and accept new coaching or Quick Service requests.</p><button type="button" onClick={() => onNavigate("profile")}>Manage public profile</button></aside></div>
 		</section>
 	);
@@ -1323,9 +1335,9 @@ export default function CoachWorkspace({
 				<footer><div><Avatar client={{ fullName: coach.name, avatarUrl: coach.avatarUrl }} /><span><strong>{coach.name}</strong><small>{coach.title}</small></span></div><button type="button" onClick={onExitCoachMode}>User View</button></footer>
 			</aside>
 			<div className="coach-workspace-main coach-scroll-panel" ref={mainRef}>
-				{section === "home" ? <HomeView coach={coach} threads={threads} requests={requests} onNavigate={navigate} /> : null}
-				{section === "inbox" ? <InboxView threads={acceptedClientThreads} requests={requests} coach={coach} onRefresh={refresh} fullscreen={inboxFullscreen} onToggleFullscreen={toggleInboxFullscreen} /> : null}
-				{section === "requests" ? <RequestsView requests={requests} coach={coach} onRefresh={refresh} /> : null}
+				{section === "home" ? <HomeView coach={coach} threads={threads} requests={[]} onNavigate={navigate} /> : null}
+				{section === "inbox" ? <InboxView threads={acceptedClientThreads} requests={[]} coach={coach} onRefresh={refresh} fullscreen={inboxFullscreen} onToggleFullscreen={toggleInboxFullscreen} /> : null}
+				{false ? <RequestsView requests={requests} coach={coach} onRefresh={refresh} /> : null}
 				{section === "clients" ? <ClientsView threads={threads} onRefresh={refresh} onOpenInbox={() => navigate("inbox")} /> : null}
 				{section === "profile" ? <PublicProfileView application={application} userProfile={userProfile} previewMode={previewMode} /> : null}
 				{section === "account" ? <AccountView application={application} user={user} onExitCoachMode={onExitCoachMode} onOpenClientAccount={onOpenClientAccount} onSignOut={onSignOut} /> : null}

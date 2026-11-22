@@ -1,3 +1,5 @@
+import { createClient } from "npm:@supabase/supabase-js@2.108.1";
+
 const CAL_API_BASE_URL = "https://api.cal.com/v2";
 const CAL_LIST_BOOKINGS_API_VERSION = "2026-05-01";
 const CAL_GET_BOOKING_API_VERSION = "2026-02-25";
@@ -216,17 +218,35 @@ Deno.serve(async (request) => {
 	}
 
 	try {
+		const supabaseUrl = Deno.env.get("SUPABASE_URL");
+		const anonKey = Deno.env.get("SUPABASE_ANON_KEY");
+		if (!supabaseUrl || !anonKey) {
+			return jsonResponse({ error: "Authentication is not configured." }, 503);
+		}
+		const client = createClient(supabaseUrl, anonKey, {
+			global: { headers: { Authorization: request.headers.get("Authorization") || "" } },
+			auth: { persistSession: false, autoRefreshToken: false },
+		});
+		const { data, error } = await client.auth.getUser();
+		if (error || !data.user?.email || !data.user.email_confirmed_at) {
+			return jsonResponse({ error: "Sign in with a confirmed email to view your booking." }, 401);
+		}
 		const body = (await request.json().catch(() => ({}))) as BookingLookupBody;
-		const fallbackUrl = compactString(body.fallbackUrl);
+		// Ownership comes from the verified account, never caller-supplied details.
+		body.attendeeEmail = data.user.email;
+		body.attendeeName = "";
 		const booking =
 			(await getBookingByUid(compactString(body.bookingUid))) ||
 			(await getRecentBooking(body));
+		if (booking && !hasMatchingAttendeeEmail(booking, data.user.email)) {
+			return jsonResponse({ error: "Booking not found." }, 404);
+		}
 		const interviewBookingUrl = booking ? getMeetingUrl(booking) : "";
 
 		return jsonResponse({
 			ok: true,
 			bookingUid: compactString(booking?.uid) || compactString(body.bookingUid),
-			interviewBookingUrl: interviewBookingUrl || fallbackUrl,
+			interviewBookingUrl,
 			interviewDateTime: compactString(booking?.start),
 			found: Boolean(booking),
 		});

@@ -317,7 +317,7 @@ function AuthDialog({ prompt, recoveryMode = false, onClose, onAuthenticated, on
 					</button>
 				</form>
 				{isPasswordReset ? <button type="button" className="auth-forgot-password auth-recovery-back" onClick={() => { setMode("signin"); setError(""); setNotice(""); }}>← Back to sign in</button> : null}
-				{!isNewPassword ? <p className="auth-footnote">One account can be used as a client and, after approval, as a coach.</p> : null}
+				{!isNewPassword ? <p className="auth-footnote">One account can be used as a client and, after approval, as a coach. Authorized Weightlisted administrators can review coaching conversations for support, safety, and service oversight.</p> : null}
 				</>}
 			</section>
 		</div>

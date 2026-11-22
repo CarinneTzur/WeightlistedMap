@@ -19,6 +19,7 @@ import {
 	useLocalMediaDrafts,
 } from "./src/components/ChatMedia";
 import ServicesFlow from "./src/components/ServicesFlow";
+import ConversationSafety from "./src/components/ConversationSafety";
 import AccountPanel from "./src/components/AccountPanel";
 import AccountMenu from "./src/components/AccountMenu";
 import CoachWorkspace, { CoachApprovalCelebration } from "./src/components/CoachWorkspace";
@@ -2149,6 +2150,7 @@ function CoachProfile({
 
 function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const { user, profile } = useAuth();
+	const [blocked, setBlocked] = useState(false);
 	const messageInputRef = useRef(null);
 	const messageListRef = useRef(null);
 	const initialThread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
@@ -2173,7 +2175,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const specialtyLabel = coach.specialties?.length
 		? coach.specialties.slice(1, 3).join(" • ")
 		: coach.title;
-	const canSend = !coach.isMock && relationshipStatus !== "declined" && Boolean(message.trim() || draftAttachments.length);
+	const canSend = !blocked && !coach.isMock && relationshipStatus !== "declined" && Boolean(message.trim() || draftAttachments.length);
 
 	useEffect(() => {
 		const thread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
@@ -2223,11 +2225,11 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 		});
 	}, [messages]);
 
-	function handleSend() {
-		if (coach.isMock) return;
+	async function handleSend() {
+		if (!canSend) return;
 		const trimmed = message.trim();
 		if (!trimmed && !draftAttachments.length) return;
-		const sentAttachments = detachAttachments();
+		const sentAttachments = draftAttachments;
 		const sentMessage = {
 			id: `message-${Date.now()}-${messages.length}`,
 			sender: "client",
@@ -2242,11 +2244,8 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			})),
 			createdAt: new Date().toISOString(),
 		};
-		setMessages((current) => [
-			...current,
-			{ ...sentMessage, attachments: sentAttachments },
-		]);
-		const savedThread = appendDirectMessage(coach, sentMessage, {
+		try {
+		const savedThread = await appendDirectMessage(coach, sentMessage, {
 			id: user?.id || "",
 			fullName: profile?.full_name || profile?.display_name || user?.user_metadata?.full_name || user?.email?.split("@")[0] || "Weightlisted client",
 			avatarUrl: profile?.avatar_url || "",
@@ -2256,8 +2255,11 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 			trainingNote: profile?.training_note || "",
 			profileVisible: profile?.profile_visible ?? true,
 		});
+		setMessages(savedThread.messages);
+		detachAttachments();
 		setRelationshipStatus(getClientRelationshipStatus(savedThread));
 		setMessage("");
+		} catch (error) { window.alert(`Message not sent: ${error.message}. Your draft is still available.`); }
 	}
 
 	function handleMessageChange(event) {
@@ -2325,6 +2327,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 				<span className="contact-profile-action">View profile →</span>
 			</button>
 
+			{!coach.isMock && <ConversationSafety key={`${user?.id}-${coach.id}`} coachId={coach.id} userId={user?.id} onBlockedChange={setBlocked} refreshKey={messages.length} />}
 			<div className={`coaching-request-status is-${relationshipStatus}`} role="status">
 				<strong>
 					{coach.isMock
@@ -2343,7 +2346,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 						: relationshipStatus === "accepted"
 						? "Use this conversation for your ongoing coaching relationship."
 						: relationshipStatus === "declined"
-							? "You can still purchase a separate Quick Service from available coaches."
+							? "You can explore other coaches to find a better fit."
 							: relationshipStatus === "pending"
 								? `${coach.name} can review your profile and accept you as an ongoing client.`
 								: "Introduce yourself and your goals. Sending the first message creates a coaching request."}
@@ -3073,10 +3076,10 @@ function addGlobalMapStyles() {
       transition: width 220ms ease, height 220ms ease, font-size 220ms ease;
     }
     .coach-map-marker.cluster {
-      background: ${palette.graphite800};
-      border-color: ${palette.graphite700};
-      color: ${palette.text};
-      box-shadow: 0 0 0 2px rgba(198,197,195,0.28), 0 14px 32px rgba(0,0,0,0.52);
+      background: #294D6B;
+      border-color: #426B8D;
+      color: #F1F7FD;
+      box-shadow: 0 0 0 2px rgba(125,177,225,0.32), 0 14px 32px rgba(0,0,0,0.52);
     }
     .coach-map-marker.active,
     .coach-map-marker.cluster.active {
@@ -4327,7 +4330,7 @@ function CoachMapApp({
 		setMobileFilterSheetOpen(false);
 	}
 
-	function showServices(view = "new", { returnToMessages = false } = {}) {
+	function showServices(view = "new", { returnToMessages = false } = {}) { return; // Quick Services are reserved for V2.
 		if (!returnToMessages) prepareCommunicationPanel();
 		setServicesReturnToMessages(returnToMessages);
 		setMessagesOpen(false);
@@ -4337,7 +4340,7 @@ function CoachMapApp({
 		setServicesOpen(true);
 	}
 
-	function openServices(view = "new", options = {}) {
+	function openServices(view = "new", options = {}) { return; // Quick Services are reserved for V2.
 		if (view === "requests") {
 			onRequireAuth?.({
 				reason: "service_history",
@@ -5607,7 +5610,7 @@ function CoachMapApp({
 					/>
 					<nav className="communications-segmented-control desktop-communications-launcher" aria-label="Conversations">
 						<button type="button" onClick={openMessages}>Messages</button>
-						<button type="button" onClick={() => openServices("requests")}>Quick Services</button>
+
 					</nav>
 				</div>
 			) : null}
@@ -5921,9 +5924,7 @@ function CoachMapApp({
 					>
 						🌐 Online Training
 					</button>
-					{isDesktop ? (
-						<button type="button" onClick={() => openServices("new")} style={{ ...styles.servicesLauncher, minWidth: 184 }}>Quick Services</button>
-					) : null}
+
 					{onOpenApplication ? (
 						<button
 							type="button"
@@ -6121,7 +6122,7 @@ function CoachMapApp({
 								coaches={allCoaches}
 								onBack={closeMessages}
 								onOpenThread={setContactCoach}
-								onOpenServices={() => showServices("requests", { returnToMessages: true })}
+								onOpenServices={undefined}
 							/>
 						)
 					) : statesPanelOpen ? (

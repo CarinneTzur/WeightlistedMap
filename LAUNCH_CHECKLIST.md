@@ -1,5 +1,46 @@
 # Weightlisted launch checklist
 
+## Staging deployment
+
+- Keep GitHub `main` and the existing Vercel production site unchanged.
+- Push work to `codex/staging`; the existing Vercel Git integration should create Preview deployments.
+- Preview builds (or builds with `APP_ENV=staging`) use ONLY `VITE_STAGING_SUPABASE_URL` and `VITE_STAGING_SUPABASE_ANON_KEY`. Configure these in Vercel Preview, scoped to `codex/staging`, using a separate test Supabase project. Without them, backend features are disabled; the production Supabase URL is explicitly rejected.
+- Do not copy production accounts, client conversations, service credentials, or live Cal keys to staging.
+- Staging disables the live interview calendar and external application notification webhook.
+- Apply and test migrations in the staging database first. A fresh Supabase project still needs a verified complete baseline; do not assume these incremental migrations create every original table.
+- Test locally with `APP_ENV=staging` set before `npm run build`.
+- After verification, merge a reviewed PR to `main` to release. Do not promote a staging-built artifact to production: rebuild with Production environment values.
+- A preview site alone is not a fully provisioned staging backend.
+
+## V1 release gate — November 21, 2026
+
+Scope: coach discovery, applications, profiles, reviews, and ongoing coaching messages.
+Support contact: getweightlisted@gmail.com.
+Owner preference: no automatic conversation expiration. Retention implementation is
+not yet complete: existing account deletion cascades remain, and deletion-request
+handling and retention exceptions must be settled before promising indefinite retention.
+Client blocking: deploy `20261121040000_client_coach_blocking.sql` and rerun the
+updated privacy migration so hidden profiles can still block/unblock. Blocking
+stops new messages in both directions and preserves existing messages; it does
+not implement abuse investigation or prevent a different account from contacting a user.
+Quick Services and payments are V2. Frontend entry points are disabled; deploy
+`20261121030000_v1_service_gate.sql` to also block new service records in the database.
+
+Current work is local, not a live launch certification:
+
+- Admin conversation dashboard: search/status filters, read-only thread, review reason, and recent review history.
+- Deploy the restored `20261121000000_marketplace_privacy_guards.sql` and verify its triggers.
+- Deploy `20261121020000_admin_conversation_review.sql` before publishing the dashboard.
+- Admin overview retrieves summaries; explicit review openings are logged. Existing admin table SELECT permissions still permit direct access, so this is not a comprehensive database-read audit.
+- Successful synchronization drops inaccessible non-demo records from the browser cache.
+- Decide whether V1 includes private media. Current temporary attachment URLs are not durable uploads and must not be presented as working cross-device media.
+- Decide retention period and support contact before finalizing privacy/deletion flows. Existing cascading account deletion can remove conversations.
+- Test live with separate client, approved coach, unrelated coach, and administrator accounts. Verify forbidden reads and writes as well as successful paths.
+- Verify signup confirmation, password reset, booking lookup, deletion, production environment values, email delivery, backup/restore, and mobile layouts.
+- Apply migrations before deploying dependent frontend code. Do not paste SQL result text into migration files.
+
+Release remains blocked until these live checks and unresolved product decisions are completed.
+
 This app should stay a single product with one account and three permissioned views:
 
 - Client: discover coaches, request ongoing coaching, use Quick Services, message, and manage a profile.

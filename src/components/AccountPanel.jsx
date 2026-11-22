@@ -68,6 +68,7 @@ export default function AccountPanel({
 	const [error, setError] = useState("");
 	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const [deleteText, setDeleteText] = useState("");
+	const [customFocus, setCustomFocus] = useState("");
 
 	useEffect(() => {
 		if (!open) return;
@@ -78,6 +79,7 @@ export default function AccountPanel({
 		setError("");
 		setConfirmingDelete(false);
 		setDeleteText("");
+		setCustomFocus("");
 	}, [open, profile, user]);
 
 	useEffect(() => {
@@ -108,8 +110,20 @@ export default function AccountPanel({
 			...current,
 			trainingFocus: current.trainingFocus.includes(option)
 				? current.trainingFocus.filter((item) => item !== option)
-				: [...current.trainingFocus, option],
+				: current.trainingFocus.length < 6 ? [...current.trainingFocus, option] : current.trainingFocus,
 		}));
+	}
+
+	function addCustomFocus() {
+		const value = customFocus.trim().replace(/\s+/g, " ");
+		if (!value || form.trainingFocus.length >= 6) return;
+		const option = TRAINING_FOCUS_OPTIONS.find((item) => item.toLowerCase() === value.toLowerCase()) || value;
+		setForm((current) => ({
+			...current,
+			trainingFocus: current.trainingFocus.some((item) => item.toLowerCase() === option.toLowerCase())
+				? current.trainingFocus : [...current.trainingFocus, option].slice(0, 6),
+		}));
+		setCustomFocus("");
 	}
 
 	function chooseAvatar(event) {
@@ -266,11 +280,16 @@ export default function AccountPanel({
 						<div className="account-panel__field">
 							<span>What do you train for?</span>
 							<div className="account-panel__choices" role="group" aria-label="Training focus">
-								{TRAINING_FOCUS_OPTIONS.map((option) => {
+								{[...TRAINING_FOCUS_OPTIONS, ...form.trainingFocus.filter((item) => !TRAINING_FOCUS_OPTIONS.includes(item))].map((option) => {
 									const selected = form.trainingFocus.includes(option);
 									return <button key={option} type="button" aria-pressed={selected} className={selected ? "is-selected" : ""} onClick={() => toggleFocus(option)}>{option}</button>;
 								})}
 							</div>
+							<div className="account-panel__custom-focus">
+								<input aria-label="Custom training focus" placeholder="Add your own, e.g. Mobility" value={customFocus} maxLength={48} onChange={(event) => setCustomFocus(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); addCustomFocus(); } }} />
+								<button type="button" onClick={addCustomFocus} disabled={!customFocus.trim() || form.trainingFocus.length >= 6}>+ Add</button>
+							</div>
+							<small>Choose up to 6. Click a selected pill to remove it, then save your profile.</small>
 						</div>
 						<label className="account-panel__field">
 							<span>Training note <em>Optional</em></span>
