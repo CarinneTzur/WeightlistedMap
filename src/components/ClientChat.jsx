@@ -34,6 +34,22 @@ function Conversation({ coach, onBack, onViewProfile, onSelectCoach, user, profi
  const [hasNewMessages, setHasNewMessages] = useState(false);
  const panelRef = useRef(null), inputRef = useRef(null), listRef = useRef(null), expandRef = useRef(null);
  const sendingRef = useRef(false), nearBottom = useRef(true), previousLast = useRef(null), scrollPosition = useRef(null);
+ const motionRef = useRef(null);
+ const mountedRef = useRef(true);
+ useEffect(() => {
+  mountedRef.current = true;
+  return () => { mountedRef.current = false; motionRef.current?.cancel(); };
+ }, []);
+ async function transitionTo(action, target = panelRef.current) {
+  if (motionRef.current) return;
+  if (!target?.animate || window.matchMedia("(prefers-reduced-motion: reduce)").matches) { action(); return; }
+  const animation = target.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: "ease-out", fill: "forwards" });
+  motionRef.current = animation;
+  try { await animation.finished; if (mountedRef.current) action(); }
+  catch { /* Unmounting cancels the pending navigation. */ }
+  finally { animation.cancel(); if (motionRef.current === animation) motionRef.current = null; }
+ }
+ function closeThreads() { void transitionTo(() => setShowThreads(false), panelRef.current?.querySelector(".client-chat-rail")); }
  const messages = thread?.messages || [];
  const status = thread ? getClientRelationshipStatus(thread) : "not_started";
  const disabled = blocked || coach.isMock || status === "declined";
@@ -80,7 +96,7 @@ function Conversation({ coach, onBack, onViewProfile, onSelectCoach, user, profi
  }, [draft, expanded]);
  function toggleExpanded() {
   scrollPosition.current = nearBottom.current ? null : (listRef.current?.scrollTop ?? 0);
-  setExpanded(value => !value);
+  void transitionTo(() => setExpanded(value => !value));
  }
  useEffect(() => {
   if (!expanded) return;
@@ -88,7 +104,7 @@ function Conversation({ coach, onBack, onViewProfile, onSelectCoach, user, profi
   document.body.style.overflow = "hidden";
   expandRef.current?.focus();
   const handleKey = event => {
-   if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); if (showThreads) setShowThreads(false); else toggleExpanded(); }
+   if (event.key === "Escape") { event.preventDefault(); event.stopImmediatePropagation(); if (showThreads) closeThreads(); else toggleExpanded(); }
    if (event.key !== "Tab") return;
    const items = [...panelRef.current.querySelectorAll('button:not(:disabled),textarea:not(:disabled),a[href],summary,[tabindex="0"]')].filter(item => item.getClientRects().length);
    const first = items[0], last = items.at(-1);
@@ -114,12 +130,12 @@ function Conversation({ coach, onBack, onViewProfile, onSelectCoach, user, profi
   finally { sendingRef.current = false; setSending(false); }
  }
  const panel = <section ref={panelRef} className={`client-chat${expanded ? " client-chat-expanded" : ""}`} role={expanded ? "dialog" : undefined} aria-modal={expanded || undefined} aria-label={`Messages with ${coach.name}`}>
-  {expanded && <ConversationRail coach={coach} userId={user?.id} onSelect={onSelectCoach} open={showThreads} onClose={() => setShowThreads(false)} />}
+  {expanded && <ConversationRail coach={coach} userId={user?.id} onSelect={next => { if (next.id !== coach.id) void transitionTo(() => onSelectCoach?.(next), panelRef.current?.querySelector(".client-chat-conversation")); }} open={showThreads} onClose={closeThreads} />}
   <div className="client-chat-conversation" inert={expanded && showThreads ? "" : undefined}>
   <header className="client-chat-header">
    {expanded && <button type="button" className="client-chat-icon client-chat-list-toggle" aria-label="Show conversations" onClick={() => setShowThreads(true)}>☰</button>}
-   <button type="button" className="client-chat-icon" aria-label="Back to conversations" onClick={onBack}><Icon name="back" /></button>
-   <button type="button" className="client-chat-identity" onClick={onViewProfile} aria-label={`View ${coach.name}'s profile`}>
+   <button type="button" className="client-chat-icon" aria-label="Back to conversations" onClick={() => transitionTo(onBack)}><Icon name="back" /></button>
+   <button type="button" className="client-chat-identity" onClick={() => transitionTo(onViewProfile)} aria-label={`View ${coach.name}'s profile`}>
     <img src={coach.headshot} alt="" /><span><strong>{coach.name}</strong><small>{blocked ? "Messaging blocked" : status === "accepted" ? "Your coach" : status === "pending" ? "Request pending" : status === "declined" ? "Request closed" : "Coaching conversation"}</small></span>
    </button>
    <button type="button" ref={expandRef} className={`client-chat-icon${expanded ? " client-chat-exit" : ""}`} onClick={toggleExpanded} aria-expanded={expanded} aria-label={expanded ? "Exit full screen" : "Full screen messages"} title={expanded ? "Exit full screen (Escape)" : "Full screen messages"}><Icon name={expanded ? "collapse" : "expand"} />{expanded && <span>Exit full screen</span>}</button>
@@ -160,7 +176,7 @@ function Conversation({ coach, onBack, onViewProfile, onSelectCoach, user, profi
    <span className="client-chat-shortcut" role="status">{sending ? "Sending…" : "Ctrl + Enter to send"}</span>
   </form>
   </div>
-  {expanded && <CoachDetails coach={coach} status={status} onViewProfile={onViewProfile} />}
+  {expanded && <CoachDetails coach={coach} status={status} onViewProfile={() => transitionTo(onViewProfile)} />}
  </section>;
  return expanded ? createPortal(panel, document.body) : panel;
 }

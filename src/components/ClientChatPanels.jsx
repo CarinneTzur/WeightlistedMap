@@ -20,7 +20,7 @@ export function ConversationRail({ coach, userId, onSelect, open, onClose }) {
   <div className="client-chat-rail-heading"><div><small>YOUR COACHING</small><h2>Messages</h2></div><button type="button" className="client-chat-icon client-chat-list-close" onClick={onClose} aria-label="Close conversation list">×</button></div>
   <div className="client-chat-search"><input aria-label="Search conversations" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search conversations" /></div>
   <ScrollArea className="client-chat-thread-list">
-   {filtered.map(({ thread, person }) => <button type="button" key={thread.coachId} className={`client-chat-thread${thread.coachId === coach.id ? " is-active" : ""}`} aria-current={thread.coachId === coach.id ? "true" : undefined} disabled={!person || !onSelect} onClick={() => { onSelect(person); onClose(); }}>
+   {filtered.map(({ thread, person }) => <button type="button" key={thread.coachId} className={`client-chat-thread${thread.coachId === coach.id ? " is-active" : ""}`} aria-current={thread.coachId === coach.id ? "true" : undefined} disabled={!person || !onSelect} onClick={() => { if (person.id === coach.id) onClose(); else onSelect(person); }}>
     <img src={person?.headshot || thread.coachHeadshot} alt="" /><span><strong>{person?.name || thread.coachName || "Coach"}</strong><span>{thread.messages?.at(-1)?.text || "Start a conversation"}</span><small>{!person ? "Profile unavailable" : getClientRelationshipStatus(thread) === "accepted" ? "Active coaching" : "Coaching request"}</small></span>
    </button>)}
    {!filtered.length && <p className="client-chat-rail-empty">No matching conversations.</p>}
