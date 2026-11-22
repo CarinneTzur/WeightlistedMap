@@ -2174,7 +2174,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 	const messageListRef = useRef(null);
 	const initialThread = loadDirectMessageThread(coach.id, { userId: user?.id || "" });
 	const [message, setMessage] = useState(
-		`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
+		initialThread?.messages?.length ? "" : `Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 	);
 	const [messages, setMessages] = useState(
 		() => initialThread?.messages || [],
@@ -2202,7 +2202,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 		setRelationshipStatus(thread ? getClientRelationshipStatus(thread) : "not_started");
 		if (thread?.id && thread.unreadForClient) markDirectMessageThreadRead(thread.id, "client");
 		setMessage(
-			`Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
+			thread?.messages?.length ? "" : `Hi ${coach.name.split(" ")[0]}, I found your profile on Weightlisted and wanted to ask about coaching.`,
 		);
 		void refreshMarketplaceData();
 	}, [coach.id, coach.name, user?.id]);
@@ -2295,7 +2295,7 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 
 	const panel = (
 		<div
-			className={expanded ? "client-chat-expanded" : undefined}
+			className={`client-chat ${expanded ? "client-chat-expanded" : ""}`}
 			role={expanded ? "dialog" : undefined}
 			aria-modal={expanded ? true : undefined}
 			aria-label={expanded ? "Messages with " + coach.name : undefined}
@@ -2304,80 +2304,17 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 				...(isDesktop ? {} : { minHeight: 0 }),
 			}}
 		>
-			<div style={styles.contactTopRow}>
-                <button ref={expandButtonRef} type="button" className="ui-button client-chat-expand-button" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} title={expanded ? "Exit full screen (Escape)" : "Expand messages"}>
-                 <span aria-hidden="true">{expanded ? "↙" : "⛶"}</span> {expanded ? "Exit full screen" : "Full screen"}
-                </button>
-				<button
-					type="button"
-					style={styles.backArrow}
-					aria-label="Back to coach profile"
-					onClick={() => { setExpanded(false); onBack(); }}
-				>
-					←
-				</button>
-				<span
-					style={{
-						fontSize: 12,
-						color: palette.muted,
-						letterSpacing: "0.18em",
-						textTransform: "uppercase",
-					}}
-				>
-					Coaching request
-				</span>
-			</div>
-
-			<button
-				type="button"
-				className="contact-profile-link"
-				style={styles.contactHeader}
-				onClick={() => { setExpanded(false); onViewProfile(); }}
-				aria-label={`View ${coach.name}’s profile on the map`}
-			>
-				<img
-					src={coach.headshot}
-					alt={coach.name}
-					style={styles.contactAvatar}
-					loading="lazy"
-				/>
-				<div style={{ minWidth: 0 }}>
-					<div style={styles.contactName}>{coach.name}</div>
-					<div style={styles.contactSpecialty}>
-						{primarySpecialty}
-						{specialtyLabel && specialtyLabel !== primarySpecialty
-							? ` • ${specialtyLabel}`
-							: ""}
-					</div>
-				</div>
-				<span className="contact-profile-action">View profile →</span>
-			</button>
-
-			{!coach.isMock && <ConversationSafety key={`${user?.id}-${coach.id}`} coachId={coach.id} userId={user?.id} onBlockedChange={setBlocked} refreshKey={messages.length} />}
-			<div className={`coaching-request-status is-${relationshipStatus}`} role="status">
-				<strong>
-					{coach.isMock
-						? "Mock coach profile"
-						: relationshipStatus === "accepted"
-						? "You’re an active coaching client"
-						: relationshipStatus === "declined"
-							? "This coaching request wasn’t accepted"
-							: relationshipStatus === "pending"
-								? "Coaching request pending"
-								: "Ask about ongoing coaching"}
-				</strong>
-				<span>
-					{coach.isMock
-						? "This temporary profile demonstrates the marketplace. Messaging is disabled until a real coach replaces it."
-						: relationshipStatus === "accepted"
-						? "Use this conversation for your ongoing coaching relationship."
-						: relationshipStatus === "declined"
-							? "You can explore other coaches to find a better fit."
-							: relationshipStatus === "pending"
-								? `${coach.name} can review your profile and accept you as an ongoing client.`
-								: "Introduce yourself and your goals. Sending the first message creates a coaching request."}
-				</span>
-			</div>
+            <header className="client-chat-header">
+             <button type="button" className="client-chat-icon" aria-label="Back to coach profile" onClick={() => { setExpanded(false); onBack(); }}>←</button>
+             <button type="button" className="client-chat-identity" onClick={() => { setExpanded(false); onViewProfile(); }} aria-label={`View ${coach.name}'s profile`}>
+              <img src={coach.headshot} alt="" />
+              <span><strong>{coach.name}</strong><small>{blocked ? "Messaging blocked" : relationshipStatus === "accepted" ? "Your coach" : relationshipStatus === "pending" ? "Request pending" : relationshipStatus === "declined" ? "Request closed" : "Ask about coaching"}</small></span>
+             </button>
+             <button ref={expandButtonRef} type="button" className="client-chat-icon" onClick={() => setExpanded(value => !value)} aria-expanded={expanded} aria-label={expanded ? "Exit full screen" : "Full screen messages"} title={expanded ? "Exit full screen (Escape)" : "Full screen messages"}>{expanded ? "↙" : "⛶"}</button>
+            </header>
+            {!coach.isMock && <ConversationSafety key={`${user?.id}-${coach.id}`} coachId={coach.id} userId={user?.id} onBlockedChange={setBlocked} refreshKey={messages.length} />}
+            {coach.isMock && <p className="client-chat-notice">Mock profile · messaging unavailable</p>}
+            {relationshipStatus === "not_started" && !coach.isMock && <p className="client-chat-notice">Introduce yourself. Your first message sends a coaching request.</p>}
 
 			<div
 				style={{
@@ -2436,27 +2373,23 @@ function ContactPanel({ coach, onBack, onViewProfile, isDesktop }) {
 					</div>
 				) : null}
 
-				<div style={styles.messageInputWrap}>
+				<div className="client-chat-composer">
 					<MediaPickerButton onFiles={handleMediaFiles} />
 					<textarea
 						ref={messageInputRef}
-						className="coach-scroll-panel"
-						style={styles.messageInput}
-						placeholder={coach.isMock ? "Mock coach — messaging is disabled" : relationshipStatus === "declined" ? "This request is closed" : "Tell the coach about your goals..."}
+						className="ui-scroll-area client-chat-input"
+						placeholder={coach.isMock ? "Preview only" : blocked ? "Coach blocked" : relationshipStatus === "declined" ? "This request is closed" : "Write a message…"}
 						aria-label={`Message to ${coach.name}`}
 						value={message}
 						onChange={handleMessageChange}
 						onKeyDown={handleMessageKeyDown}
-						disabled={coach.isMock || relationshipStatus === "declined"}
+						disabled={blocked || coach.isMock || relationshipStatus === "declined"}
 						rows={1}
 						autoFocus
 					/>
 					<button
 						type="button"
-						style={{
-							...styles.sendButton,
-							...(!canSend ? styles.sendButtonDisabled : {}),
-						}}
+						className="client-chat-send"
 						onClick={handleSend}
 						disabled={!canSend}
 						aria-label="Send message"
